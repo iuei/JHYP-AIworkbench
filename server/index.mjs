@@ -40,7 +40,17 @@ const corsOrigin = process.env.CORS_ORIGIN?.split(',') ?? ['http://localhost:517
 if (!secret) throw new Error('JWT_SECRET 未配置')
 app.use(cors({ origin: corsOrigin }))
 app.use(express.json())
-const sign = (user) => jwt.sign({ id: user.id, login: user.login, role: user.role }, secret, { expiresIn: '8h' })
+/**
+ * 签发 JWT。
+ *
+ * `ver` 是账号的令牌版本号（`users.token_version`）：改密码时该字段 +1，
+ * 此前签发的所有 token 会在下一次请求回源比对时立即失效。
+ */
+const sign = (user) => jwt.sign(
+  { id: user.id, login: user.login, role: user.role, ver: Number(user.token_version ?? 0) },
+  secret,
+  { expiresIn: '8h' }
+)
 async function requireUser(req, res, next) {
   let claims
   try {
@@ -53,11 +63,16 @@ async function requireUser(req, res, next) {
   }
   try {
     const { rows } = await query(
-      'SELECT id, login, role, status FROM users WHERE id = $1',
+      'SELECT id, login, role, status, token_version FROM users WHERE id = $1',
       [claims.id]
     )
     if (!isEnabledUser(rows[0])) {
       return res.status(401).json({ message: '账号已停用或不存在。' })
+    }
+    // 令牌版本比对：改密码后旧 token 立即失效。
+    // 旧 token 没有 ver 声明时按 0 处理，与库里的初始值一致，因此不会把所有在线用户踢下线。
+    if (Number(claims.ver ?? 0) !== Number(rows[0].token_version ?? 0)) {
+      return res.status(401).json({ message: '密码已变更，请重新登录。' })
     }
     // status 一并下发：AI 助手模块的权限判定（permissions.mjs）依赖它，
     // 且这里已经实时校验过账号启用状态，下发的值即当前真实状态。
@@ -219,12 +234,27 @@ app.post('/api/users', requireUser, requireAdmin, async (req, res, next) => {
     if (error instanceof UserUpdateValidationError) return res.status(400).json({ message: error.message })
     return next(error)
   }
-  const hash = await bcrypt.hash(input.password, 12)
-  const { rows } = await query(
-    'INSERT INTO users (login, name, password_hash, role, department) VALUES ($1,$2,$3,$4,$5) RETURNING id, login, name, role, department, status, created_at',
-    [input.login, input.name, hash, input.role, input.department]
-  )
-  return res.status(201).json(rows[0])
+  try {
+    const hash = await bcrypt.hash(input.password, 12)
+    const { rows } = await query(
+      'INSERT INTO users (login, name, password_hash, role, department) VALUES ($1,$2,$3,$4,$5) RETURNING id, login, name, role, department, status, created_at',
+      [input.login, input.name, hash, input.role, input.department]
+    )
+    // 新建账号可以指定 role=admin —— 这是提权路径，必须留痕（detail 绝不记密码）。
+    await recordAudit({
+      actorId: req.user.id,
+      action: AUDIT_ACTIONS.userCreate,
+      targetType: 'user',
+      targetId: rows[0].id,
+      detail: { login: rows[0].login, role: rows[0].role, department: rows[0].department ?? null },
+      ip: clientIp(req),
+    })
+    return res.status(201).json(rows[0])
+  } catch (error) {
+    // 账号唯一约束：返回 409 而不是 500（同一文件里导航接口已有这个映射范例）
+    if (error?.code === '23505') return res.status(409).json({ message: '该账号已存在。' })
+    return next(error)
+  }
 })
 app.patch('/api/users/:id', requireUser, requireAdmin, async (req, res, next) => {
   let update
@@ -277,6 +307,16 @@ app.patch('/api/users/:id', requireUser, requireAdmin, async (req, res, next) =>
       'UPDATE users SET name = $1, role = $2, department = COALESCE($3, department) WHERE id = $4 RETURNING id, login, name, role, department, status, created_at, last_login_at',
       [update.name, update.role, update.department, target.id]
     )
+    // 改角色是提权路径（user → admin）。审计写在事务内：与账号变更同生共死，不会出现"改了没记"。
+    await recordAudit({
+      actorId: req.user.id,
+      action: AUDIT_ACTIONS.userUpdate,
+      targetType: 'user',
+      targetId: target.id,
+      detail: { login: rows[0].login, roleFrom: target.role, roleTo: rows[0].role },
+      ip: clientIp(req),
+      client,
+    })
     await client.query('COMMIT')
     return res.json(rows[0])
   } catch (error) {
@@ -341,6 +381,16 @@ app.patch('/api/users/:id/status', requireUser, requireAdmin, async (req, res, n
       'UPDATE users SET status = $1 WHERE id = $2 RETURNING id, status',
       [nextStatus, target.id]
     )
+    // 停用/启用他人账号直接影响其访问能力（停用会立刻让旧 JWT 失效），必须留痕。
+    await recordAudit({
+      actorId: req.user.id,
+      action: AUDIT_ACTIONS.userStatus,
+      targetType: 'user',
+      targetId: target.id,
+      detail: { statusFrom: target.status, statusTo: rows[0].status },
+      ip: clientIp(req),
+      client,
+    })
     await client.query('COMMIT')
     return res.json(rows[0])
   } catch (error) {
@@ -363,7 +413,8 @@ app.post('/api/users/:id/reset-password', requireUser, requireAdmin, async (req,
 
   try {
     const { rows } = await query(
-      'UPDATE users SET password_hash = $1 WHERE id = $2 RETURNING id, login',
+      // token_version + 1：让该账号此前签发的所有 JWT 立即失效 —— 改密码必须真的把攻击者踢下线
+      'UPDATE users SET password_hash = $1, token_version = token_version + 1 WHERE id = $2 RETURNING id, login',
       [await bcrypt.hash(password, 12), id]
     )
     if (rows.length === 0) return res.status(404).json({ message: '账号不存在。' })

@@ -20,6 +20,7 @@ await client.query(`
   CREATE TABLE IF NOT EXISTS users (
     id SERIAL PRIMARY KEY, login VARCHAR(120) UNIQUE NOT NULL, name VARCHAR(80) NOT NULL,
     password_hash TEXT NOT NULL, role VARCHAR(20) NOT NULL DEFAULT 'operator', status VARCHAR(20) NOT NULL DEFAULT 'enabled',
+    token_version INTEGER NOT NULL DEFAULT 0,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), last_login_at TIMESTAMPTZ
   );
   CREATE TABLE IF NOT EXISTS shortcut_preferences (

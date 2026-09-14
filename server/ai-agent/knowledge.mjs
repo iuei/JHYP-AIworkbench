@@ -288,11 +288,20 @@ export async function ingestDocument({
       ]
     )
     const documentId = document.rows[0].id
-    for (const [index, content] of chunks.entries()) {
+    // 分批多值 INSERT：长文档会被切成上百片，逐片插入就是上百次往返，且全程占着事务。
+    const CHUNK_BATCH_SIZE = 200
+    for (let start = 0; start < chunks.length; start += CHUNK_BATCH_SIZE) {
+      const batch = chunks.slice(start, start + CHUNK_BATCH_SIZE)
+      const params = []
+      const tuples = batch.map((content, offset) => {
+        params.push(documentId, start + offset, content, estimateTokenCount(content))
+        const base = params.length - 3
+        return `($${base}, $${base + 1}, $${base + 2}, $${base + 3})`
+      })
       await client.query(
         `INSERT INTO ai_chunks (document_id, chunk_index, content, token_count)
-         VALUES ($1, $2, $3, $4)`,
-        [documentId, index, content, estimateTokenCount(content)]
+         VALUES ${tuples.join(', ')}`,
+        params
       )
     }
     if (ownsTransaction) await client.query('COMMIT')

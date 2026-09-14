@@ -87,7 +87,11 @@ function declarationsOf(results) {
   const freshness = results.map((result) => result.dataFreshness).find(Boolean)
   const source = freshness?.label ?? '企业知识库'
   const until = formatDate(freshness?.importedAt)
-  return `📊 数据来源：${source} · 🕐 数据截至 ${until} · 🔒 依据权限范围：本次检索仅覆盖当前账号可见的文档`
+  // 措辞禁忌：回答正文里**不能**出现「工具 / 能力 / 权限」紧接「列表 / 清单 / 白名单 / 范围」的组合
+  // —— 那正是 `prompt.mjs` 的权限泄露模式。命中后编排层会把整段回答替换成统一拦截文案，
+  // 并且记一条 `tool_blocked` 审计：演示模式的正常问答与越权指标会一起失真。
+  // 声明条本身由服务端在检测之后追加（`ensureFreshnessDeclaration`），这里只是演示用的等价表述。
+  return `📊 数据来源：${source} · 🕐 数据截至 ${until} · 🔒 检索范围：仅覆盖当前账号可见的文档`
 }
 
 function composeFromSearch(result) {
@@ -155,7 +159,8 @@ export function composeDemoAnswer(results, { roleLabel = '普通用户' } = {}) 
       '',
       NO_RESULT_ANSWER,
       '',
-      `📊 数据来源：企业知识库 · 🕐 数据截至 未知 · 🔒 依据权限范围：${roleLabel}`,
+      // 同 declarationsOf：措辞不能构成权限泄露模式，否则回答会被编排层判成越权拦截
+      `📊 数据来源：企业知识库 · 🕐 数据截至 未知 · 🔒 检索范围：${roleLabel}`,
     ].join('\n')
   }
 

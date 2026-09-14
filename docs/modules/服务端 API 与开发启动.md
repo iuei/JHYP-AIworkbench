@@ -60,6 +60,9 @@
 - **统一错误出口**：所有路由之后注册了 JSON 错误中间件（`server/index.mjs` 末尾）。未捕获异常返回 `{ message: '服务器内部错误，请稍后重试。' }`，堆栈只写服务端日志 —— 前端所有接口都按 JSON 解析错误体，返回 Express 默认 HTML 会让错误原因丢失，非 production 下还会把堆栈（含绝对路径与 SQL 片段）回给客户端。
 - **DATE 列按字符串回传**：`pg.types.setTypeParser(1082, v => v)` 让 DATE 返回 `'YYYY-MM-DD'`。pg 默认会把它解析成**本地时区午夜**的 Date，再经 `toISOString()` 就整体前移一天（东八区必现），曾导致按区间取数丢掉第一天。
 - **真实 IP 与代理**：默认**不信任** `X-Forwarded-For`（审计 IP 取直连地址，该请求头客户端可随意伪造）；部署在反向代理之后时设 `TRUST_PROXY=true`，届时采信转发头并取链尾一跳。
+- **用户迁移 3 新增 `users.token_version`**：JWT 里带 `ver` 声明，`requireUser` 与 AI 模块的 `identityGuard` 都比对，重置密码时 `+1` → 旧 token 立即失效。**这两处守卫必须同时改**：AI 路由挂在独立 router 上、不共用 `requireUser`，漏一处旧 token 仍能访问 `/api/ai/*`。
+- **`test:server` 的覆盖范围**：脚本显式列出 `server/*.node-test.mjs`、`server/ai-agent/*.node-test.mjs`、`server/ai-agent/providers/*.node-test.mjs`。**新增子目录测试时必须同步加进去** —— 此前 `providers/` 被漏掉，那 24 项 provider 测试长期没有执行过。
+- **批量写入**：数据集导入按 500 行、文档切片按 200 片分批 `INSERT`（`datasets.mjs` / `knowledge.mjs`）。不要退回逐行 `client.query` —— 那是"一行一次往返"，且全程占着同一事务与连接。
 
 ## 约束
 

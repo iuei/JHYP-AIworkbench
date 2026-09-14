@@ -3,8 +3,7 @@
  * 组件不得散落 fetch / axios，统一通过本文件的 hook 访问接口。
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { api } from '@/api/client'
-import { useAuthStore } from '@/stores/auth-store'
+import { api, rawRequest } from '@/api/client'
 import type {
   AiMessage,
   AiSettings,
@@ -245,17 +244,13 @@ export function useUploadDocumentFile() {
       file: File
       expiresAt?: string | null
     }) => {
-      const token = useAuthStore.getState().auth.accessToken
-      const baseUrl =
-        import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8787/api'
-      const response = await fetch(
-        `${baseUrl}/ai/knowledge/documents/upload${queryString({ title: file.name, expiresAt })}`,
+      const response = await rawRequest(
+        `/ai/knowledge/documents/upload${queryString({ title: file.name, expiresAt })}`,
         {
           method: 'POST',
           headers: {
             'content-type': 'application/octet-stream',
             'x-file-name': encodeURIComponent(file.name),
-            ...(token ? { authorization: `Bearer ${token}` } : {}),
           },
           body: await file.arrayBuffer(),
         }
@@ -267,9 +262,9 @@ export function useUploadDocumentFile() {
             document?: KnowledgeDocument
           })
         : {}
-      if (!response.ok)
-        throw new Error(parsed.message ?? '上传失败，请稍后重试。')
-      return parsed.document as KnowledgeDocument
+      // 非 2xx 已由 rawRequest 抛出（带服务端的中文原因），这里只处理成功响应体
+      if (!parsed.document) throw new Error(parsed.message ?? '上传失败，请稍后重试。')
+      return parsed.document
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['ai', 'documents'] })
@@ -391,17 +386,13 @@ export function useImportDataset() {
       file: File
       onRowError?: 'reject' | 'skip'
     }) => {
-      const token = useAuthStore.getState().auth.accessToken
-      const baseUrl =
-        import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8787/api'
-      const response = await fetch(
-        `${baseUrl}/ai/imports${queryString({ dataset, mode, onRowError })}`,
+      const response = await rawRequest(
+        `/ai/imports${queryString({ dataset, mode, onRowError })}`,
         {
           method: 'POST',
           headers: {
             'content-type': 'application/octet-stream',
             'x-file-name': encodeURIComponent(file.name),
-            ...(token ? { authorization: `Bearer ${token}` } : {}),
           },
           body: await file.arrayBuffer(),
         }
@@ -605,14 +596,9 @@ export function useExportAudit() {
       type: string
       params: Record<string, unknown>
     }) => {
-      const token = useAuthStore.getState().auth.accessToken
-      const baseUrl =
-        import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8787/api'
-      const response = await fetch(
-        `${baseUrl}/ai/audit/export${queryString({ type, ...params })}`,
-        { headers: token ? { authorization: `Bearer ${token}` } : {} }
+      const response = await rawRequest(
+        `/ai/audit/export${queryString({ type, ...params })}`
       )
-      if (!response.ok) throw new Error('导出失败，请稍后重试。')
       return await response.text()
     },
   })
@@ -622,17 +608,9 @@ export function useExportAudit() {
 
 /** 带 token 拉取导出文本（服务端同时写导出审计）。 */
 async function fetchExport(path: string): Promise<string> {
-  const token = useAuthStore.getState().auth.accessToken
-  const baseUrl =
-    import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8787/api'
-  const response = await fetch(`${baseUrl}${path}`, {
-    headers: token ? { authorization: `Bearer ${token}` } : {},
-  })
-  // 服务端会给出可操作的原因（时间范围超限、筛选参数非法等），直接透出而不是统一吞成"导出失败"
-  if (!response.ok) {
-    const payload = await response.json().catch(() => null)
-    throw new Error(payload?.message ?? '导出失败，请稍后重试。')
-  }
+  // 服务端会给出可操作的原因（时间范围超限、筛选参数非法等），rawRequest 会把它原样抛出，
+  // 而不是统一吞成"导出失败"。
+  const response = await rawRequest(path)
   return await response.text()
 }
 

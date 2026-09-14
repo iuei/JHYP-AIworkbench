@@ -9,7 +9,7 @@ import {
   Upload,
 } from 'lucide-react'
 import { toast } from 'sonner'
-import { useAuthStore } from '@/stores/auth-store'
+import { rawRequest } from '@/api/client'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -89,18 +89,9 @@ export function DatasourceManagement() {
   /** 模板下载需要带 JWT，直接 fetch 取回后落盘（浏览器原生下载不带 Authorization 头）。 */
   const downloadTemplate = async () => {
     try {
-      const accessToken = useAuthStore.getState().auth.accessToken
-      const baseUrl =
-        import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8787/api'
-      const response = await fetch(
-        `${baseUrl}/ai/imports/template?dataset=${encodeURIComponent(dataset)}`,
-        {
-          headers: accessToken
-            ? { authorization: `Bearer ${accessToken}` }
-            : {},
-        }
+      const response = await rawRequest(
+        `/ai/imports/template?dataset=${encodeURIComponent(dataset)}`
       )
-      if (!response.ok) throw new Error('模板下载失败，请稍后重试')
       const blob = await response.blob()
       const url = URL.createObjectURL(blob)
       const anchor = document.createElement('a')

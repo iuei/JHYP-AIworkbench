@@ -444,6 +444,8 @@ function buildInsert(spec) {
   const placeholders = keys.map((_, index) => `$${index + 1}`).join(', ')
   return {
     keys,
+    /** 列清单（含 import_id / imported_at），供批量插入拼多值 VALUES 使用 */
+    insertColumns: `${columns}, import_id, imported_at`,
     sql: `INSERT INTO ${spec.table} (${columns}, import_id, imported_at)
           VALUES (${placeholders}, $${keys.length + 1}, NOW())
           ON CONFLICT DO NOTHING`,
@@ -529,13 +531,27 @@ export async function importDataset({
     }
 
     const insert = buildInsert(spec)
+    // 分批多值 INSERT。
+    // 逐行 `client.query` 是"一行一次往返"：几千行的报表就是几千次序列化→网络→解析→计划→执行，
+    // 而且全程占着同一个事务与数据库连接（事务时长还会放大并发审核时的行锁等待）。
+    // 分成 500 行一批，往返次数降低两个数量级，冲突语义（ON CONFLICT DO NOTHING）保持不变。
+    const INSERT_BATCH_SIZE = 500
     let insertedRows = 0
-    for (const record of parsed.records) {
-      const values = insert.keys.map((key) => {
-        const value = record[key]
-        return value === undefined ? null : value
+    for (let start = 0; start < parsed.records.length; start += INSERT_BATCH_SIZE) {
+      const batch = parsed.records.slice(start, start + INSERT_BATCH_SIZE)
+      const params = []
+      const tuples = batch.map((record) => {
+        const placeholders = insert.keys.map((key) => {
+          const value = record[key]
+          params.push(value === undefined ? null : value)
+          return `$${params.length}`
+        })
+        params.push(importId)
+        placeholders.push(`$${params.length}`, 'NOW()')
+        return `(${placeholders.join(', ')})`
       })
-      const result = await client.query(insert.sql, [...values, importId])
+      const sql = `INSERT INTO ${spec.table} (${insert.insertColumns}) VALUES ${tuples.join(', ')} ${insert.conflictHint}`
+      const result = await client.query(sql, params)
       insertedRows += result.rowCount
     }
 

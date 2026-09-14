@@ -25,12 +25,17 @@ export function createIdentityGuard() {
   return async (req, res, next) => {
     try {
       const { rows } = await query(
-        'SELECT id, login, role, status FROM users WHERE id = $1',
+        'SELECT id, login, role, status, token_version FROM users WHERE id = $1',
         [req.user?.id]
       )
       const row = rows[0]
       if (!row || row.status !== 'enabled') {
         return res.status(401).json({ message: '账号已停用或不存在。' })
+      }
+      // 与 server/index.mjs 的 requireUser 保持同一口径：改密码后旧 token 立即失效。
+      // AI 路由挂在独立 router 上、不共用 requireUser，漏了这一句旧 token 仍能访问 /api/ai/*。
+      if (Number(req.user?.ver ?? 0) !== Number(row.token_version ?? 0)) {
+        return res.status(401).json({ message: '密码已变更，请重新登录。' })
       }
       req.user = { ...req.user, id: row.id, login: row.login, role: row.role, status: row.status }
       return next()

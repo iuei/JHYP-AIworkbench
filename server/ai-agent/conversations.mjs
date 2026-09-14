@@ -256,9 +256,15 @@ export async function listUnhandledFeedback({ limit = 50 } = {}) {
   return rows
 }
 
+/**
+ * 标记纠错反馈已处理。
+ *
+ * 条件里必须带 `AND handled = false`：否则重复调用会一直"成功"，
+ * 调用方无法区分"这次真的处理了"和"早就处理过"，管理动作的审计会被重复记录。
+ */
 export async function markFeedbackHandled(feedbackId) {
   const { rows } = await query(
-    `UPDATE ai_feedback SET handled = true WHERE id = $1 RETURNING id, handled`,
+    `UPDATE ai_feedback SET handled = true WHERE id = $1 AND handled = false RETURNING id, handled`,
     [feedbackId]
   )
   return rows[0] ?? null

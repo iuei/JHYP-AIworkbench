@@ -305,7 +305,18 @@ export function createKnowledgeRouter({ adminGuard }) {
     if (!id) return res.status(400).json({ message: '反馈参数无效。' })
     try {
       const updated = await markFeedbackHandled(id)
-      if (!updated) return res.status(404).json({ message: '反馈不存在。' })
+      // null 有两种可能：反馈不存在，或早就处理过（`handled = false` 条件不成立）。
+      // 统一按 409 返回，避免"重复点击一直显示成功"。
+      if (!updated) return res.status(409).json({ message: '该反馈不存在或已经处理过。' })
+      // 管理动作必须留痕：谁在什么时候关闭了哪条纠错反馈。
+      await recordAudit({
+        actorId: req.user.id,
+        action: AUDIT_ACTIONS.feedbackHandled,
+        targetType: 'ai_feedback',
+        targetId: id,
+        detail: { handled: true },
+        ip: clientIp(req),
+      })
       res.json({ feedback: updated })
     } catch (error) {
       handleAiError(error, res, next)

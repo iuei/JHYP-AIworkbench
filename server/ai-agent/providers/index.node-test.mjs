@@ -3,6 +3,7 @@ import test from 'node:test'
 import { composeDemoAnswer, createDemoProvider, planDemoToolCall } from './demo.mjs'
 import { KEY_SOURCE, PROVIDER_MODE, describeProvider, resolveModelConfig, resolveProvider } from './index.mjs'
 import { deriveKey, encryptSecret } from '../secrets.mjs'
+import { enforcePermissionWording } from '../prompt.mjs'
 import { parseOpenAiStream } from './openai-compatible.mjs'
 
 const settings = { model_name: 'deepseek-chat', temperature: 0.2, max_output_tokens: 1024, request_timeout_ms: 30000 }
@@ -173,10 +174,40 @@ test('演示 provider 第二轮依据工具结果生成带出处与声明条的�
   assert.ok(result.content.includes('2026-09-01'))
   assert.ok(result.content.includes('📊 数据来源'))
   assert.ok(result.content.includes('🕐 数据截至'))
-  assert.ok(result.content.includes('🔒 依据权限范围'))
+  assert.ok(result.content.includes('🔒 检索范围'), '声明条措辞不能构成权限泄露模式')
   assert.ok(result.content.includes('演示模式'))
   assert.equal(deltas.join(''), result.content)
   assert.deepEqual(result.toolCalls, [])
+})
+
+test('演示 provider 的回答不会被权限措辞检测误判成越权拦截', () => {
+  // 回归：模板里一旦出现「权限/能力/工具 + 范围/列表/清单/白名单」的组合，就会命中
+  // prompt.mjs 的权限泄露模式 —— 编排层会把整段回答替换成统一拦截文案，并记一条
+  // tool_blocked 审计。结果是演示模式下正常问答全变成拦截文案、越权指标被污染。
+  const answer = composeDemoAnswer([
+    {
+      toolName: 'search_knowledge',
+      status: 'ok',
+      rows: [
+        {
+          title: '亚马逊断货补货流程',
+          snippet: '断货后先看可售天数，再决定补货量。',
+          sourceType: 'upload',
+          updatedAt: '2026-09-01T00:00:00.000Z',
+        },
+      ],
+      dataFreshness: { label: '企业知识库', importedAt: '2026-09-01T00:00:00.000Z' },
+    },
+  ])
+
+  const verdict = enforcePermissionWording(answer, {
+    registeredToolNames: ['search_knowledge'],
+    allToolNames: ['search_knowledge', 'deactivate_document'],
+  })
+
+  assert.equal(verdict.replaced, false, '演示回答不应被判为权限泄露')
+  assert.equal(verdict.canonical, false)
+  assert.equal(verdict.answer, answer)
 })
 
 test('演示 provider 对空检索结果明确回答未找到，不编造流程', () => {

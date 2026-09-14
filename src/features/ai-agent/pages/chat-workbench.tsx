@@ -30,6 +30,7 @@ import {
 } from '../api/queries'
 import { AnswerBlocks } from '../components/answer-blocks'
 import { AnswerCard, EvidencePanel } from '../components/answer-card'
+import { useDebouncedValue } from '@/hooks/use-debounced-value'
 import { ConversationList } from '../components/conversation-list'
 import { DistillButton } from '../components/distill-button'
 import { BlockedNotice, StreamSteps } from '../components/tool-trace-panel'
@@ -75,6 +76,15 @@ export function ChatWorkbench() {
   const [stream, setStream] = useState<ChatStreamState | null>(null)
   const [panelOpen, setPanelOpen] = useState(false)
   const [historyOpen, setHistoryOpen] = useState(false)
+  /**
+   * 会话搜索词。
+   *
+   * 必须走**服务端**查询：`GET /ai/conversations` 只返回最近 100 条，
+   * 旧实现只在这 100 条里做客户端过滤，第 101 条起既看不着也搜不到（用户以为会话丢了）。
+   * 这里用防抖值发请求，输入框仍用即时值，保证输入手感不受网络影响。
+   */
+  const [conversationKeyword, setConversationKeyword] = useState('')
+  const debouncedKeyword = useDebouncedValue(conversationKeyword)
   const abortRef = useRef<AbortController | null>(null)
   /**
    * 本次流式问答**实际使用**的会话 ID。
@@ -83,7 +93,7 @@ export function ChatWorkbench() {
    */
   const conversationIdRef = useRef<number | null>(null)
 
-  const conversations = useConversations()
+  const conversations = useConversations(debouncedKeyword.trim() || undefined)
   const messages = useConversationMessages(activeId)
   const tools = useAiTools()
 
@@ -259,6 +269,8 @@ export function ChatWorkbench() {
           activeId={activeId}
           conversations={conversations.data ?? []}
           isLoading={conversations.isLoading}
+          keyword={conversationKeyword}
+          onKeywordChange={setConversationKeyword}
           onNew={() => {
             setActiveId(null)
             setStream(null)
@@ -494,6 +506,8 @@ export function ChatWorkbench() {
               activeId={activeId}
               conversations={conversations.data ?? []}
               isLoading={conversations.isLoading}
+              keyword={conversationKeyword}
+              onKeywordChange={setConversationKeyword}
               onNew={() => {
                 setActiveId(null)
                 setStream(null)

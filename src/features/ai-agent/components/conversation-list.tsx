@@ -23,6 +23,9 @@ type ConversationListProps = {
   activeId: number | null
   onSelect: (id: number) => void
   onNew: () => void
+  /** 搜索词由父组件持有并透传给服务端查询（受控）：只在本层过滤会漏掉 100 条以外的会话。 */
+  keyword: string
+  onKeywordChange: (value: string) => void
 }
 
 function groupLabel(value: string): string {
@@ -44,14 +47,17 @@ export function ConversationList({
   activeId,
   onSelect,
   onNew,
+  keyword,
+  onKeywordChange,
 }: ConversationListProps) {
-  const [keyword, setKeyword] = useState('')
   const [editingId, setEditingId] = useState<number | null>(null)
   const [editingTitle, setEditingTitle] = useState('')
   const [pendingDelete, setPendingDelete] = useState<Conversation | null>(null)
   const rename = useRenameConversation()
   const remove = useDeleteConversation()
 
+  // 服务端已经按关键词过滤过；这里再过滤一次是为了让输入到响应之间的这段时间
+  // 列表也能即时收敛（同一套判断，不会出现"看到的和查到的"不一致）。
   const filtered = useMemo(() => {
     const text = keyword.trim().toLowerCase()
     if (!text) return conversations
@@ -94,7 +100,7 @@ export function ConversationList({
           className='pl-9'
           placeholder='搜索会话标题'
           value={keyword}
-          onChange={(event) => setKeyword(event.target.value)}
+          onChange={(event) => onKeywordChange(event.target.value)}
         />
       </div>
 

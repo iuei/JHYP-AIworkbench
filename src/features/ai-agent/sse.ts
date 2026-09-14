@@ -4,11 +4,8 @@
  * 需求文档 §6.2：流式接口不使用 axios 默认拦截器，需单独封装 SSE 客户端。
  * 这里用 fetch + ReadableStream 手工解析 SSE，支持 AbortSignal 停止生成。
  */
-import { useAuthStore } from '@/stores/auth-store'
+import { apiUrl, authHeaders } from '@/api/client'
 import type { Citation, ProviderInfo, StreamStep, ToolRun } from './types'
-
-const BASE_URL =
-  import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8787/api'
 
 export interface ChatMetaPayload {
   conversationId: number
@@ -113,13 +110,11 @@ export async function streamChat({
   onEvent,
   signal,
 }: StreamChatOptions): Promise<void> {
-  const token = useAuthStore.getState().auth.accessToken
-  const response = await fetch(`${BASE_URL}/ai/chat`, {
+  // 仍然用裸 fetch（流式不能走 axios 的响应拦截器），但地址与鉴权头复用共享实现，
+  // 避免各处再各写一份 baseUrl 兜底与取 token 逻辑。
+  const response = await fetch(apiUrl('/ai/chat'), {
     method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-      ...(token ? { authorization: `Bearer ${token}` } : {}),
-    },
+    headers: authHeaders({ 'content-type': 'application/json' }),
     body: JSON.stringify({ conversationId, content }),
     signal,
   })

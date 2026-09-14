@@ -19,11 +19,30 @@ async function addUsersDepartment(client) {
   )
 }
 
+/**
+ * 令牌版本号：改密码后让已签发的 JWT 立即失效。
+ *
+ * 为什么需要：JWT 是无状态、有效期 8 小时。"停用账号"能立刻切断访问，但
+ * 「发现凭据泄露 → 改密码」这条常规处置在没有版本号时 8 小时内**完全无效**，
+ * 攻击者仍能以受害者身份访问全部接口。签发时把版本号写进 token，每次请求回源比对，
+ * 改密码时 +1 即可一次性踢掉该账号的所有旧 token。
+ */
+async function addUsersTokenVersion(client) {
+  await client.query(
+    'ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version INTEGER NOT NULL DEFAULT 0'
+  )
+}
+
 export const userMigrations = [
   {
     version: 2,
     name: 'add_users_department',
     up: addUsersDepartment,
+  },
+  {
+    version: 3,
+    name: 'add_users_token_version',
+    up: addUsersTokenVersion,
   },
 ]
 

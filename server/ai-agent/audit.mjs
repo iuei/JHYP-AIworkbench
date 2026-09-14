@@ -38,6 +38,7 @@ export const AUDIT_ACTIONS = {
   userUpdate: 'user_update',
   userStatus: 'user_status',
   userResetPassword: 'user_reset_password',
+  feedbackHandled: 'feedback_handled',
 }
 
 export const RUN_STATUS = {

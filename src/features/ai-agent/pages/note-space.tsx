@@ -124,7 +124,15 @@ export function NoteSpace() {
 
   const runExport = (format: 'csv' | 'md' | 'json') => {
     exportNotes.mutate(
-      { format, params: { status: status === 'all' ? undefined : status } },
+      {
+        format,
+        // 列表与导出必须共用同一组筛选：只带 status 会让导出的范围超出屏幕上看到的内容
+        // （用户搜完再导出，拿到的是包含已被筛掉的条目，且 toast 不会提示范围）。
+        params: {
+          status: status === 'all' ? undefined : status,
+          keyword: keyword.trim() || undefined,
+        },
+      },
       {
         onSuccess: (text) => {
           const mime =
