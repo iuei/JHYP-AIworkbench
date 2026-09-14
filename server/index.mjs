@@ -12,6 +12,8 @@ import { defaultDashboardShortcutIds } from './dashboard-shortcuts.mjs'
 import { analyzeCompetitor, CompetitorInputError } from './competitor-analysis.mjs'
 import { runAiAgentMigrations } from './ai-agent/migrations.mjs'
 import { createAiAgentRouter } from './ai-agent/router.mjs'
+import { AUDIT_ACTIONS, recordAudit } from './ai-agent/audit.mjs'
+import { clientIp } from './ai-agent/http-utils.mjs'
 import {
   isEnabledAdmin,
   isEnabledUser,
@@ -156,13 +158,57 @@ async function replaceNavigationItemTags(client, itemId, tagIds) {
   }
 }
 
-app.post('/api/auth/login', async (req, res) => {
-  const { login, password } = req.body
-  const { rows } = await query('SELECT * FROM users WHERE login = $1', [login])
-  const user = rows[0]
-  if (!user || user.status !== 'enabled' || !(await bcrypt.compare(password ?? '', user.password_hash))) return res.status(401).json({ message: '账号或密码错误。' })
-  await query('UPDATE users SET last_login_at = NOW() WHERE id = $1', [user.id])
-  res.json({ token: sign(user), user: { id: user.id, accountNo: user.login, email: user.login, name: user.name, department: user.department, role: [user.role], exp: Date.now() + 8 * 3600_000 } })
+app.post('/api/auth/login', async (req, res, next) => {
+  const { login, password } = req.body ?? {}
+
+  // 空密码一律拒绝，且必须在查库前拦下。
+  // 历史实现把缺失的 password 当作空串去和哈希比对（bcrypt.compare('', hash)），
+  // 只要库里存在空密码的哈希（重置密码接口此前允许把密码置空），任何人就能未认证登录。
+  if (typeof password !== 'string' || password.length === 0 || typeof login !== 'string' || !login.trim()) {
+    await recordAudit({
+      action: AUDIT_ACTIONS.login,
+      targetType: 'user',
+      detail: { login: String(login ?? '').slice(0, 120), result: 'failed', reason: 'empty_credentials' },
+      ip: clientIp(req),
+    }).catch(() => {})
+    return res.status(401).json({ message: '账号或密码错误。' })
+  }
+
+  try {
+    const { rows } = await query('SELECT * FROM users WHERE login = $1', [login.trim()])
+    const user = rows[0]
+    const passwordOk = user ? await bcrypt.compare(password, user.password_hash) : false
+
+    if (!user || user.status !== 'enabled' || !passwordOk) {
+      // 登录失败也留痕：这是暴力尝试与异常时间登录的唯一回溯依据。detail 只记账号，绝不记密码。
+      await recordAudit({
+        actorId: user?.id ?? null,
+        action: AUDIT_ACTIONS.login,
+        targetType: 'user',
+        targetId: user?.id ?? null,
+        detail: {
+          login: login.trim().slice(0, 120),
+          result: 'failed',
+          reason: !user ? 'unknown_account' : user.status !== 'enabled' ? 'disabled_account' : 'bad_password',
+        },
+        ip: clientIp(req),
+      })
+      return res.status(401).json({ message: '账号或密码错误。' })
+    }
+
+    await query('UPDATE users SET last_login_at = NOW() WHERE id = $1', [user.id])
+    await recordAudit({
+      actorId: user.id,
+      action: AUDIT_ACTIONS.login,
+      targetType: 'user',
+      targetId: user.id,
+      detail: { login: user.login, grant: user.role, result: 'success' },
+      ip: clientIp(req),
+    })
+    return res.json({ token: sign(user), user: { id: user.id, accountNo: user.login, email: user.login, name: user.name, department: user.department, role: [user.role], exp: Date.now() + 8 * 3600_000 } })
+  } catch (error) {
+    return next(error)
+  }
 })
 // 用户信息由管理员在「用户管理」维护，前端 /settings 只读展示，因此这里只读下发、不接受写入。
 app.get('/api/auth/me', requireUser, async (req, res) => { const { rows } = await query('SELECT id, login, name, role, department FROM users WHERE id = $1', [req.user.id]); res.json(rows[0]) })
@@ -304,7 +350,38 @@ app.patch('/api/users/:id/status', requireUser, requireAdmin, async (req, res, n
     client.release()
   }
 })
-app.post('/api/users/:id/reset-password', requireUser, requireAdmin, async (req, res) => { const hash = await bcrypt.hash(req.body.password ?? '', 12); await query('UPDATE users SET password_hash = $1 WHERE id = $2', [hash, req.params.id]); res.status(204).end() })
+app.post('/api/users/:id/reset-password', requireUser, requireAdmin, async (req, res, next) => {
+  // 服务端必须自己校验密码长度：前端校验是纯客户端的，直接调 API 即可绕过。
+  // 历史实现允许把密码置空（bcrypt.hash('')），配合登录侧的"缺失密码当空串"就是一条
+  // 「未认证者接管任意账号」的路径。
+  const password = typeof req.body?.password === 'string' ? req.body.password : ''
+  if (password.length < 8 || password.length > 128) {
+    return res.status(400).json({ message: '密码长度需为 8-128 位。' })
+  }
+  const id = resourceId(req.params.id)
+  if (!id) return res.status(400).json({ message: '用户 ID 不合法。' })
+
+  try {
+    const { rows } = await query(
+      'UPDATE users SET password_hash = $1 WHERE id = $2 RETURNING id, login',
+      [await bcrypt.hash(password, 12), id]
+    )
+    if (rows.length === 0) return res.status(404).json({ message: '账号不存在。' })
+
+    // 重置他人密码是一条提权路径，必须留痕（谁、在什么时候、对谁做的）。
+    await recordAudit({
+      actorId: req.user.id,
+      action: AUDIT_ACTIONS.userResetPassword,
+      targetType: 'user',
+      targetId: rows[0].id,
+      detail: { login: rows[0].login },
+      ip: clientIp(req),
+    })
+    return res.status(204).end()
+  } catch (error) {
+    return next(error)
+  }
+})
 app.get('/api/quick-navigation', requireUser, async (_req, res, next) => {
   try {
     res.json(await loadQuickNavigation())

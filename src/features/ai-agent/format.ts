@@ -73,6 +73,22 @@ export const NOTE_LOCKED_HINTS: Record<string, string> = {
 }
 
 /**
+ * 删除权限：已发布条目不能删除。
+ *
+ * 原因：审核通过后会生成 `source_type='experience'` 的公共文档并可能被检索引用，
+ * 删掉条目会让文档变成无主知识、也无法再从文档回溯到来源（`source_ref` 指向已删行）。
+ * 需要下架请先归档 —— 归档会在同一事务里把公共文档一起下线。
+ * 与 `server/ai-agent/notes.mjs` 的 `deleteNote` 守卫一一对应；前端禁用只是提示。
+ */
+export function canDeleteNote(note: { status: string }): boolean {
+  return note.status !== 'published'
+}
+
+/** 已发布条目删除按钮的悬浮提示。 */
+export const NOTE_DELETE_HINT =
+  '已发布到知识库的沉淀不能删除；如需下架请先归档（归档会同时下线对应的公共文档）'
+
+/**
  * 归档权限：已发布条目的归档在服务端要求管理员（published->archived = admin），
  * 员工侧按钮必须同步禁用，否则点了必然报错。
  */

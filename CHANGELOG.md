@@ -9,6 +9,37 @@
 >
 > **本项目变更记录**
 
+## 安全与稳定性加固：认证、SSRF、连接池、治理链（2026-09-14）
+
+> 来源：两路只读深度代码审查（服务端逐文件 / 前端逐组件）后按严重度修复，详细缺陷描述与验证方式见 `交接文档.md` 与各模块责任田。
+
+### Security
+
+- **修复「未认证者接管任意账号」路径**（`server/index.mjs`）：登录接口原先把缺失的 `password` 当作空串去比对哈希（`bcrypt.compare('', hash)` 对空串哈希返回 `true`），而重置密码接口允许把密码置空（`bcrypt.hash('')`）。两者叠加后，任何持 admin 凭据者（或管理员误操作）把账号密码置空，未认证访问者即可直接登录。现在登录在**查库前**拒绝空/缺失密码，重置密码强制 8–128 位并校验用户 ID。
+- **模型 Base URL 加白名单校验，堵住 SSRF 与明文密钥外发**（`http-utils.mjs`、`audit-routes.mjs`）：该地址会被服务端带着解密的 API Key 请求，连通性测试接口还会**立即**出站。原先只校验「像不像 http(s) 地址」，可填内网地址（169.254.169.254 / 127.0.0.1 / 10.x）或攻击者域名。现在必须 https、必须是域名、拒绝本机与内网域名；内网私有模型部署可设 `AI_MODEL_ALLOW_PRIVATE_HOST=true` 放开（默认关闭）。
+- **审计 IP 不再采信客户端可伪造的 `X-Forwarded-For`**：该请求头完全由客户端控制，原先直接取第一个值写进审计，等于任何人都能伪造成任意 IP（含栽赃他人）。现在默认只取直连地址，仅在 `TRUST_PROXY=true` 时采信转发头并取链尾一跳。
+- **账号与凭据类动作补审计**：登录成功/失败（四个失败原因分类）、重置密码均写审计；此前 `AUDIT_ACTIONS.login` 定义了却从未被调用，用户管理动作零留痕。`detail` 只记账号，绝不记密码。
+- **已发布沉淀禁止删除，归档同事务下线公共文档**（`notes.mjs`、`knowledge.mjs`）：`updateNote` 原本有 `published` 守卫而 `deleteNote` 没有，归档也不触碰文档 —— 员工一次删除/归档即让条目消失、而 `experience` 文档继续被检索，留下无主的生效知识且无法从文档回溯来源。前端删除按钮同步禁用并给出提示文案（此前确认框还写着「保留已发布文档」，与实现不符）。
+
+### Fix
+
+- **token 统计重复累加**（`orchestrator.mjs`）：循环内每轮先累加该轮 completion 的 token，若该轮因「工具被拦截 / 执行失败」而 break，收尾逻辑会对同一个 completion 再计一遍，导致 `ai_messages` 与审计台用量偏高。新增 `completionCounted` 标志。
+- **SSE 问答加每账号并发闸门**（`chat.mjs`）：超出上限（默认 3）直接 429，而不是让所有请求一起排队 —— 一次问答最坏会跑完多轮模型调用并长期占用连接。
+
+### Perf
+
+- **连接池补上限与超时**（`db.mjs`）：pg 默认 `max=10` 且无任何超时，一次慢查询在上层 `Promise.race` 超时后连接**不会释放**，约 10 个并发问答即可占满连接池，此后所有接口永久排队（整站挂死且无错误日志）。现设 `max=20`、`statement_timeout=15s`、`query_timeout=20s`、连接与空闲超时，均可通过 `PG_*` 环境变量覆盖。
+- **迁移 113 补 6 个热路径索引**：`ai_runs(message_id)`（会话轨迹 JOIN 键）、`ai_messages(created_at)`、`ai_audit_logs(created_at)`（用量统计与审计台默认排序）、`amazon_ads_daily/amazon_sales_daily(marketplace, stat_date)`（站点级查询不带 asin，原索引前导列用不上）、`order_snapshot(ordered_at)`。全部 `IF NOT EXISTS`，只加索引不改数据。
+- **上传入口键盘可达**（`knowledge-management.tsx`、`datasource-management.tsx`）：原先用 `Button asChild` 包 `<label>` + `hidden` input —— label 不可聚焦、input 为 `display:none` 也不可聚焦，**键盘用户完全无法上传**（全站唯一上传入口）；且 `disabled` 落在 label 上不匹配 `:disabled`，导致"导入中"仍可点、能并发重复导入。改为按钮 `click()` 触发 + `sr-only` input。
+
+### Verify
+
+- 服务端单测 **324/324**（新增 Base URL 白名单 2 项）
+- 实测：空密码账号登录 **401**（脚本已先证实 `compare('', hash) === true` 这一旧前提成立）、缺 password 字段 401、重置空/短密码 400、正常流程 204/200；四类登录审计分支均落库
+- 实测：内网/明文/回环 Base URL 在设置接口与连通性测试接口均 **400**；迁移 113 与 6 个索引已应用
+- 回归：竞品分析真实链路 200、4 个块、30 行数据正常
+- `pnpm run lint`、`pnpm run build` 全绿
+
 ## 竞品分析接入真实链路 + 首页「我的 AI」+ 修复两处结论级数据缺陷（2026-09-14）
 
 ### Fix

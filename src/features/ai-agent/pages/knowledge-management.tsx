@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import {
   AlertTriangle,
   FileText,
@@ -126,6 +126,15 @@ export function KnowledgeManagement() {
     )
   }
 
+  /**
+   * 上传 input 用 ref 触发。
+   *
+   * 原来是 `Button asChild` 包一个 `<label>` 套 `className='hidden'` 的 file input：
+   * label 不可聚焦、input 又是 display:none 也不可聚焦，Tab 键到不了、Enter/Space 点不动，
+   * 键盘用户完全无法上传（这是全站唯一的上传入口）；改用按钮 click() 触发即可兼顾两种输入方式。
+   */
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
   const onUpload = (files: FileList | null) => {
     const file = files?.[0]
     if (!file) return
@@ -222,21 +231,26 @@ export function KnowledgeManagement() {
             <FileText />
             粘贴文本入库
           </Button>
-          <Button asChild className='gap-2'>
-            <label>
-              <Upload />
-              上传文件
-              <input
-                accept='.txt,.md,.markdown,.csv,.json'
-                className='hidden'
-                type='file'
-                onChange={(event) => {
-                  onUpload(event.target.files)
-                  event.target.value = ''
-                }}
-              />
-            </label>
+          <Button
+            type='button'
+            className='gap-2'
+            variant='outline'
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <Upload aria-hidden='true' />
+            上传文件
           </Button>
+          <input
+            ref={fileInputRef}
+            accept='.txt,.md,.markdown,.csv,.json'
+            className='sr-only'
+            type='file'
+            aria-label='上传知识文档'
+            onChange={(event) => {
+              onUpload(event.target.files)
+              event.target.value = ''
+            }}
+          />
         </div>
       </div>
       {pasteOpen && (

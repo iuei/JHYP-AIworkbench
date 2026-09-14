@@ -56,6 +56,10 @@
 - API 启动前同时应用 AI 助手迁移（`server/ai-agent/migrations.mjs`，版本号从 **100** 起，因为 `schema_migrations.version = 1` 已被快捷导航占用；`CREATE EXTENSION vector` 与 `pg_trgm` 也在该批迁移内执行）。
 - API 启动前应用用户表迁移（`server/user-migrations.mjs`，version 2 添加 `users.department`）；该模块自带迁移器，沿用同一 `schema_migrations` 表，新增版本号前先查库确认未被占用。
 - `requireUser` 会把 `status` 一并写入 `req.user`：AI 助手模块的权限判定依赖它，漏下发会导致所有工具被误判为无权。
+- **连接池与超时（勿删）**：`server/db.mjs` 显式设置 `max`（默认 20）、`statement_timeout`（15s）、`query_timeout`（20s）与连接/空闲超时，均可用 `PG_POOL_MAX` / `PG_STATEMENT_TIMEOUT_MS` / `PG_QUERY_TIMEOUT_MS` / `PG_CONNECT_TIMEOUT_MS` / `PG_IDLE_TIMEOUT_MS` 覆盖。pg 默认 `max=10` 且**没有任何超时**：一次慢查询在上层 `Promise.race` 超时后连接不会释放，约 10 个并发问答就能占满连接池，此后所有接口永久排队（整站挂死，日志里还看不到错误）。
+- **统一错误出口**：所有路由之后注册了 JSON 错误中间件（`server/index.mjs` 末尾）。未捕获异常返回 `{ message: '服务器内部错误，请稍后重试。' }`，堆栈只写服务端日志 —— 前端所有接口都按 JSON 解析错误体，返回 Express 默认 HTML 会让错误原因丢失，非 production 下还会把堆栈（含绝对路径与 SQL 片段）回给客户端。
+- **DATE 列按字符串回传**：`pg.types.setTypeParser(1082, v => v)` 让 DATE 返回 `'YYYY-MM-DD'`。pg 默认会把它解析成**本地时区午夜**的 Date，再经 `toISOString()` 就整体前移一天（东八区必现），曾导致按区间取数丢掉第一天。
+- **真实 IP 与代理**：默认**不信任** `X-Forwarded-For`（审计 IP 取直连地址，该请求头客户端可随意伪造）；部署在反向代理之后时设 `TRUST_PROXY=true`，届时采信转发头并取链尾一跳。
 
 ## 约束
 

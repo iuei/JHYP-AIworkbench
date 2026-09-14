@@ -16,7 +16,7 @@ import { pool, query } from '../db.mjs'
 import { AUDIT_ACTIONS, recordAudit } from './audit.mjs'
 import { toCsv } from './csv.mjs'
 import { isEvidenceFromConversation, loadConversationMessages } from './distill.mjs'
-import { ingestDocument } from './knowledge.mjs'
+import { deactivateDocument, ingestDocument } from './knowledge.mjs'
 import { canManageNote, canOwnNote, isEnabledAdmin, noteScopeSql } from './permissions.mjs'
 
 export class NoteValidationError extends Error {}
@@ -775,6 +775,35 @@ export async function transitionNote({
   const isAdmin = scope === 'admin' && isEnabledAdmin(user)
   assertTransition(current.status, to, { isAdmin })
   const isReview = to === NOTE_STATUS.published || to === NOTE_STATUS.rejected
+
+  // 归档「已发布」条目时必须同事务把公共文档一起下线。
+  //
+  // 为什么：审核通过会生成 source_type='experience'、status='active' 的公共文档；
+  // 若归档只改条目状态，文档会继续被检索、被引用、被要求声明数据截至，
+  // 而管理页再也无法从文档回溯到来源条目（source_ref 指向已归档行）——「发布」事实上不可撤销。
+  if (to === NOTE_STATUS.archived && current.publishedDocumentId) {
+    const client = await pool.connect()
+    try {
+      await client.query('BEGIN')
+      const { rows } = await client.query(
+        `UPDATE ai_knowledge_notes
+            SET status = $2,
+                updated_at = NOW()
+          WHERE id = $1
+          RETURNING *`,
+        [id, to]
+      )
+      await deactivateDocument({ documentId: current.publishedDocumentId, actorId: user.id, client })
+      await client.query('COMMIT')
+      return serializeNote(rows[0])
+    } catch (error) {
+      await client.query('ROLLBACK').catch(() => {})
+      throw error
+    } finally {
+      client.release()
+    }
+  }
+
   const { rows } = await query(
     `UPDATE ai_knowledge_notes
         SET status = $2,
@@ -796,11 +825,20 @@ function transitionActionName(to) {
   return 'update'
 }
 
-/** 软删：置 deleted_at，保留行供审计。 */
+/**
+ * 软删：置 deleted_at，保留行供审计。
+ *
+ * 已发布条目**不允许**删除：它对应的 experience 文档已经进入公共知识库并可能被引用，
+ * 直接删条目会让文档变成无主知识、review 记录也无法从文档回溯（updateNote 有同样的守卫）。
+ * 需要下架请先归档——归档会连同公共文档一起下线。
+ */
 export async function deleteNote({ id, user, scope = 'self' }) {
   const current = await resolveWritableNote({ id, user, scope })
   if (!current) return null
   if (scope === 'self') assertOwnerAction({ note: current, user, action: 'delete' })
+  if (current.status === NOTE_STATUS.published) {
+    throw new NoteConflictError('已发布到知识库的沉淀不能删除，请先归档（归档会同时下线对应的公共文档）。')
+  }
   await query('UPDATE ai_knowledge_notes SET deleted_at = NOW() WHERE id = $1', [id])
   return current
 }

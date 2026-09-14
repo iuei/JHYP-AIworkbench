@@ -14,7 +14,7 @@ import {
   usageByDay,
 } from './audit.mjs'
 import { query } from '../db.mjs'
-import { clientIp, handleAiError, optionalString, parseLimit, toCsv } from './http-utils.mjs'
+import { clientIp, handleAiError, optionalString, parseLimit, parseModelBaseUrl, toCsv } from './http-utils.mjs'
 import { loadSettings } from './knowledge.mjs'
 import { KEY_SOURCE, resolveModelConfig, resolveProvider } from './providers/index.mjs'
 import {
@@ -67,11 +67,12 @@ export function parseSettingsPatch(input = {}) {
       continue
     }
     if (field.url) {
-      const text = String(raw).trim().replace(/\/+$/, '')
-      if (!/^https?:\/\/[^\s]+$/i.test(text) || text.length > field.max) {
-        return { ok: false, error: `参数 ${field.key} 必须是合法的 http(s) 地址。` }
+      // 这个地址会被服务端带着解密的 API Key 请求，不能只校验"像不像 URL"（见 http-utils.parseModelBaseUrl）。
+      const parsed = parseModelBaseUrl(raw, { max: field.max })
+      if (!parsed.ok) {
+        return { ok: false, error: `参数 ${field.key}：${parsed.error}` }
       }
-      values[field.column] = text
+      values[field.column] = parsed.value
       continue
     }
     if (field.numeric) {
@@ -463,11 +464,12 @@ export function createAuditRouter({ adminGuard }) {
         settingsRow = { ...settingsRow, model_api_key_cipher: cipher, force_demo: false }
       }
       if (body.modelBaseUrl) {
-        const baseUrl = String(body.modelBaseUrl).trim()
-        if (!/^https?:\/\/[^\s]+$/i.test(baseUrl)) {
-          return res.status(400).json({ ok: false, message: 'Base URL 必须是合法的 http(s) 地址。' })
+        // 连通性测试会**立即**向该地址出站（无需先落库），因此这里同样必须过白名单校验。
+        const parsed = parseModelBaseUrl(body.modelBaseUrl)
+        if (!parsed.ok) {
+          return res.status(400).json({ ok: false, message: parsed.error })
         }
-        settingsRow = { ...settingsRow, model_base_url: baseUrl }
+        settingsRow = { ...settingsRow, model_base_url: parsed.value }
       }
       if (body.modelName) settingsRow = { ...settingsRow, model_name: String(body.modelName).trim() }
 

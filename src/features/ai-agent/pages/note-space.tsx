@@ -55,12 +55,14 @@ import { PageShell } from '../components/page-shell'
 import { SkillConfigCard } from '../components/skill-config-card'
 import {
   NOTE_ARCHIVE_HINTS,
+  NOTE_DELETE_HINT,
   NOTE_LOCKED_HINTS,
   NOTE_PROVENANCE_LABELS,
   NOTE_SOURCE_LABELS,
   NOTE_STATUS_LABELS,
   NOTE_STATUS_VARIANTS,
   canArchiveNote,
+  canDeleteNote,
   canEditNote,
   formatTime,
 } from '../format'
@@ -356,6 +358,8 @@ export function NoteSpace() {
                         </Button>
                         <Button
                           aria-label='删除沉淀'
+                          title={canDeleteNote(note) ? undefined : NOTE_DELETE_HINT}
+                          disabled={!canDeleteNote(note)}
                           size='sm'
                           variant='ghost'
                           onClick={() => setPendingDelete(note)}

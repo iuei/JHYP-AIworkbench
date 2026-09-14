@@ -239,10 +239,20 @@ export async function runChat(
    */
   let answer = String(completion.content ?? '')
 
+  /**
+   * 当前 `completion` 的 token 是否已经计入。
+   *
+   * 循环内每一轮进入时都会先累加该轮 completion 的 token；若这一轮因为「工具被拦截 / 执行失败」
+   * 而 break，completion 不会再被重新赋值，于是循环末尾的收尾累加会把同一轮的量**再计一遍**，
+   * 使 `ai_messages` 与审计台的用量偏高。这个标志让收尾累加只处理"还没计过"的那一次。
+   */
+  let completionCounted = false
+
   while (Array.isArray(completion.toolCalls) && completion.toolCalls.length > 0 && rounds < MAX_TOOL_ROUNDS) {
     rounds += 1
     tokensIn += Number(completion.tokensIn ?? 0)
     tokensOut += Number(completion.tokensOut ?? 0)
+    completionCounted = true
 
     // 模型先吐了内容又要调工具：让前端丢弃已流式显示的那段，避免半成品留在气泡里
     emit(EVENT.reset, { data: { reason: 'tool_call' } })
@@ -403,13 +413,17 @@ export async function runChat(
         onDelta: streamDelta,
       })
       answer = completion.content || answer
+      // 新一轮的 completion 尚未计过 token：交给收尾逻辑（若循环到此结束）或下一轮循环处理
+      completionCounted = false
     } catch (error) {
       return await finishWithModelError(error)
     }
   }
 
-  tokensIn += Number(completion?.tokensIn ?? 0)
-  tokensOut += Number(completion?.tokensOut ?? 0)
+  if (!completionCounted) {
+    tokensIn += Number(completion?.tokensIn ?? 0)
+    tokensOut += Number(completion?.tokensOut ?? 0)
+  }
 
   // ── 失败路径：拦截优先，其次工具失败；都不编造数据
   if (blockedTool) {

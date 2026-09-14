@@ -6,12 +6,73 @@ import { OrchestratorError } from './orchestrator.mjs'
 
 export const MAX_PAGE_SIZE = 100
 
+/**
+ * 客户端 IP。
+ *
+ * 默认**不信任** `X-Forwarded-For`：该请求头由客户端完全可控，任何人加一行就能让自己的
+ * 每次 `tool_blocked` / `forbidden` / `settings_update` 记录落上任意 IP（包括伪造他人 IP 栽赃），
+ * 审计随即失去取证价值。只有确实部署在反向代理之后（`TRUST_PROXY=true`）才采信转发头，
+ * 且取链上**最后一跳**（代理追加的那一段），而不是最左边那个客户端可伪造的值。
+ */
 export function clientIp(req) {
+  const direct = (req?.socket?.remoteAddress ?? req?.ip ?? '').slice(0, 64) || null
+  if (process.env.TRUST_PROXY !== 'true') return direct
+
   const forwarded = req?.headers?.['x-forwarded-for']
   if (typeof forwarded === 'string' && forwarded.trim()) {
-    return forwarded.split(',')[0].trim().slice(0, 64)
+    const hops = forwarded
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean)
+    return (hops[hops.length - 1] ?? direct ?? '').slice(0, 64) || null
   }
-  return (req?.socket?.remoteAddress ?? req?.ip ?? '').slice(0, 64) || null
+  return direct
+}
+
+/**
+ * 校验模型 Base URL 是否可以安全出站。
+ *
+ * 为什么必须限制：这个值由管理员在后台填写，服务端随后会**带着解密的 API Key** 向它发请求。
+ * 只校验「http(s) + 无空白」会让内网地址（169.254.169.254、127.0.0.1、10.x）变成可探测目标，
+ * 也能把任意域名填进去、让服务端把明文 Key 外发出去（用 `.env` 里的兜底 Key 同样会命中）。
+ *
+ * 规则：必须 https、必须是域名（拒绝 IP 字面量）、拒绝 localhost 与 .local/.internal。
+ * 真正需要连内网私有模型的部署可以设 `AI_MODEL_ALLOW_PRIVATE_HOST=true` 放开（默认关闭）。
+ *
+ * 残余风险：不做 DNS 解析后的 IP 复核，「解析到私网 IP 的公网域名」仍可能通过；
+ * 彻底闭环需要在出站前解析并校验目标 IP。
+ */
+export function parseModelBaseUrl(raw, { max = 300 } = {}) {
+  const text = String(raw ?? '').trim().replace(/\/+$/, '')
+  if (!text) return { ok: false, error: 'Base URL 不能为空。' }
+  if (text.length > max) return { ok: false, error: `Base URL 不能超过 ${max} 个字符。` }
+
+  let url
+  try {
+    url = new URL(text)
+  } catch {
+    return { ok: false, error: 'Base URL 不是合法的地址。' }
+  }
+  if (url.protocol !== 'https:') {
+    return { ok: false, error: 'Base URL 必须是 https 地址（不允许明文 http，避免密钥明文出网）。' }
+  }
+  if (url.username || url.password) {
+    return { ok: false, error: 'Base URL 不能包含用户名或密码。' }
+  }
+
+  if (process.env.AI_MODEL_ALLOW_PRIVATE_HOST === 'true') return { ok: true, value: text }
+
+  const host = url.hostname.toLowerCase()
+  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(host) || host.includes(':')) {
+    return { ok: false, error: 'Base URL 不允许使用 IP 地址，请填写域名。' }
+  }
+  if (host === 'localhost' || host.endsWith('.localhost') || host.endsWith('.local') || host.endsWith('.internal')) {
+    return {
+      ok: false,
+      error: 'Base URL 不允许指向本机或内网域名。确需连接内网模型服务时，请在服务器设置 AI_MODEL_ALLOW_PRIVATE_HOST=true。',
+    }
+  }
+  return { ok: true, value: text }
 }
 
 export function optionalString(value, { max = 200 } = {}) {

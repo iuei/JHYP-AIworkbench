@@ -542,6 +542,31 @@ async function addSkillPolicy(client) {
  * 3. ai_knowledge_notes 增 revision_of_note_id（新修订指向被替代的旧版本），
  *    并把"同账号同标题唯一"收窄为"非归档的唯一"：归档历史版本必须能与新私有修订共存。
  */
+/**
+ * 补三个热路径上的缺失索引（2026-09-14）。
+ *
+ * 1. `ai_runs.message_id`：会话轨迹靠它 JOIN `ai_messages`（`conversations.mjs`），
+ *    而 `ai_runs` 上只有以 user_id / tool_name / status 为前导列的复合索引 ——
+ *    `message_id` 不是任何索引的前导列，打开一条历史会话就是一次 Seq Scan（+ CASCADE 校验同样扫全表）。
+ * 2. `ai_messages.created_at` / `ai_audit_logs.created_at`：「近 N 天用量」按时间过滤、
+ *    审计台默认按时间倒序，两者都没有以时间为前导列的索引。
+ * 3. `amazon_ads_daily` / `amazon_sales_daily` / `order_snapshot`：现有索引前导列是 `asin`，
+ *    而站点级查询（`scan_amazon_anomalies`、全站聚合、最新日期锚点）**不带 asin**，
+ *    于是每次 Seq Scan 后再 Sort，一次最多把上万行载入内存。
+ *
+ * 全部 `IF NOT EXISTS`，可重复执行；只加索引、不改数据。
+ */
+async function addPerformanceIndexes(client) {
+  await client.query(`
+    CREATE INDEX IF NOT EXISTS ai_runs_message_idx ON ai_runs(message_id);
+    CREATE INDEX IF NOT EXISTS ai_messages_created_idx ON ai_messages(created_at DESC);
+    CREATE INDEX IF NOT EXISTS ai_audit_logs_created_idx ON ai_audit_logs(created_at DESC);
+    CREATE INDEX IF NOT EXISTS amazon_ads_daily_marketplace_idx ON amazon_ads_daily(marketplace, stat_date DESC);
+    CREATE INDEX IF NOT EXISTS amazon_sales_daily_marketplace_idx ON amazon_sales_daily(marketplace, stat_date DESC);
+    CREATE INDEX IF NOT EXISTS order_snapshot_ordered_at_idx ON order_snapshot(ordered_at DESC);
+  `)
+}
+
 async function hardenKnowledgeDistill(client) {
   const duplicates = await client.query(
     `SELECT source_ref, COUNT(*)::int AS total, array_agg(id ORDER BY id) AS ids
@@ -665,6 +690,12 @@ export const aiAgentMigrations = [
     version: AI_AGENT_MIGRATION_BASE_VERSION + 12,
     name: 'harden_knowledge_distill',
     up: hardenKnowledgeDistill,
+  },
+  {
+    // 112 已被沉淀加固占用，故从 113 起
+    version: AI_AGENT_MIGRATION_BASE_VERSION + 13,
+    name: 'add_performance_indexes',
+    up: addPerformanceIndexes,
   },
 ]
 

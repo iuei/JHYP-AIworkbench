@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import {
   AlertTriangle,
   CalendarClock,
@@ -57,6 +57,9 @@ export function DatasourceManagement() {
 
   const activeSpec =
     overview.data?.datasets.find((item) => item.key === dataset) ?? null
+
+  /** 上传报表的 file input：由按钮 click() 触发，保证键盘可达且 disabled 真正生效。 */
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const onUpload = (files: FileList | null) => {
     const file = files?.[0]
@@ -149,21 +152,31 @@ export function DatasourceManagement() {
           <Download />
           下载模板
         </Button>
-        <Button asChild className='gap-2' disabled={upload.isPending}>
-          <label>
-            <Upload />
-            {upload.isPending ? '导入中…' : '上传报表'}
-            <input
-              accept='.csv'
-              className='hidden'
-              type='file'
-              onChange={(event) => {
-                onUpload(event.target.files)
-                event.target.value = ''
-              }}
-            />
-          </label>
+        <Button
+          type='button'
+          className='gap-2'
+          disabled={upload.isPending}
+          onClick={() => fileInputRef.current?.click()}
+        >
+          <Upload aria-hidden='true' />
+          {upload.isPending ? '导入中…' : '上传报表'}
         </Button>
+        {/*
+          用 ref 触发上传：原来 `Button asChild` 渲染成 <label>，而 disabled 会落到 label 上——
+          label 不匹配 :disabled 伪类，所以"导入中"时按钮仍然可点、还能并发重复导入；
+          同时 label 不可聚焦，键盘用户根本无法上传。
+        */}
+        <input
+          ref={fileInputRef}
+          accept='.csv'
+          className='sr-only'
+          type='file'
+          aria-label='上传报表文件'
+          onChange={(event) => {
+            onUpload(event.target.files)
+            event.target.value = ''
+          }}
+        />
         <Button
           aria-label='刷新数据集状态'
           disabled={overview.isFetching}

@@ -15,6 +15,31 @@ import { loadRegisteredTools } from './tools.mjs'
 
 const FEEDBACK_TYPES = new Set(['helpful', 'unhelpful', 'correction'])
 
+/**
+ * 每个账号同时进行的问答流上限。
+ *
+ * 为什么需要：SSE 端点本身没有并发限制，而一次问答最坏会跑完 MAX_TOOL_ROUNDS 轮模型调用
+ * 并长期占用数据库连接；同一个人多开几个标签页、或脚本并发打接口，就能把连接池与模型配额
+ * 一起耗光，其他人的请求全部排队。超过上限直接 429，而不是让所有人一起变慢。
+ */
+const MAX_INFLIGHT_CHAT_PER_USER = Number(process.env.AI_CHAT_MAX_INFLIGHT ?? 3)
+
+/** userId → 正在进行的问答数。 */
+const inflightChats = new Map()
+
+function acquireChatSlot(userId) {
+  const current = inflightChats.get(userId) ?? 0
+  if (current >= MAX_INFLIGHT_CHAT_PER_USER) return false
+  inflightChats.set(userId, current + 1)
+  return true
+}
+
+function releaseChatSlot(userId) {
+  const current = inflightChats.get(userId) ?? 0
+  if (current <= 1) inflightChats.delete(userId)
+  else inflightChats.set(userId, current - 1)
+}
+
 function resourceId(value) {
   const id = Number(value)
   return Number.isInteger(id) && id > 0 ? id : null
@@ -182,6 +207,13 @@ export function createChatRouter() {
       return res.status(400).json({ message: '提问内容不能为空。' })
     }
 
+    // 并发闸门必须在写 SSE 响应头之前判定，否则无法再回一个 JSON 的 429。
+    if (!acquireChatSlot(req.user.id)) {
+      return res.status(429).json({
+        message: `同时进行的问答不能超过 ${MAX_INFLIGHT_CHAT_PER_USER} 个，请等当前回答结束后再试。`,
+      })
+    }
+
     res.status(200)
     res.setHeader('Content-Type', 'text/event-stream; charset=utf-8')
     res.setHeader('Cache-Control', 'no-cache, no-transform')
@@ -227,6 +259,7 @@ export function createChatRouter() {
         })
       }
     } finally {
+      releaseChatSlot(req.user.id)
       req.off('close', onClose)
       if (!clientClosed) res.end()
     }

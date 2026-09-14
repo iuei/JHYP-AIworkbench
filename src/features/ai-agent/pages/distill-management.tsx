@@ -68,10 +68,12 @@ import { NoteDetailDialog, NoteEditorDialog } from '../components/note-dialogs'
 import { PageShell } from '../components/page-shell'
 import { SkillPolicyCard } from '../components/skill-policy-card'
 import {
+  NOTE_DELETE_HINT,
   NOTE_PROVENANCE_LABELS,
   NOTE_SOURCE_LABELS,
   NOTE_STATUS_LABELS,
   NOTE_STATUS_VARIANTS,
+  canDeleteNote,
   formatTime,
 } from '../format'
 import type { KnowledgeNote } from '../types'
@@ -511,6 +513,8 @@ export function DistillManagement() {
                         </Button>
                         <Button
                           aria-label='删除沉淀'
+                          title={canDeleteNote(note) ? undefined : NOTE_DELETE_HINT}
+                          disabled={!canDeleteNote(note)}
                           size='sm'
                           variant='ghost'
                           onClick={() => setPendingDelete(note)}
@@ -651,7 +655,7 @@ export function DistillManagement() {
       </Dialog>
 
       <ConfirmDialog
-        desc={`删除后该沉淀不再出现在列表与导出中（保留审计与已发布文档）：${pendingDelete?.title ?? ''}`}
+        desc={`删除后该沉淀不再出现在列表与导出中（保留审计记录）。已发布条目不能删除，需先归档以下线对应的公共文档：${pendingDelete?.title ?? ''}`}
         destructive
         open={Boolean(pendingDelete)}
         title='删除沉淀'

@@ -440,9 +440,15 @@ export async function rebuildKnowledgeIndex() {
   }
 }
 
-/** 下线文档：置为 inactive，检索立即失效（切片保留以便追溯与恢复）。 */
-export async function deactivateDocument({ documentId, actorId = null }) {
-  const { rows } = await query(
+/**
+ * 下线文档：置为 inactive，检索立即失效（切片保留以便追溯与恢复）。
+ *
+ * `client` 用于加入调用方的事务：归档已发布沉淀时，「条目归档 + 文档下线」必须原子完成，
+ * 否则中途失败会留下「条目已归档、文档仍 active 被检索」的治理链断点。
+ */
+export async function deactivateDocument({ documentId, actorId = null, client = null }) {
+  const run = client ? (text, params) => client.query(text, params) : query
+  const { rows } = await run(
     `UPDATE ai_documents
         SET status = 'inactive', updated_at = NOW()
       WHERE id = $1 AND status = 'active'

@@ -15,11 +15,53 @@ test('parseSettingsPatch 接受 Base URL 并去掉末尾斜杠', () => {
   assert.equal(result.values.model_base_url, 'https://api.deepseek.com/v1')
 })
 
-test('parseSettingsPatch 拒绝非法 Base URL', () => {
+test('parseSettingsPatch 拒绝非 URL 与非法协议', () => {
   for (const value of ['api.deepseek.com', 'ftp://x.com', 'https://', 'javascript:alert(1)']) {
     const result = parseSettingsPatch({ modelBaseUrl: value })
     assert.equal(result.ok, false, value)
-    assert.match(result.error, /http\(s\)/)
+  }
+})
+
+test('parseSettingsPatch 只放行 https 域名，挡住 SSRF 与密钥外发路径', () => {
+  // 这个地址会被服务端**带着解密的 API Key** 请求（连通性测试还会立即出站），
+  // 因此明文 http、IP 字面量、本机与内网域名都必须拒绝 ——
+  // 历史实现只校验「像不像 http(s) 地址」，等于允许把内网地址或攻击者域名填进来。
+  for (const value of [
+    'http://api.deepseek.com/v1',
+    'https://169.254.169.254/latest/meta-data',
+    'https://127.0.0.1:8080/v1',
+    'https://10.0.0.5/v1',
+    'https://localhost/v1',
+    'https://llm.internal/v1',
+    'https://model.local/v1',
+    'https://user:pass@api.deepseek.com/v1',
+  ]) {
+    const result = parseSettingsPatch({ modelBaseUrl: value })
+    assert.equal(result.ok, false, `应拒绝：${value}`)
+  }
+})
+
+test('内网私有模型部署可用环境变量放开（默认关闭）', () => {
+  assert.equal(
+    parseSettingsPatch({ modelBaseUrl: 'https://llm.internal/v1' }).ok,
+    false,
+    '默认必须拒绝内网域名'
+  )
+
+  process.env.AI_MODEL_ALLOW_PRIVATE_HOST = 'true'
+  try {
+    assert.equal(
+      parseSettingsPatch({ modelBaseUrl: 'https://llm.internal/v1' }).ok,
+      true,
+      '放开后允许内网域名'
+    )
+    assert.equal(
+      parseSettingsPatch({ modelBaseUrl: 'http://llm.internal/v1' }).ok,
+      false,
+      '即使放开也仍要求 https，避免密钥明文出网'
+    )
+  } finally {
+    delete process.env.AI_MODEL_ALLOW_PRIVATE_HOST
   }
 })
 

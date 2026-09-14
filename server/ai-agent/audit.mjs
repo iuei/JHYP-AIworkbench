@@ -32,6 +32,12 @@ export const AUDIT_ACTIONS = {
   noteExport: 'note_export',
   noteDistill: 'note_distill',
   skillConfig: 'skill_config',
+  // 账号与凭据类管理动作：此前完全不写审计（提权、停用、重置密码都无痕），
+  // 需求文档 §5.4 要求「登录、权限相关的管理动作」必须进入审计台。
+  userCreate: 'user_create',
+  userUpdate: 'user_update',
+  userStatus: 'user_status',
+  userResetPassword: 'user_reset_password',
 }
 
 export const RUN_STATUS = {

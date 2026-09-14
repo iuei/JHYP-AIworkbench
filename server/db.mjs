@@ -23,6 +23,17 @@ export const pool = new pg.Pool({
   database: process.env.PGDATABASE ?? 'jhyp_workbench',
   user: process.env.PGUSER ?? 'postgres',
   password: process.env.PGPASSWORD,
+  // 连接池上限与超时。
+  // 必须显式设置：pg 默认 `max = 10` 且没有任何超时，一次慢查询（例如全站报表扫描）在
+  // 上层 `Promise.race` 超时后**连接并不会被释放**，仍在后端跑；约 10 个并发问答就能把池占满，
+  // 此后所有接口的查询永久排队 —— 表现为整站挂死，且应用日志里看不到错误。
+  max: Number(process.env.PG_POOL_MAX ?? 20),
+  connectionTimeoutMillis: Number(process.env.PG_CONNECT_TIMEOUT_MS ?? 5000),
+  idleTimeoutMillis: Number(process.env.PG_IDLE_TIMEOUT_MS ?? 30000),
+  // 单条语句的服务端超时：让慢查询自己结束并把连接还回池子。
+  // 注意这是"每条语句"而不是"整个事务"，因此导入时逐行 INSERT 的事务不受影响。
+  statement_timeout: Number(process.env.PG_STATEMENT_TIMEOUT_MS ?? 15000),
+  query_timeout: Number(process.env.PG_QUERY_TIMEOUT_MS ?? 20000),
 })
 
 export async function query(text, params) {
