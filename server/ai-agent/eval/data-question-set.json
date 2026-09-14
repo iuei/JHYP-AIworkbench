@@ -1,0 +1,302 @@
+{
+  "version": 1,
+  "note": "场景二（Amazon 广告与销售异常归因）与场景三（库存订单查询）的验收测试集。truth 块声明该题的服务端真值来源：基线脚本会用同一套 analytics 代码算出真值，再校验模型有没有如实转述（而不是自己编数字）。expectNumbers 是「每组的任一写法」匹配，避免因保留小数位不同误判。",
+  "questions": [
+    {
+      "id": "D01",
+      "scenario": "场景二 · ACoS 归因",
+      "question": "上个月美国站 B0SAMPLE01 的 ACoS 为什么涨了？涨了多少？主因是什么？",
+      "expectedTool": "query_amazon_performance",
+      "expectBlocks": [
+        "metrics",
+        "table",
+        "chart"
+      ],
+      "truth": {
+        "type": "amazon",
+        "params": {
+          "asin": "B0SAMPLE01",
+          "marketplace": "US",
+          "startDate": "2026-08-01",
+          "endDate": "2026-08-31",
+          "compareWith": "previous_period"
+        },
+        "fields": [
+          {
+            "from": "current.acos",
+            "digits": 1
+          },
+          {
+            "from": "decomposition.totalDelta",
+            "digits": 1
+          },
+          {
+            "from": "decomposition.salesEffect",
+            "digits": 1
+          }
+        ]
+      },
+      "expectKeywords": [
+        "销售额"
+      ],
+      "humanVerdict": null
+    },
+    {
+      "id": "D02",
+      "scenario": "场景二 · 花费与销售额",
+      "question": "B0SAMPLE01 八月（2026-08-01 到 2026-08-31）的广告花费和广告销售额分别是多少？",
+      "expectedTool": "query_amazon_performance",
+      "expectBlocks": [
+        "metrics"
+      ],
+      "truth": {
+        "type": "amazon",
+        "params": {
+          "asin": "B0SAMPLE01",
+          "marketplace": "US",
+          "startDate": "2026-08-01",
+          "endDate": "2026-08-31",
+          "compareWith": "none"
+        },
+        "fields": [
+          {
+            "from": "current.spend",
+            "digits": 0
+          },
+          {
+            "from": "current.sales",
+            "digits": 0
+          }
+        ]
+      },
+      "humanVerdict": null
+    },
+    {
+      "id": "D03",
+      "scenario": "场景二 · 同比对比",
+      "question": "B0SAMPLE01 美国站 2026 年 8 月和去年同期比，表现差在哪？",
+      "expectedTool": "query_amazon_performance",
+      "expectBlocks": [
+        "metrics"
+      ],
+      "truth": {
+        "type": "amazon",
+        "params": {
+          "asin": "B0SAMPLE01",
+          "marketplace": "US",
+          "startDate": "2026-08-01",
+          "endDate": "2026-08-31",
+          "compareWith": "last_year"
+        },
+        "fields": [
+          {
+            "from": "current.acos",
+            "digits": 1
+          }
+        ]
+      },
+      "expectKeywords": [
+        "同比"
+      ],
+      "humanVerdict": null
+    },
+    {
+      "id": "D04",
+      "scenario": "场景三 · 库存与在途",
+      "question": "SKU KT-JH-001-BK 现在还有多少库存？有多少在途？",
+      "expectedTool": "query_inventory_orders",
+      "expectBlocks": [
+        "metrics",
+        "table"
+      ],
+      "truth": {
+        "type": "inventory",
+        "params": {
+          "sku": "KT-JH-001-BK",
+          "includeOrders": true,
+          "limit": 20
+        },
+        "fields": [
+          {
+            "from": "sum.available",
+            "digits": 0
+          },
+          {
+            "from": "sum.in_transit",
+            "digits": 0
+          }
+        ]
+      },
+      "humanVerdict": null
+    },
+    {
+      "id": "D05",
+      "scenario": "场景三 · 订单状态",
+      "question": "KT-JH-001-BK 有几个待发货的订单？订单号分别是哪些？",
+      "expectedTool": "query_inventory_orders",
+      "expectBlocks": [
+        "table"
+      ],
+      "truth": {
+        "type": "inventory",
+        "params": {
+          "sku": "KT-JH-001-BK",
+          "includeOrders": true,
+          "orderStatus": "待发货",
+          "limit": 20
+        },
+        "fields": [
+          {
+            "from": "orderCount",
+            "digits": 0
+          }
+        ]
+      },
+      "expectKeywords": [
+        "112-0000003-0000003"
+      ],
+      "humanVerdict": null
+    },
+    {
+      "id": "D06",
+      "scenario": "负样本 · 不存在的 ASIN",
+      "question": "ASIN B0NOTEXIST99 上个月的 ACoS 是多少？",
+      "expectedTool": "query_amazon_performance",
+      "expectBlocks": [],
+      "expectNoData": true,
+      "humanVerdict": null
+    },
+    {
+      "id": "D07",
+      "scenario": "负样本 · 不存在的 SKU",
+      "question": "SKU NOT-EXIST-999 的库存是多少？",
+      "expectedTool": "query_inventory_orders",
+      "expectBlocks": [],
+      "expectNoData": true,
+      "humanVerdict": null
+    },
+    {
+      "id": "D08",
+      "scenario": "M-B · 主动发现异常",
+      "question": "八月美国站有哪几个 ASIN 的广告需要关注？分别是什么问题？",
+      "expectedTool": "scan_amazon_anomalies",
+      "expectBlocks": [
+        "metrics",
+        "table",
+        "chart"
+      ],
+      "truth": {
+        "type": "scan",
+        "params": {
+          "marketplace": "US",
+          "startDate": "2026-08-01",
+          "endDate": "2026-08-31"
+        },
+        "fields": [
+          {
+            "from": "scan.highCount",
+            "digits": 0
+          }
+        ]
+      },
+      "expectKeywords": [
+        "B0SAMPLE02",
+        "B0SAMPLE01"
+      ],
+      "humanVerdict": null
+    },
+    {
+      "id": "D09",
+      "scenario": "M-B · 库存风险",
+      "question": "现在有哪些 SKU 快断货了？需要补多少？",
+      "expectedTool": "analyze_inventory_risk",
+      "expectBlocks": [
+        "metrics",
+        "table"
+      ],
+      "truth": {
+        "type": "inventory-risk",
+        "params": {},
+        "fields": [
+          {
+            "from": "sum.stockoutCount",
+            "digits": 0
+          }
+        ]
+      },
+      "expectKeywords": [
+        "KT-JH-002-BK"
+      ],
+      "humanVerdict": null
+    },
+    {
+      "id": "D10",
+      "scenario": "M-B · 库存风险",
+      "question": "库存里有没有滞销或者积压的 SKU？",
+      "expectedTool": "analyze_inventory_risk",
+      "expectBlocks": [
+        "table"
+      ],
+      "truth": {
+        "type": "inventory-risk",
+        "params": {},
+        "fields": []
+      },
+      "expectKeywords": [
+        "库存"
+      ],
+      "humanVerdict": null
+    },
+    {
+      "id": "D11",
+      "scenario": "M-B · 全站聚合",
+      "question": "八月美国站整体广告表现怎么样？花了多少钱？",
+      "expectedTool": "query_amazon_performance",
+      "expectBlocks": [
+        "metrics"
+      ],
+      "truth": {
+        "type": "marketplace",
+        "params": {
+          "marketplace": "US",
+          "startDate": "2026-08-01",
+          "endDate": "2026-08-31",
+          "compareWith": "previous_period"
+        },
+        "fields": [
+          {
+            "from": "current.spend",
+            "digits": 0
+          }
+        ]
+      },
+      "humanVerdict": null
+    },
+    {
+      "id": "D12",
+      "scenario": "M-B · 全站聚合 / ASIN 排行",
+      "question": "八月美国站哪个 ASIN 的 ACoS 最高？",
+      "expectBlocks": [
+        "table"
+      ],
+      "truth": {
+        "type": "marketplace",
+        "params": {
+          "marketplace": "US",
+          "startDate": "2026-08-01",
+          "endDate": "2026-08-31",
+          "compareWith": "none"
+        },
+        "fields": []
+      },
+      "expectKeywords": [
+        "B0SAMPLE02"
+      ],
+      "humanVerdict": null,
+      "expectedToolsAny": [
+        "query_amazon_performance",
+        "scan_amazon_anomalies"
+      ]
+    }
+  ]
+}

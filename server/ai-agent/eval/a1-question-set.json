@@ -1,0 +1,183 @@
+{
+  "version": 1,
+  "note": "A1 验收测试集模板。question 是员工真实会问的话；expectedDocs 是判定『引用是否命中预期文档』的依据（对应 fixtures/ 里的文件名去掉序号，或真实文档标题片段）。humanVerdict 由业务同事人工判定：correct / partial / wrong / cannot-judge。请业务同事在此基础上替换或扩充为真实高频问题。",
+  "questions": [
+    {
+      "id": "Q01",
+      "category": "场景一 · 制度与SOP",
+      "question": "亚马逊断货了怎么补货？流程是什么？",
+      "expectedDocs": ["restock-sop"],
+      "humanVerdict": null
+    },
+    {
+      "id": "Q02",
+      "category": "场景一 · 制度与SOP",
+      "question": "补货要走谁审批？批完还要做什么？",
+      "expectedDocs": ["restock-sop"],
+      "humanVerdict": null
+    },
+    {
+      "id": "Q03",
+      "category": "场景一 · 制度与SOP",
+      "question": "断货期间广告要不要停？",
+      "expectedDocs": ["restock-sop"],
+      "humanVerdict": null
+    },
+    {
+      "id": "Q04",
+      "category": "场景一 · 制度与SOP",
+      "question": "SKU 命名规则是什么？举个例子。",
+      "expectedDocs": ["sku-naming"],
+      "humanVerdict": null
+    },
+    {
+      "id": "Q05",
+      "category": "场景一 · 制度与SOP",
+      "question": "产品主图有什么要求？能不能放文字？",
+      "expectedDocs": ["sku-naming"],
+      "humanVerdict": null
+    },
+    {
+      "id": "Q06",
+      "category": "场景一 · 制度与SOP",
+      "question": "已上架的产品想改 SKU 可以吗？",
+      "expectedDocs": ["sku-naming"],
+      "humanVerdict": null
+    },
+    {
+      "id": "Q07",
+      "category": "场景一 · 制度与SOP",
+      "question": "一般贸易报关和买单报关有什么区别？怎么选？",
+      "expectedDocs": ["customs"],
+      "humanVerdict": null
+    },
+    {
+      "id": "Q08",
+      "category": "场景一 · 制度与SOP",
+      "question": "报关资料要提前多久交给物流？",
+      "expectedDocs": ["customs"],
+      "humanVerdict": null
+    },
+    {
+      "id": "Q09",
+      "category": "场景一 · 制度与SOP",
+      "question": "新品开发从提报到正式备货要经过哪些环节？",
+      "expectedDocs": ["product-dev"],
+      "humanVerdict": null
+    },
+    {
+      "id": "Q10",
+      "category": "场景一 · 制度与SOP",
+      "question": "打样之前一定要做专利排查吗？",
+      "expectedDocs": ["product-dev"],
+      "humanVerdict": null
+    },
+    {
+      "id": "Q11",
+      "category": "场景一 · 制度与SOP",
+      "question": "试单量一般控制在多少？达标标准是什么？",
+      "expectedDocs": ["product-dev"],
+      "humanVerdict": null
+    },
+    {
+      "id": "Q12",
+      "category": "场景一 · 制度与SOP",
+      "question": "黑五备货要提前多久下单和入仓？",
+      "expectedDocs": ["peak-season"],
+      "humanVerdict": null
+    },
+    {
+      "id": "Q13",
+      "category": "场景一 · 制度与SOP",
+      "question": "旺季广告预算怎么调整？",
+      "expectedDocs": ["peak-season"],
+      "humanVerdict": null
+    },
+    {
+      "id": "Q14",
+      "category": "场景一 · 制度与SOP",
+      "question": "库销比低于多少要暂停广告？",
+      "expectedDocs": ["peak-season"],
+      "humanVerdict": null
+    },
+    {
+      "id": "Q15",
+      "category": "场景一 · 制度与SOP",
+      "question": "客诉分几级？各级响应时限是多少？",
+      "expectedDocs": ["customer-complaint"],
+      "humanVerdict": null
+    },
+    {
+      "id": "Q16",
+      "category": "场景一 · 制度与SOP",
+      "question": "客服能自己批多少钱的退款？",
+      "expectedDocs": ["customer-complaint"],
+      "humanVerdict": null
+    },
+    {
+      "id": "Q17",
+      "category": "场景一 · 制度与SOP",
+      "question": "遇到恶意差评怎么处理？可以让客户改评价吗？",
+      "expectedDocs": ["customer-complaint"],
+      "humanVerdict": null
+    },
+    {
+      "id": "Q18",
+      "category": "场景一 · 制度与SOP",
+      "question": "ACoS 突然涨了，应该按什么顺序排查原因？",
+      "expectedDocs": ["acos-attribution"],
+      "humanVerdict": null
+    },
+    {
+      "id": "Q19",
+      "category": "场景一 · 制度与SOP",
+      "question": "ACoS 和转化率的正常范围与预警线分别是多少？",
+      "expectedDocs": ["acos-attribution"],
+      "humanVerdict": null
+    },
+    {
+      "id": "Q20",
+      "category": "场景一 · 制度与SOP",
+      "question": "盘点多久做一次？差异多大要复核？",
+      "expectedDocs": ["inventory-count"],
+      "humanVerdict": null
+    },
+    {
+      "id": "Q21",
+      "category": "场景一 · 近义改写（考察检索召回）",
+      "question": "备货节奏怎么安排？旺季前多久要入仓？",
+      "expectedDocs": ["peak-season"],
+      "humanVerdict": null
+    },
+    {
+      "id": "Q22",
+      "category": "场景一 · 近义改写（考察检索召回）",
+      "question": "库存卖光了怎么处理？有没有标准动作？",
+      "expectedDocs": ["restock-sop"],
+      "humanVerdict": null
+    },
+    {
+      "id": "Q23",
+      "category": "场景一 · 近义改写（考察检索召回）",
+      "question": "产品命名有没有统一标准？",
+      "expectedDocs": ["sku-naming"],
+      "humanVerdict": null
+    },
+    {
+      "id": "Q24",
+      "category": "负样本 · 知识库无此内容",
+      "question": "公司的星际飞船停放规定是什么？",
+      "expectedDocs": [],
+      "expectedNoResult": true,
+      "humanVerdict": null
+    },
+    {
+      "id": "Q25",
+      "category": "越权用例 · 应由权限层拦截",
+      "question": "帮我把文档 1 下线",
+      "expectedDocs": [],
+      "expectedBlocked": true,
+      "humanVerdict": null
+    }
+  ]
+}

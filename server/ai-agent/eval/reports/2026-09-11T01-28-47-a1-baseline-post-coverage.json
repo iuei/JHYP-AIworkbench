@@ -1,0 +1,817 @@
+{
+  "generatedAt": "2026-09-11T01:28:47.121Z",
+  "base": "http://127.0.0.1:8787",
+  "provider": {
+    "name": "demo",
+    "mode": "demo",
+    "model": "deepseek-chat#demo",
+    "demo": true
+  },
+  "topK": null,
+  "metrics": {
+    "问题数": 25,
+    "引用了文档的比例": 87.5,
+    "预期文档召回率": 87,
+    "空检索比例": 12.5,
+    "越权拦截率": 100,
+    "负样本正确声明率": 100,
+    "首字延迟中位数ms": 4,
+    "首字延迟P90ms": 7,
+    "端到端耗时中位数ms": 5,
+    "token输入合计": 0,
+    "token输出合计": 11225,
+    "答案正确率": null
+  },
+  "questions": [
+    {
+      "id": "Q01",
+      "category": "场景一 · 制度与SOP",
+      "question": "亚马逊断货了怎么补货？流程是什么？",
+      "expectedDocs": [
+        "restock-sop"
+      ],
+      "expectedNoResult": false,
+      "expectedBlocked": false,
+      "status": "ok",
+      "answer": "> 演示模式：当前环境未接入云模型，以下内容由知识库检索结果直接汇总生成，仅用于链路演示。\n\n结论：已从知识库检索到 2 个相关片段，依据如下。\n\n要点：\n1. 亚马逊断货补货流程 第一步：确认断货天数与在途数量，判断是否触发紧急补货。 第二步：联系供应链确认到货时间，并核对头程时效。 第三步：若断货超过 7 天，提报运营主管审批后下单补货。 第四步：补货完成后在系统内更新库存计划。（来源：《【验收】亚马逊断货补货流程》）\n2. # 亚马逊断货补货流程（SOP） ## 适用场景 美国站、欧洲站任一 ASIN 可售库存低于 14 天销量的情况。 ## 处理步骤 第一步：确认断货天数与在途数量。在积加 ERP 的「库存」模块查看该 SKU 的可用库存、在途数量与锁定量，计算可售天数 = 可用库存 ÷ 近 7 天日均销量。 第二步：确认在途批次的实际（来源：《亚马逊断货补货流程（SOP）》）\n\n引用来源：\n1. 《【验收】亚马逊断货补货流程》· 人工上传文档 · 更新于 2026-09-11\n2. 《亚马逊断货补货流程（SOP）》· 人工上传文档 · 更新于 2026-09-11\n\n📊 数据来源：知识库 · 🕐 数据截至 2026-09-11 · 🔒 依据权限范围：本次检索仅覆盖当前账号可见的文档",
+      "answerExcerpt": "> 演示模式：当前环境未接入云模型，以下内容由知识库检索结果直接汇总生成，仅用于链路演示。 结论：已从知识库检索到 2 个相关片段，依据如下。 要点： 1. 亚马逊断货补货流程 第一步：确认断货天数与在途数量，判断是否触发紧急补货。 第二步：联系供应链确认到货时间，并核对头程时效。 第三步：若断货超过 7 天，提报运营",
+      "citationCount": 2,
+      "citedTitles": [
+        "【验收】亚马逊断货补货流程",
+        "亚马逊断货补货流程（SOP）"
+      ],
+      "matchedDocs": [
+        "restock-sop"
+      ],
+      "searchRows": 2,
+      "toolNames": [
+        "search_knowledge"
+      ],
+      "blocked": false,
+      "noResult": false,
+      "firstDeltaMs": 14,
+      "totalMs": 15,
+      "tokensIn": 0,
+      "tokensOut": 557,
+      "humanVerdict": null,
+      "humanNote": null
+    },
+    {
+      "id": "Q02",
+      "category": "场景一 · 制度与SOP",
+      "question": "补货要走谁审批？批完还要做什么？",
+      "expectedDocs": [
+        "restock-sop"
+      ],
+      "expectedNoResult": false,
+      "expectedBlocked": false,
+      "status": "ok",
+      "answer": "> 演示模式：当前环境未接入云模型，以下内容由知识库检索结果直接汇总生成，仅用于链路演示。\n\n结论：知识库中未找到相关内容。\n\n该问题在知识库现有文档中没有匹配内容，请确认是否已有对应制度或 SOP 文档；如需补充，可联系管理员上传。\n\n📊 数据来源：知识库 · 🕐 数据截至 2026-09-11 · 🔒 依据权限范围：本次检索仅覆盖当前账号可见的文档",
+      "answerExcerpt": "> 演示模式：当前环境未接入云模型，以下内容由知识库检索结果直接汇总生成，仅用于链路演示。 结论：知识库中未找到相关内容。 该问题在知识库现有文档中没有匹配内容，请确认是否已有对应制度或 SOP 文档；如需补充，可联系管理员上传。 📊 数据来源：知识库 · 🕐 数据截至 2026-09-11 · 🔒 依据权限范围",
+      "citationCount": 0,
+      "citedTitles": [],
+      "matchedDocs": [],
+      "searchRows": 0,
+      "toolNames": [
+        "search_knowledge"
+      ],
+      "blocked": false,
+      "noResult": true,
+      "firstDeltaMs": 8,
+      "totalMs": 9,
+      "tokensIn": 0,
+      "tokensOut": 180,
+      "humanVerdict": null,
+      "humanNote": null
+    },
+    {
+      "id": "Q03",
+      "category": "场景一 · 制度与SOP",
+      "question": "断货期间广告要不要停？",
+      "expectedDocs": [
+        "restock-sop"
+      ],
+      "expectedNoResult": false,
+      "expectedBlocked": false,
+      "status": "ok",
+      "answer": "> 演示模式：当前环境未接入云模型，以下内容由知识库检索结果直接汇总生成，仅用于链路演示。\n\n结论：已从知识库检索到 2 个相关片段，依据如下。\n\n要点：\n1. # 亚马逊断货补货流程（SOP） ## 适用场景 美国站、欧洲站任一 ASIN 可售库存低于 14 天销量的情况。 ## 处理步骤 第一步：确认断货天数与在途数量。在积加 ERP 的「库存」模块查看该 SKU 的可用库存、在途数量与锁定量，计算可售天数 = 可用库存 ÷ 近 7 天日均销量。 第二步：确认在途批次的实际（来源：《亚马逊断货补货流程（SOP）》）\n2. # 旺季备货与广告投放节奏 ## 全年旺季节点 - 3-4 月：春季换季小高峰 - 7 月：Prime Day（通常第二周） - 10 月：Prime Big Deal Days - 11 月：黑五网一（Black Friday / Cyber Monday） - 12 月：圣诞季 ## 备货节奏 旺季备货需要在节点前（来源：《旺季备货与广告投放节奏》）\n\n引用来源：\n1. 《亚马逊断货补货流程（SOP）》· 人工上传文档 · 更新于 2026-09-11\n2. 《旺季备货与广告投放节奏》· 人工上传文档 · 更新于 2026-09-11\n\n📊 数据来源：知识库 · 🕐 数据截至 2026-09-11 · 🔒 依据权限范围：本次检索仅覆盖当前账号可见的文档",
+      "answerExcerpt": "> 演示模式：当前环境未接入云模型，以下内容由知识库检索结果直接汇总生成，仅用于链路演示。 结论：已从知识库检索到 2 个相关片段，依据如下。 要点： 1. # 亚马逊断货补货流程（SOP） ## 适用场景 美国站、欧洲站任一 ASIN 可售库存低于 14 天销量的情况。 ## 处理步骤 第一步：确认断货天数与在途数量",
+      "citationCount": 2,
+      "citedTitles": [
+        "亚马逊断货补货流程（SOP）",
+        "旺季备货与广告投放节奏"
+      ],
+      "matchedDocs": [
+        "restock-sop"
+      ],
+      "searchRows": 2,
+      "toolNames": [
+        "search_knowledge"
+      ],
+      "blocked": false,
+      "noResult": false,
+      "firstDeltaMs": 7,
+      "totalMs": 8,
+      "tokensIn": 0,
+      "tokensOut": 601,
+      "humanVerdict": null,
+      "humanNote": null
+    },
+    {
+      "id": "Q04",
+      "category": "场景一 · 制度与SOP",
+      "question": "SKU 命名规则是什么？举个例子。",
+      "expectedDocs": [
+        "sku-naming"
+      ],
+      "expectedNoResult": false,
+      "expectedBlocked": false,
+      "status": "ok",
+      "answer": "> 演示模式：当前环境未接入云模型，以下内容由知识库检索结果直接汇总生成，仅用于链路演示。\n\n结论：已从知识库检索到 1 个相关片段，依据如下。\n\n要点：\n1. # SKU 命名与图片规范 ## SKU 命名规则 SKU 由「品类代码 + 品牌缩写 + 系列号 + 变体代码」四段组成，用短横线连接，全部使用大写字母与数字。 - 品类代码：厨房小家电为 KT，户外用品为 OD，家居收纳为 HM - 品牌缩写：2-4 位大写字母，与商标注册主体一致 - 系列号：3 位数字，按立项顺（来源：《SKU 命名与图片规范》）\n\n引用来源：\n1. 《SKU 命名与图片规范》· 人工上传文档 · 更新于 2026-09-11\n\n📊 数据来源：知识库 · 🕐 数据截至 2026-09-11 · 🔒 依据权限范围：本次检索仅覆盖当前账号可见的文档",
+      "answerExcerpt": "> 演示模式：当前环境未接入云模型，以下内容由知识库检索结果直接汇总生成，仅用于链路演示。 结论：已从知识库检索到 1 个相关片段，依据如下。 要点： 1. # SKU 命名与图片规范 ## SKU 命名规则 SKU 由「品类代码 + 品牌缩写 + 系列号 + 变体代码」四段组成，用短横线连接，全部使用大写字母与数字。",
+      "citationCount": 1,
+      "citedTitles": [
+        "SKU 命名与图片规范"
+      ],
+      "matchedDocs": [
+        "sku-naming"
+      ],
+      "searchRows": 1,
+      "toolNames": [
+        "search_knowledge"
+      ],
+      "blocked": false,
+      "noResult": false,
+      "firstDeltaMs": 7,
+      "totalMs": 8,
+      "tokensIn": 0,
+      "tokensOut": 371,
+      "humanVerdict": null,
+      "humanNote": null
+    },
+    {
+      "id": "Q05",
+      "category": "场景一 · 制度与SOP",
+      "question": "产品主图有什么要求？能不能放文字？",
+      "expectedDocs": [
+        "sku-naming"
+      ],
+      "expectedNoResult": false,
+      "expectedBlocked": false,
+      "status": "ok",
+      "answer": "> 演示模式：当前环境未接入云模型，以下内容由知识库检索结果直接汇总生成，仅用于链路演示。\n\n结论：已从知识库检索到 2 个相关片段，依据如下。\n\n要点：\n1. # SKU 命名与图片规范 ## SKU 命名规则 SKU 由「品类代码 + 品牌缩写 + 系列号 + 变体代码」四段组成，用短横线连接，全部使用大写字母与数字。 - 品类代码：厨房小家电为 KT，户外用品为 OD，家居收纳为 HM - 品牌缩写：2-4 位大写字母，与商标注册主体一致 - 系列号：3 位数字，按立项顺（来源：《SKU 命名与图片规范》）\n2. # 备货报关方式区分及要求 ## 两种报关方式的区别 **一般贸易报关**：适用于有正规采购发票、可提供完整报关资料的备货。需要提供合同、发票、装箱单、报关委托书。退税可正常办理。 **买单报关（无票报关）**：适用于供应商无法开具增值税专用发票的情况。不能办理退税，且存在合规风险，需经财务与运营负责人共同审批后方可使（来源：《备货报关方式区分及要求》）\n\n引用来源：\n1. 《SKU 命名与图片规范》· 人工上传文档 · 更新于 2026-09-11\n2. 《备货报关方式区分及要求》· 人工上传文档 · 更新于 2026-09-11\n\n📊 数据来源：知识库 · 🕐 数据截至 2026-09-11 · 🔒 依据权限范围：本次检索仅覆盖当前账号可见的文档",
+      "answerExcerpt": "> 演示模式：当前环境未接入云模型，以下内容由知识库检索结果直接汇总生成，仅用于链路演示。 结论：已从知识库检索到 2 个相关片段，依据如下。 要点： 1. # SKU 命名与图片规范 ## SKU 命名规则 SKU 由「品类代码 + 品牌缩写 + 系列号 + 变体代码」四段组成，用短横线连接，全部使用大写字母与数字。",
+      "citationCount": 2,
+      "citedTitles": [
+        "SKU 命名与图片规范",
+        "备货报关方式区分及要求"
+      ],
+      "matchedDocs": [
+        "sku-naming"
+      ],
+      "searchRows": 2,
+      "toolNames": [
+        "search_knowledge"
+      ],
+      "blocked": false,
+      "noResult": false,
+      "firstDeltaMs": 7,
+      "totalMs": 7,
+      "tokensIn": 0,
+      "tokensOut": 595,
+      "humanVerdict": null,
+      "humanNote": null
+    },
+    {
+      "id": "Q06",
+      "category": "场景一 · 制度与SOP",
+      "question": "已上架的产品想改 SKU 可以吗？",
+      "expectedDocs": [
+        "sku-naming"
+      ],
+      "expectedNoResult": false,
+      "expectedBlocked": false,
+      "status": "ok",
+      "answer": "> 演示模式：当前环境未接入云模型，以下内容由知识库检索结果直接汇总生成，仅用于链路演示。\n\n结论：已从知识库检索到 4 个相关片段，依据如下。\n\n要点：\n1. # SKU 命名与图片规范 ## SKU 命名规则 SKU 由「品类代码 + 品牌缩写 + 系列号 + 变体代码」四段组成，用短横线连接，全部使用大写字母与数字。 - 品类代码：厨房小家电为 KT，户外用品为 OD，家居收纳为 HM - 品牌缩写：2-4 位大写字母，与商标注册主体一致 - 系列号：3 位数字，按立项顺（来源：《SKU 命名与图片规范》）\n2. # 备货报关方式区分及要求 ## 两种报关方式的区别 **一般贸易报关**：适用于有正规采购发票、可提供完整报关资料的备货。需要提供合同、发票、装箱单、报关委托书。退税可正常办理。 **买单报关（无票报关）**：适用于供应商无法开具增值税专用发票的情况。不能办理退税，且存在合规风险，需经财务与运营负责人共同审批后方可使（来源：《备货报关方式区分及要求》）\n3. # 客诉处理与差评应对规范 ## 客诉分级 | 等级 | 判定标准 | 响应时限 | | --- | --- | --- | | A 级 | 产品质量引发人身安全风险 | 2 小时内 | | B 级 | 产品功能失效、错发漏发 | 24 小时内 | | C 级 | 包装破损、说明不清 | 48 小时内 | ## 处理流（来源：《客诉处理与差评应对规范》）\n4. # 新品开发流程（产品开发系统 v1.0） ## 全流程节点 1. **需求收集**：通过飞书「新品开发需求收集表单」提报，需填写目标市场、价格带、竞品链接、预估月销量。 2. **立项评审**：每周二下午评审会，由产品负责人、运营负责人、供应链三方确认是否立项。未通过的需求需在表单中记录驳回原因。 3. **选品调研（来源：《新品开发流程（产品开发系统 v1.0）》）\n\n引用来源：\n1. 《SKU 命名与图片规范》· 人工上传文档 · 更新于 2026-09-11\n2. 《备货报关方式区分及要求》· 人工上传文档 · 更新于 2026-09-11\n3. 《客诉处理与差评应对规范》· 人工上传文档 · 更新于 2026-09-11\n4. 《新品开发流程（产品开发系统 v1.0）》· 人工上传文档 · 更新于 2026-09-11\n\n📊 数据来源：知识库 · 🕐 数据截至 2026-09-11 · 🔒 依据权限范围：本次检索仅覆盖当前账号可见的文档",
+      "answerExcerpt": "> 演示模式：当前环境未接入云模型，以下内容由知识库检索结果直接汇总生成，仅用于链路演示。 结论：已从知识库检索到 4 个相关片段，依据如下。 要点： 1. # SKU 命名与图片规范 ## SKU 命名规则 SKU 由「品类代码 + 品牌缩写 + 系列号 + 变体代码」四段组成，用短横线连接，全部使用大写字母与数字。",
+      "citationCount": 4,
+      "citedTitles": [
+        "SKU 命名与图片规范",
+        "备货报关方式区分及要求",
+        "客诉处理与差评应对规范",
+        "新品开发流程（产品开发系统 v1.0）"
+      ],
+      "matchedDocs": [
+        "sku-naming"
+      ],
+      "searchRows": 4,
+      "toolNames": [
+        "search_knowledge"
+      ],
+      "blocked": false,
+      "noResult": false,
+      "firstDeltaMs": 7,
+      "totalMs": 7,
+      "tokensIn": 0,
+      "tokensOut": 1059,
+      "humanVerdict": null,
+      "humanNote": null
+    },
+    {
+      "id": "Q07",
+      "category": "场景一 · 制度与SOP",
+      "question": "一般贸易报关和买单报关有什么区别？怎么选？",
+      "expectedDocs": [
+        "customs"
+      ],
+      "expectedNoResult": false,
+      "expectedBlocked": false,
+      "status": "ok",
+      "answer": "> 演示模式：当前环境未接入云模型，以下内容由知识库检索结果直接汇总生成，仅用于链路演示。\n\n结论：已从知识库检索到 1 个相关片段，依据如下。\n\n要点：\n1. # 备货报关方式区分及要求 ## 两种报关方式的区别 **一般贸易报关**：适用于有正规采购发票、可提供完整报关资料的备货。需要提供合同、发票、装箱单、报关委托书。退税可正常办理。 **买单报关（无票报关）**：适用于供应商无法开具增值税专用发票的情况。不能办理退税，且存在合规风险，需经财务与运营负责人共同审批后方可使（来源：《备货报关方式区分及要求》）\n\n引用来源：\n1. 《备货报关方式区分及要求》· 人工上传文档 · 更新于 2026-09-11\n\n📊 数据来源：知识库 · 🕐 数据截至 2026-09-11 · 🔒 依据权限范围：本次检索仅覆盖当前账号可见的文档",
+      "answerExcerpt": "> 演示模式：当前环境未接入云模型，以下内容由知识库检索结果直接汇总生成，仅用于链路演示。 结论：已从知识库检索到 1 个相关片段，依据如下。 要点： 1. # 备货报关方式区分及要求 ## 两种报关方式的区别 **一般贸易报关**：适用于有正规采购发票、可提供完整报关资料的备货。需要提供合同、发票、装箱单、报关委托书",
+      "citationCount": 1,
+      "citedTitles": [
+        "备货报关方式区分及要求"
+      ],
+      "matchedDocs": [
+        "customs"
+      ],
+      "searchRows": 1,
+      "toolNames": [
+        "search_knowledge"
+      ],
+      "blocked": false,
+      "noResult": false,
+      "firstDeltaMs": 6,
+      "totalMs": 7,
+      "tokensIn": 0,
+      "tokensOut": 371,
+      "humanVerdict": null,
+      "humanNote": null
+    },
+    {
+      "id": "Q08",
+      "category": "场景一 · 制度与SOP",
+      "question": "报关资料要提前多久交给物流？",
+      "expectedDocs": [
+        "customs"
+      ],
+      "expectedNoResult": false,
+      "expectedBlocked": false,
+      "status": "ok",
+      "answer": "> 演示模式：当前环境未接入云模型，以下内容由知识库检索结果直接汇总生成，仅用于链路演示。\n\n结论：已从知识库检索到 1 个相关片段，依据如下。\n\n要点：\n1. # 备货报关方式区分及要求 ## 两种报关方式的区别 **一般贸易报关**：适用于有正规采购发票、可提供完整报关资料的备货。需要提供合同、发票、装箱单、报关委托书。退税可正常办理。 **买单报关（无票报关）**：适用于供应商无法开具增值税专用发票的情况。不能办理退税，且存在合规风险，需经财务与运营负责人共同审批后方可使（来源：《备货报关方式区分及要求》）\n\n引用来源：\n1. 《备货报关方式区分及要求》· 人工上传文档 · 更新于 2026-09-11\n\n📊 数据来源：知识库 · 🕐 数据截至 2026-09-11 · 🔒 依据权限范围：本次检索仅覆盖当前账号可见的文档",
+      "answerExcerpt": "> 演示模式：当前环境未接入云模型，以下内容由知识库检索结果直接汇总生成，仅用于链路演示。 结论：已从知识库检索到 1 个相关片段，依据如下。 要点： 1. # 备货报关方式区分及要求 ## 两种报关方式的区别 **一般贸易报关**：适用于有正规采购发票、可提供完整报关资料的备货。需要提供合同、发票、装箱单、报关委托书",
+      "citationCount": 1,
+      "citedTitles": [
+        "备货报关方式区分及要求"
+      ],
+      "matchedDocs": [
+        "customs"
+      ],
+      "searchRows": 1,
+      "toolNames": [
+        "search_knowledge"
+      ],
+      "blocked": false,
+      "noResult": false,
+      "firstDeltaMs": 3,
+      "totalMs": 4,
+      "tokensIn": 0,
+      "tokensOut": 371,
+      "humanVerdict": null,
+      "humanNote": null
+    },
+    {
+      "id": "Q09",
+      "category": "场景一 · 制度与SOP",
+      "question": "新品开发从提报到正式备货要经过哪些环节？",
+      "expectedDocs": [
+        "product-dev"
+      ],
+      "expectedNoResult": false,
+      "expectedBlocked": false,
+      "status": "ok",
+      "answer": "> 演示模式：当前环境未接入云模型，以下内容由知识库检索结果直接汇总生成，仅用于链路演示。\n\n结论：已从知识库检索到 1 个相关片段，依据如下。\n\n要点：\n1. # 新品开发流程（产品开发系统 v1.0） ## 全流程节点 1. **需求收集**：通过飞书「新品开发需求收集表单」提报，需填写目标市场、价格带、竞品链接、预估月销量。 2. **立项评审**：每周二下午评审会，由产品负责人、运营负责人、供应链三方确认是否立项。未通过的需求需在表单中记录驳回原因。 3. **选品调研（来源：《新品开发流程（产品开发系统 v1.0）》）\n\n引用来源：\n1. 《新品开发流程（产品开发系统 v1.0）》· 人工上传文档 · 更新于 2026-09-11\n\n📊 数据来源：知识库 · 🕐 数据截至 2026-09-11 · 🔒 依据权限范围：本次检索仅覆盖当前账号可见的文档",
+      "answerExcerpt": "> 演示模式：当前环境未接入云模型，以下内容由知识库检索结果直接汇总生成，仅用于链路演示。 结论：已从知识库检索到 1 个相关片段，依据如下。 要点： 1. # 新品开发流程（产品开发系统 v1.0） ## 全流程节点 1. **需求收集**：通过飞书「新品开发需求收集表单」提报，需填写目标市场、价格带、竞品链接、预估",
+      "citationCount": 1,
+      "citedTitles": [
+        "新品开发流程（产品开发系统 v1.0）"
+      ],
+      "matchedDocs": [
+        "product-dev"
+      ],
+      "searchRows": 1,
+      "toolNames": [
+        "search_knowledge"
+      ],
+      "blocked": false,
+      "noResult": false,
+      "firstDeltaMs": 4,
+      "totalMs": 4,
+      "tokensIn": 0,
+      "tokensOut": 387,
+      "humanVerdict": null,
+      "humanNote": null
+    },
+    {
+      "id": "Q10",
+      "category": "场景一 · 制度与SOP",
+      "question": "打样之前一定要做专利排查吗？",
+      "expectedDocs": [
+        "product-dev"
+      ],
+      "expectedNoResult": false,
+      "expectedBlocked": false,
+      "status": "ok",
+      "answer": "> 演示模式：当前环境未接入云模型，以下内容由知识库检索结果直接汇总生成，仅用于链路演示。\n\n结论：已从知识库检索到 1 个相关片段，依据如下。\n\n要点：\n1. # 新品开发流程（产品开发系统 v1.0） ## 全流程节点 1. **需求收集**：通过飞书「新品开发需求收集表单」提报，需填写目标市场、价格带、竞品链接、预估月销量。 2. **立项评审**：每周二下午评审会，由产品负责人、运营负责人、供应链三方确认是否立项。未通过的需求需在表单中记录驳回原因。 3. **选品调研（来源：《新品开发流程（产品开发系统 v1.0）》）\n\n引用来源：\n1. 《新品开发流程（产品开发系统 v1.0）》· 人工上传文档 · 更新于 2026-09-11\n\n📊 数据来源：知识库 · 🕐 数据截至 2026-09-11 · 🔒 依据权限范围：本次检索仅覆盖当前账号可见的文档",
+      "answerExcerpt": "> 演示模式：当前环境未接入云模型，以下内容由知识库检索结果直接汇总生成，仅用于链路演示。 结论：已从知识库检索到 1 个相关片段，依据如下。 要点： 1. # 新品开发流程（产品开发系统 v1.0） ## 全流程节点 1. **需求收集**：通过飞书「新品开发需求收集表单」提报，需填写目标市场、价格带、竞品链接、预估",
+      "citationCount": 1,
+      "citedTitles": [
+        "新品开发流程（产品开发系统 v1.0）"
+      ],
+      "matchedDocs": [
+        "product-dev"
+      ],
+      "searchRows": 1,
+      "toolNames": [
+        "search_knowledge"
+      ],
+      "blocked": false,
+      "noResult": false,
+      "firstDeltaMs": 5,
+      "totalMs": 5,
+      "tokensIn": 0,
+      "tokensOut": 387,
+      "humanVerdict": null,
+      "humanNote": null
+    },
+    {
+      "id": "Q11",
+      "category": "场景一 · 制度与SOP",
+      "question": "试单量一般控制在多少？达标标准是什么？",
+      "expectedDocs": [
+        "product-dev"
+      ],
+      "expectedNoResult": false,
+      "expectedBlocked": false,
+      "status": "ok",
+      "answer": "> 演示模式：当前环境未接入云模型，以下内容由知识库检索结果直接汇总生成，仅用于链路演示。\n\n结论：已从知识库检索到 1 个相关片段，依据如下。\n\n要点：\n1. # 新品开发流程（产品开发系统 v1.0） ## 全流程节点 1. **需求收集**：通过飞书「新品开发需求收集表单」提报，需填写目标市场、价格带、竞品链接、预估月销量。 2. **立项评审**：每周二下午评审会，由产品负责人、运营负责人、供应链三方确认是否立项。未通过的需求需在表单中记录驳回原因。 3. **选品调研（来源：《新品开发流程（产品开发系统 v1.0）》）\n\n引用来源：\n1. 《新品开发流程（产品开发系统 v1.0）》· 人工上传文档 · 更新于 2026-09-11\n\n📊 数据来源：知识库 · 🕐 数据截至 2026-09-11 · 🔒 依据权限范围：本次检索仅覆盖当前账号可见的文档",
+      "answerExcerpt": "> 演示模式：当前环境未接入云模型，以下内容由知识库检索结果直接汇总生成，仅用于链路演示。 结论：已从知识库检索到 1 个相关片段，依据如下。 要点： 1. # 新品开发流程（产品开发系统 v1.0） ## 全流程节点 1. **需求收集**：通过飞书「新品开发需求收集表单」提报，需填写目标市场、价格带、竞品链接、预估",
+      "citationCount": 1,
+      "citedTitles": [
+        "新品开发流程（产品开发系统 v1.0）"
+      ],
+      "matchedDocs": [
+        "product-dev"
+      ],
+      "searchRows": 1,
+      "toolNames": [
+        "search_knowledge"
+      ],
+      "blocked": false,
+      "noResult": false,
+      "firstDeltaMs": 5,
+      "totalMs": 5,
+      "tokensIn": 0,
+      "tokensOut": 387,
+      "humanVerdict": null,
+      "humanNote": null
+    },
+    {
+      "id": "Q12",
+      "category": "场景一 · 制度与SOP",
+      "question": "黑五备货要提前多久下单和入仓？",
+      "expectedDocs": [
+        "peak-season"
+      ],
+      "expectedNoResult": false,
+      "expectedBlocked": false,
+      "status": "ok",
+      "answer": "> 演示模式：当前环境未接入云模型，以下内容由知识库检索结果直接汇总生成，仅用于链路演示。\n\n结论：已从知识库检索到 1 个相关片段，依据如下。\n\n要点：\n1. # 旺季备货与广告投放节奏 ## 全年旺季节点 - 3-4 月：春季换季小高峰 - 7 月：Prime Day（通常第二周） - 10 月：Prime Big Deal Days - 11 月：黑五网一（Black Friday / Cyber Monday） - 12 月：圣诞季 ## 备货节奏 旺季备货需要在节点前（来源：《旺季备货与广告投放节奏》）\n\n引用来源：\n1. 《旺季备货与广告投放节奏》· 人工上传文档 · 更新于 2026-09-11\n\n📊 数据来源：知识库 · 🕐 数据截至 2026-09-11 · 🔒 依据权限范围：本次检索仅覆盖当前账号可见的文档",
+      "answerExcerpt": "> 演示模式：当前环境未接入云模型，以下内容由知识库检索结果直接汇总生成，仅用于链路演示。 结论：已从知识库检索到 1 个相关片段，依据如下。 要点： 1. # 旺季备货与广告投放节奏 ## 全年旺季节点 - 3-4 月：春季换季小高峰 - 7 月：Prime Day（通常第二周） - 10 月：Prime Big D",
+      "citationCount": 1,
+      "citedTitles": [
+        "旺季备货与广告投放节奏"
+      ],
+      "matchedDocs": [
+        "peak-season"
+      ],
+      "searchRows": 1,
+      "toolNames": [
+        "search_knowledge"
+      ],
+      "blocked": false,
+      "noResult": false,
+      "firstDeltaMs": 4,
+      "totalMs": 4,
+      "tokensIn": 0,
+      "tokensOut": 371,
+      "humanVerdict": null,
+      "humanNote": null
+    },
+    {
+      "id": "Q13",
+      "category": "场景一 · 制度与SOP",
+      "question": "旺季广告预算怎么调整？",
+      "expectedDocs": [
+        "peak-season"
+      ],
+      "expectedNoResult": false,
+      "expectedBlocked": false,
+      "status": "ok",
+      "answer": "> 演示模式：当前环境未接入云模型，以下内容由知识库检索结果直接汇总生成，仅用于链路演示。\n\n结论：已从知识库检索到 2 个相关片段，依据如下。\n\n要点：\n1. # 旺季备货与广告投放节奏 ## 全年旺季节点 - 3-4 月：春季换季小高峰 - 7 月：Prime Day（通常第二周） - 10 月：Prime Big Deal Days - 11 月：黑五网一（Black Friday / Cyber Monday） - 12 月：圣诞季 ## 备货节奏 旺季备货需要在节点前（来源：《旺季备货与广告投放节奏》）\n2. # 亚马逊断货补货流程（SOP） ## 适用场景 美国站、欧洲站任一 ASIN 可售库存低于 14 天销量的情况。 ## 处理步骤 第一步：确认断货天数与在途数量。在积加 ERP 的「库存」模块查看该 SKU 的可用库存、在途数量与锁定量，计算可售天数 = 可用库存 ÷ 近 7 天日均销量。 第二步：确认在途批次的实际（来源：《亚马逊断货补货流程（SOP）》）\n\n引用来源：\n1. 《旺季备货与广告投放节奏》· 人工上传文档 · 更新于 2026-09-11\n2. 《亚马逊断货补货流程（SOP）》· 人工上传文档 · 更新于 2026-09-11\n\n📊 数据来源：知识库 · 🕐 数据截至 2026-09-11 · 🔒 依据权限范围：本次检索仅覆盖当前账号可见的文档",
+      "answerExcerpt": "> 演示模式：当前环境未接入云模型，以下内容由知识库检索结果直接汇总生成，仅用于链路演示。 结论：已从知识库检索到 2 个相关片段，依据如下。 要点： 1. # 旺季备货与广告投放节奏 ## 全年旺季节点 - 3-4 月：春季换季小高峰 - 7 月：Prime Day（通常第二周） - 10 月：Prime Big D",
+      "citationCount": 2,
+      "citedTitles": [
+        "旺季备货与广告投放节奏",
+        "亚马逊断货补货流程（SOP）"
+      ],
+      "matchedDocs": [
+        "peak-season"
+      ],
+      "searchRows": 2,
+      "toolNames": [
+        "search_knowledge"
+      ],
+      "blocked": false,
+      "noResult": false,
+      "firstDeltaMs": 4,
+      "totalMs": 5,
+      "tokensIn": 0,
+      "tokensOut": 601,
+      "humanVerdict": null,
+      "humanNote": null
+    },
+    {
+      "id": "Q14",
+      "category": "场景一 · 制度与SOP",
+      "question": "库销比低于多少要暂停广告？",
+      "expectedDocs": [
+        "peak-season"
+      ],
+      "expectedNoResult": false,
+      "expectedBlocked": false,
+      "status": "ok",
+      "answer": "> 演示模式：当前环境未接入云模型，以下内容由知识库检索结果直接汇总生成，仅用于链路演示。\n\n结论：已从知识库检索到 3 个相关片段，依据如下。\n\n要点：\n1. # 旺季备货与广告投放节奏 ## 全年旺季节点 - 3-4 月：春季换季小高峰 - 7 月：Prime Day（通常第二周） - 10 月：Prime Big Deal Days - 11 月：黑五网一（Black Friday / Cyber Monday） - 12 月：圣诞季 ## 备货节奏 旺季备货需要在节点前（来源：《旺季备货与广告投放节奏》）\n2. # 亚马逊断货补货流程（SOP） ## 适用场景 美国站、欧洲站任一 ASIN 可售库存低于 14 天销量的情况。 ## 处理步骤 第一步：确认断货天数与在途数量。在积加 ERP 的「库存」模块查看该 SKU 的可用库存、在途数量与锁定量，计算可售天数 = 可用库存 ÷ 近 7 天日均销量。 第二步：确认在途批次的实际（来源：《亚马逊断货补货流程（SOP）》）\n3. # 广告 ACoS 异常归因方法 ## 归因排查顺序 按以下顺序逐项排查，先排除外部因素再定位内部因素： 1. **竞价环境**：查看建议竞价是否上涨，竞品是否新增投放。竞价整体上涨 20% 以上时，ACoS 上涨属于行业性变化。 2. **转化率**：对比近 7 天与上月同期转化率。转化率下降是 ACoS 上涨最常见（来源：《广告 ACoS 异常归因方法》）\n\n引用来源：\n1. 《旺季备货与广告投放节奏》· 人工上传文档 · 更新于 2026-09-11\n2. 《亚马逊断货补货流程（SOP）》· 人工上传文档 · 更新于 2026-09-11\n3. 《广告 ACoS 异常归因方法》· 人工上传文档 · 更新于 2026-09-11\n\n📊 数据来源：知识库 · 🕐 数据截至 2026-09-11 · 🔒 依据权限范围：本次检索仅覆盖当前账号可见的文档",
+      "answerExcerpt": "> 演示模式：当前环境未接入云模型，以下内容由知识库检索结果直接汇总生成，仅用于链路演示。 结论：已从知识库检索到 3 个相关片段，依据如下。 要点： 1. # 旺季备货与广告投放节奏 ## 全年旺季节点 - 3-4 月：春季换季小高峰 - 7 月：Prime Day（通常第二周） - 10 月：Prime Big D",
+      "citationCount": 3,
+      "citedTitles": [
+        "旺季备货与广告投放节奏",
+        "亚马逊断货补货流程（SOP）",
+        "广告 ACoS 异常归因方法"
+      ],
+      "matchedDocs": [
+        "peak-season"
+      ],
+      "searchRows": 3,
+      "toolNames": [
+        "search_knowledge"
+      ],
+      "blocked": false,
+      "noResult": false,
+      "firstDeltaMs": 5,
+      "totalMs": 5,
+      "tokensIn": 0,
+      "tokensOut": 831,
+      "humanVerdict": null,
+      "humanNote": null
+    },
+    {
+      "id": "Q15",
+      "category": "场景一 · 制度与SOP",
+      "question": "客诉分几级？各级响应时限是多少？",
+      "expectedDocs": [
+        "customer-complaint"
+      ],
+      "expectedNoResult": false,
+      "expectedBlocked": false,
+      "status": "ok",
+      "answer": "> 演示模式：当前环境未接入云模型，以下内容由知识库检索结果直接汇总生成，仅用于链路演示。\n\n结论：已从知识库检索到 1 个相关片段，依据如下。\n\n要点：\n1. # 客诉处理与差评应对规范 ## 客诉分级 | 等级 | 判定标准 | 响应时限 | | --- | --- | --- | | A 级 | 产品质量引发人身安全风险 | 2 小时内 | | B 级 | 产品功能失效、错发漏发 | 24 小时内 | | C 级 | 包装破损、说明不清 | 48 小时内 | ## 处理流（来源：《客诉处理与差评应对规范》）\n\n引用来源：\n1. 《客诉处理与差评应对规范》· 人工上传文档 · 更新于 2026-09-11\n\n📊 数据来源：知识库 · 🕐 数据截至 2026-09-11 · 🔒 依据权限范围：本次检索仅覆盖当前账号可见的文档",
+      "answerExcerpt": "> 演示模式：当前环境未接入云模型，以下内容由知识库检索结果直接汇总生成，仅用于链路演示。 结论：已从知识库检索到 1 个相关片段，依据如下。 要点： 1. # 客诉处理与差评应对规范 ## 客诉分级 | 等级 | 判定标准 | 响应时限 | | --- | --- | --- | | A 级 | 产品质量引发人身安全",
+      "citationCount": 1,
+      "citedTitles": [
+        "客诉处理与差评应对规范"
+      ],
+      "matchedDocs": [
+        "customer-complaint"
+      ],
+      "searchRows": 1,
+      "toolNames": [
+        "search_knowledge"
+      ],
+      "blocked": false,
+      "noResult": false,
+      "firstDeltaMs": 5,
+      "totalMs": 5,
+      "tokensIn": 0,
+      "tokensOut": 371,
+      "humanVerdict": null,
+      "humanNote": null
+    },
+    {
+      "id": "Q16",
+      "category": "场景一 · 制度与SOP",
+      "question": "客服能自己批多少钱的退款？",
+      "expectedDocs": [
+        "customer-complaint"
+      ],
+      "expectedNoResult": false,
+      "expectedBlocked": false,
+      "status": "ok",
+      "answer": "> 演示模式：当前环境未接入云模型，以下内容由知识库检索结果直接汇总生成，仅用于链路演示。\n\n结论：知识库中未找到相关内容。\n\n该问题在知识库现有文档中没有匹配内容，请确认是否已有对应制度或 SOP 文档；如需补充，可联系管理员上传。\n\n📊 数据来源：知识库 · 🕐 数据截至 2026-09-11 · 🔒 依据权限范围：本次检索仅覆盖当前账号可见的文档",
+      "answerExcerpt": "> 演示模式：当前环境未接入云模型，以下内容由知识库检索结果直接汇总生成，仅用于链路演示。 结论：知识库中未找到相关内容。 该问题在知识库现有文档中没有匹配内容，请确认是否已有对应制度或 SOP 文档；如需补充，可联系管理员上传。 📊 数据来源：知识库 · 🕐 数据截至 2026-09-11 · 🔒 依据权限范围",
+      "citationCount": 0,
+      "citedTitles": [],
+      "matchedDocs": [],
+      "searchRows": 0,
+      "toolNames": [
+        "search_knowledge"
+      ],
+      "blocked": false,
+      "noResult": true,
+      "firstDeltaMs": 4,
+      "totalMs": 4,
+      "tokensIn": 0,
+      "tokensOut": 180,
+      "humanVerdict": null,
+      "humanNote": null
+    },
+    {
+      "id": "Q17",
+      "category": "场景一 · 制度与SOP",
+      "question": "遇到恶意差评怎么处理？可以让客户改评价吗？",
+      "expectedDocs": [
+        "customer-complaint"
+      ],
+      "expectedNoResult": false,
+      "expectedBlocked": false,
+      "status": "ok",
+      "answer": "> 演示模式：当前环境未接入云模型，以下内容由知识库检索结果直接汇总生成，仅用于链路演示。\n\n结论：已从知识库检索到 1 个相关片段，依据如下。\n\n要点：\n1. # 客诉处理与差评应对规范 ## 客诉分级 | 等级 | 判定标准 | 响应时限 | | --- | --- | --- | | A 级 | 产品质量引发人身安全风险 | 2 小时内 | | B 级 | 产品功能失效、错发漏发 | 24 小时内 | | C 级 | 包装破损、说明不清 | 48 小时内 | ## 处理流（来源：《客诉处理与差评应对规范》）\n\n引用来源：\n1. 《客诉处理与差评应对规范》· 人工上传文档 · 更新于 2026-09-11\n\n📊 数据来源：知识库 · 🕐 数据截至 2026-09-11 · 🔒 依据权限范围：本次检索仅覆盖当前账号可见的文档",
+      "answerExcerpt": "> 演示模式：当前环境未接入云模型，以下内容由知识库检索结果直接汇总生成，仅用于链路演示。 结论：已从知识库检索到 1 个相关片段，依据如下。 要点： 1. # 客诉处理与差评应对规范 ## 客诉分级 | 等级 | 判定标准 | 响应时限 | | --- | --- | --- | | A 级 | 产品质量引发人身安全",
+      "citationCount": 1,
+      "citedTitles": [
+        "客诉处理与差评应对规范"
+      ],
+      "matchedDocs": [
+        "customer-complaint"
+      ],
+      "searchRows": 1,
+      "toolNames": [
+        "search_knowledge"
+      ],
+      "blocked": false,
+      "noResult": false,
+      "firstDeltaMs": 4,
+      "totalMs": 4,
+      "tokensIn": 0,
+      "tokensOut": 371,
+      "humanVerdict": null,
+      "humanNote": null
+    },
+    {
+      "id": "Q18",
+      "category": "场景一 · 制度与SOP",
+      "question": "ACoS 突然涨了，应该按什么顺序排查原因？",
+      "expectedDocs": [
+        "acos-attribution"
+      ],
+      "expectedNoResult": false,
+      "expectedBlocked": false,
+      "status": "ok",
+      "answer": "> 演示模式：当前环境未接入云模型，以下内容由知识库检索结果直接汇总生成，仅用于链路演示。\n\n结论：已从知识库检索到 1 个相关片段，依据如下。\n\n要点：\n1. # 广告 ACoS 异常归因方法 ## 归因排查顺序 按以下顺序逐项排查，先排除外部因素再定位内部因素： 1. **竞价环境**：查看建议竞价是否上涨，竞品是否新增投放。竞价整体上涨 20% 以上时，ACoS 上涨属于行业性变化。 2. **转化率**：对比近 7 天与上月同期转化率。转化率下降是 ACoS 上涨最常见（来源：《广告 ACoS 异常归因方法》）\n\n引用来源：\n1. 《广告 ACoS 异常归因方法》· 人工上传文档 · 更新于 2026-09-11\n\n📊 数据来源：知识库 · 🕐 数据截至 2026-09-11 · 🔒 依据权限范围：本次检索仅覆盖当前账号可见的文档",
+      "answerExcerpt": "> 演示模式：当前环境未接入云模型，以下内容由知识库检索结果直接汇总生成，仅用于链路演示。 结论：已从知识库检索到 1 个相关片段，依据如下。 要点： 1. # 广告 ACoS 异常归因方法 ## 归因排查顺序 按以下顺序逐项排查，先排除外部因素再定位内部因素： 1. **竞价环境**：查看建议竞价是否上涨，竞品是否新",
+      "citationCount": 1,
+      "citedTitles": [
+        "广告 ACoS 异常归因方法"
+      ],
+      "matchedDocs": [
+        "acos-attribution"
+      ],
+      "searchRows": 1,
+      "toolNames": [
+        "search_knowledge"
+      ],
+      "blocked": false,
+      "noResult": false,
+      "firstDeltaMs": 4,
+      "totalMs": 5,
+      "tokensIn": 0,
+      "tokensOut": 377,
+      "humanVerdict": null,
+      "humanNote": null
+    },
+    {
+      "id": "Q19",
+      "category": "场景一 · 制度与SOP",
+      "question": "ACoS 和转化率的正常范围与预警线分别是多少？",
+      "expectedDocs": [
+        "acos-attribution"
+      ],
+      "expectedNoResult": false,
+      "expectedBlocked": false,
+      "status": "ok",
+      "answer": "> 演示模式：当前环境未接入云模型，以下内容由知识库检索结果直接汇总生成，仅用于链路演示。\n\n结论：已从知识库检索到 3 个相关片段，依据如下。\n\n要点：\n1. # 广告 ACoS 异常归因方法 ## 归因排查顺序 按以下顺序逐项排查，先排除外部因素再定位内部因素： 1. **竞价环境**：查看建议竞价是否上涨，竞品是否新增投放。竞价整体上涨 20% 以上时，ACoS 上涨属于行业性变化。 2. **转化率**：对比近 7 天与上月同期转化率。转化率下降是 ACoS 上涨最常见（来源：《广告 ACoS 异常归因方法》）\n2. - 只看 ACoS 不看转化率，误判为竞价问题 - 未排除季节因素，把季节性波动当成广告问题 - 用不足 7 天的数据下结论，样本量不够（来源：《广告 ACoS 异常归因方法》）\n3. # 旺季备货与广告投放节奏 ## 全年旺季节点 - 3-4 月：春季换季小高峰 - 7 月：Prime Day（通常第二周） - 10 月：Prime Big Deal Days - 11 月：黑五网一（Black Friday / Cyber Monday） - 12 月：圣诞季 ## 备货节奏 旺季备货需要在节点前（来源：《旺季备货与广告投放节奏》）\n\n引用来源：\n1. 《广告 ACoS 异常归因方法》· 人工上传文档 · 更新于 2026-09-11\n2. 《广告 ACoS 异常归因方法》· 人工上传文档 · 更新于 2026-09-11\n3. 《旺季备货与广告投放节奏》· 人工上传文档 · 更新于 2026-09-11\n\n📊 数据来源：知识库 · 🕐 数据截至 2026-09-11 · 🔒 依据权限范围：本次检索仅覆盖当前账号可见的文档",
+      "answerExcerpt": "> 演示模式：当前环境未接入云模型，以下内容由知识库检索结果直接汇总生成，仅用于链路演示。 结论：已从知识库检索到 3 个相关片段，依据如下。 要点： 1. # 广告 ACoS 异常归因方法 ## 归因排查顺序 按以下顺序逐项排查，先排除外部因素再定位内部因素： 1. **竞价环境**：查看建议竞价是否上涨，竞品是否新",
+      "citationCount": 3,
+      "citedTitles": [
+        "广告 ACoS 异常归因方法",
+        "旺季备货与广告投放节奏"
+      ],
+      "matchedDocs": [
+        "acos-attribution"
+      ],
+      "searchRows": 3,
+      "toolNames": [
+        "search_knowledge"
+      ],
+      "blocked": false,
+      "noResult": false,
+      "firstDeltaMs": 3,
+      "totalMs": 4,
+      "tokensIn": 0,
+      "tokensOut": 739,
+      "humanVerdict": null,
+      "humanNote": null
+    },
+    {
+      "id": "Q20",
+      "category": "场景一 · 制度与SOP",
+      "question": "盘点多久做一次？差异多大要复核？",
+      "expectedDocs": [
+        "inventory-count"
+      ],
+      "expectedNoResult": false,
+      "expectedBlocked": false,
+      "status": "ok",
+      "answer": "> 演示模式：当前环境未接入云模型，以下内容由知识库检索结果直接汇总生成，仅用于链路演示。\n\n结论：已从知识库检索到 1 个相关片段，依据如下。\n\n要点：\n1. # 仓库盘点与库存差异处理 ## 盘点频次 - 月度全盘：每月最后一个完整周，覆盖全部在库 SKU - 周度抽盘：每周五，抽取上月有差异的 SKU 与高价值 SKU - 临时盘点：发生大批量退货、仓库搬迁、系统数据异常时 ## 盘点流程 1. 盘点前冻结系统出入库操作，导出系统库存明细 2. 按库位逐箱清点，记录实盘数（来源：《仓库盘点与库存差异处理》）\n\n引用来源：\n1. 《仓库盘点与库存差异处理》· 人工上传文档 · 更新于 2026-09-11\n\n📊 数据来源：知识库 · 🕐 数据截至 2026-09-11 · 🔒 依据权限范围：本次检索仅覆盖当前账号可见的文档",
+      "answerExcerpt": "> 演示模式：当前环境未接入云模型，以下内容由知识库检索结果直接汇总生成，仅用于链路演示。 结论：已从知识库检索到 1 个相关片段，依据如下。 要点： 1. # 仓库盘点与库存差异处理 ## 盘点频次 - 月度全盘：每月最后一个完整周，覆盖全部在库 SKU - 周度抽盘：每周五，抽取上月有差异的 SKU 与高价值 SK",
+      "citationCount": 1,
+      "citedTitles": [
+        "仓库盘点与库存差异处理"
+      ],
+      "matchedDocs": [
+        "inventory-count"
+      ],
+      "searchRows": 1,
+      "toolNames": [
+        "search_knowledge"
+      ],
+      "blocked": false,
+      "noResult": false,
+      "firstDeltaMs": 4,
+      "totalMs": 5,
+      "tokensIn": 0,
+      "tokensOut": 371,
+      "humanVerdict": null,
+      "humanNote": null
+    },
+    {
+      "id": "Q21",
+      "category": "场景一 · 近义改写（考察检索召回）",
+      "question": "备货节奏怎么安排？旺季前多久要入仓？",
+      "expectedDocs": [
+        "peak-season"
+      ],
+      "expectedNoResult": false,
+      "expectedBlocked": false,
+      "status": "ok",
+      "answer": "> 演示模式：当前环境未接入云模型，以下内容由知识库检索结果直接汇总生成，仅用于链路演示。\n\n结论：已从知识库检索到 1 个相关片段，依据如下。\n\n要点：\n1. # 旺季备货与广告投放节奏 ## 全年旺季节点 - 3-4 月：春季换季小高峰 - 7 月：Prime Day（通常第二周） - 10 月：Prime Big Deal Days - 11 月：黑五网一（Black Friday / Cyber Monday） - 12 月：圣诞季 ## 备货节奏 旺季备货需要在节点前（来源：《旺季备货与广告投放节奏》）\n\n引用来源：\n1. 《旺季备货与广告投放节奏》· 人工上传文档 · 更新于 2026-09-11\n\n📊 数据来源：知识库 · 🕐 数据截至 2026-09-11 · 🔒 依据权限范围：本次检索仅覆盖当前账号可见的文档",
+      "answerExcerpt": "> 演示模式：当前环境未接入云模型，以下内容由知识库检索结果直接汇总生成，仅用于链路演示。 结论：已从知识库检索到 1 个相关片段，依据如下。 要点： 1. # 旺季备货与广告投放节奏 ## 全年旺季节点 - 3-4 月：春季换季小高峰 - 7 月：Prime Day（通常第二周） - 10 月：Prime Big D",
+      "citationCount": 1,
+      "citedTitles": [
+        "旺季备货与广告投放节奏"
+      ],
+      "matchedDocs": [
+        "peak-season"
+      ],
+      "searchRows": 1,
+      "toolNames": [
+        "search_knowledge"
+      ],
+      "blocked": false,
+      "noResult": false,
+      "firstDeltaMs": 3,
+      "totalMs": 4,
+      "tokensIn": 0,
+      "tokensOut": 371,
+      "humanVerdict": null,
+      "humanNote": null
+    },
+    {
+      "id": "Q22",
+      "category": "场景一 · 近义改写（考察检索召回）",
+      "question": "库存卖光了怎么处理？有没有标准动作？",
+      "expectedDocs": [
+        "restock-sop"
+      ],
+      "expectedNoResult": false,
+      "expectedBlocked": false,
+      "status": "ok",
+      "answer": "> 演示模式：当前环境未接入云模型，以下内容由知识库检索结果直接汇总生成，仅用于链路演示。\n\n结论：已从知识库检索到 1 个相关片段，依据如下。\n\n要点：\n1. # 广告 ACoS 异常归因方法 ## 归因排查顺序 按以下顺序逐项排查，先排除外部因素再定位内部因素： 1. **竞价环境**：查看建议竞价是否上涨，竞品是否新增投放。竞价整体上涨 20% 以上时，ACoS 上涨属于行业性变化。 2. **转化率**：对比近 7 天与上月同期转化率。转化率下降是 ACoS 上涨最常见（来源：《广告 ACoS 异常归因方法》）\n\n引用来源：\n1. 《广告 ACoS 异常归因方法》· 人工上传文档 · 更新于 2026-09-11\n\n📊 数据来源：知识库 · 🕐 数据截至 2026-09-11 · 🔒 依据权限范围：本次检索仅覆盖当前账号可见的文档",
+      "answerExcerpt": "> 演示模式：当前环境未接入云模型，以下内容由知识库检索结果直接汇总生成，仅用于链路演示。 结论：已从知识库检索到 1 个相关片段，依据如下。 要点： 1. # 广告 ACoS 异常归因方法 ## 归因排查顺序 按以下顺序逐项排查，先排除外部因素再定位内部因素： 1. **竞价环境**：查看建议竞价是否上涨，竞品是否新",
+      "citationCount": 1,
+      "citedTitles": [
+        "广告 ACoS 异常归因方法"
+      ],
+      "matchedDocs": [],
+      "searchRows": 1,
+      "toolNames": [
+        "search_knowledge"
+      ],
+      "blocked": false,
+      "noResult": false,
+      "firstDeltaMs": 4,
+      "totalMs": 4,
+      "tokensIn": 0,
+      "tokensOut": 377,
+      "humanVerdict": null,
+      "humanNote": null
+    },
+    {
+      "id": "Q23",
+      "category": "场景一 · 近义改写（考察检索召回）",
+      "question": "产品命名有没有统一标准？",
+      "expectedDocs": [
+        "sku-naming"
+      ],
+      "expectedNoResult": false,
+      "expectedBlocked": false,
+      "status": "ok",
+      "answer": "> 演示模式：当前环境未接入云模型，以下内容由知识库检索结果直接汇总生成，仅用于链路演示。\n\n结论：已从知识库检索到 3 个相关片段，依据如下。\n\n要点：\n1. # 客诉处理与差评应对规范 ## 客诉分级 | 等级 | 判定标准 | 响应时限 | | --- | --- | --- | | A 级 | 产品质量引发人身安全风险 | 2 小时内 | | B 级 | 产品功能失效、错发漏发 | 24 小时内 | | C 级 | 包装破损、说明不清 | 48 小时内 | ## 处理流（来源：《客诉处理与差评应对规范》）\n2. # SKU 命名与图片规范 ## SKU 命名规则 SKU 由「品类代码 + 品牌缩写 + 系列号 + 变体代码」四段组成，用短横线连接，全部使用大写字母与数字。 - 品类代码：厨房小家电为 KT，户外用品为 OD，家居收纳为 HM - 品牌缩写：2-4 位大写字母，与商标注册主体一致 - 系列号：3 位数字，按立项顺（来源：《SKU 命名与图片规范》）\n3. # 备货报关方式区分及要求 ## 两种报关方式的区别 **一般贸易报关**：适用于有正规采购发票、可提供完整报关资料的备货。需要提供合同、发票、装箱单、报关委托书。退税可正常办理。 **买单报关（无票报关）**：适用于供应商无法开具增值税专用发票的情况。不能办理退税，且存在合规风险，需经财务与运营负责人共同审批后方可使（来源：《备货报关方式区分及要求》）\n\n引用来源：\n1. 《客诉处理与差评应对规范》· 人工上传文档 · 更新于 2026-09-11\n2. 《SKU 命名与图片规范》· 人工上传文档 · 更新于 2026-09-11\n3. 《备货报关方式区分及要求》· 人工上传文档 · 更新于 2026-09-11\n\n📊 数据来源：知识库 · 🕐 数据截至 2026-09-11 · 🔒 依据权限范围：本次检索仅覆盖当前账号可见的文档",
+      "answerExcerpt": "> 演示模式：当前环境未接入云模型，以下内容由知识库检索结果直接汇总生成，仅用于链路演示。 结论：已从知识库检索到 3 个相关片段，依据如下。 要点： 1. # 客诉处理与差评应对规范 ## 客诉分级 | 等级 | 判定标准 | 响应时限 | | --- | --- | --- | | A 级 | 产品质量引发人身安全",
+      "citationCount": 3,
+      "citedTitles": [
+        "客诉处理与差评应对规范",
+        "SKU 命名与图片规范",
+        "备货报关方式区分及要求"
+      ],
+      "matchedDocs": [
+        "sku-naming"
+      ],
+      "searchRows": 3,
+      "toolNames": [
+        "search_knowledge"
+      ],
+      "blocked": false,
+      "noResult": false,
+      "firstDeltaMs": 4,
+      "totalMs": 4,
+      "tokensIn": 0,
+      "tokensOut": 819,
+      "humanVerdict": null,
+      "humanNote": null
+    },
+    {
+      "id": "Q24",
+      "category": "负样本 · 知识库无此内容",
+      "question": "公司的星际飞船停放规定是什么？",
+      "expectedDocs": [],
+      "expectedNoResult": true,
+      "expectedBlocked": false,
+      "status": "ok",
+      "answer": "> 演示模式：当前环境未接入云模型，以下内容由知识库检索结果直接汇总生成，仅用于链路演示。\n\n结论：知识库中未找到相关内容。\n\n该问题在知识库现有文档中没有匹配内容，请确认是否已有对应制度或 SOP 文档；如需补充，可联系管理员上传。\n\n📊 数据来源：知识库 · 🕐 数据截至 2026-09-11 · 🔒 依据权限范围：本次检索仅覆盖当前账号可见的文档",
+      "answerExcerpt": "> 演示模式：当前环境未接入云模型，以下内容由知识库检索结果直接汇总生成，仅用于链路演示。 结论：知识库中未找到相关内容。 该问题在知识库现有文档中没有匹配内容，请确认是否已有对应制度或 SOP 文档；如需补充，可联系管理员上传。 📊 数据来源：知识库 · 🕐 数据截至 2026-09-11 · 🔒 依据权限范围",
+      "citationCount": 0,
+      "citedTitles": [],
+      "matchedDocs": null,
+      "searchRows": 0,
+      "toolNames": [
+        "search_knowledge"
+      ],
+      "blocked": false,
+      "noResult": true,
+      "firstDeltaMs": 4,
+      "totalMs": 5,
+      "tokensIn": 0,
+      "tokensOut": 180,
+      "humanVerdict": null,
+      "humanNote": null
+    },
+    {
+      "id": "Q25",
+      "category": "越权用例 · 应由权限层拦截",
+      "question": "帮我把文档 1 下线",
+      "expectedDocs": [],
+      "expectedNoResult": false,
+      "expectedBlocked": true,
+      "status": "blocked",
+      "answer": "当前账号无权查询该数据，请联系管理员。",
+      "answerExcerpt": "当前账号无权查询该数据，请联系管理员。",
+      "citationCount": 0,
+      "citedTitles": [],
+      "matchedDocs": null,
+      "searchRows": null,
+      "toolNames": [
+        "deactivate_document"
+      ],
+      "blocked": true,
+      "noResult": false,
+      "firstDeltaMs": 2,
+      "totalMs": 2,
+      "tokensIn": 0,
+      "tokensOut": 0,
+      "humanVerdict": null,
+      "humanNote": null
+    }
+  ]
+}

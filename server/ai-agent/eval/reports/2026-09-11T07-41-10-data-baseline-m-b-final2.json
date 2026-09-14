@@ -1,0 +1,426 @@
+{
+  "generatedAt": "2026-09-11T07:41:10.035Z",
+  "base": "http://127.0.0.1:8787",
+  "provider": {
+    "name": "openai-compatible",
+    "mode": "live",
+    "model": "deepseek-chat",
+    "demo": false
+  },
+  "metrics": {
+    "题目数": 12,
+    "工具调用正确率": 100,
+    "结构化块齐全率": 100,
+    "关键数字一致率": 100,
+    "时效声明率": 100,
+    "负样本正确率": 100,
+    "端到端中位数ms": 5362
+  },
+  "questions": [
+    {
+      "id": "D01",
+      "scenario": "场景二 · ACoS 归因",
+      "question": "上个月美国站 B0SAMPLE01 的 ACoS 为什么涨了？涨了多少？主因是什么？",
+      "answer": "## 结论\n\n美国站 B0SAMPLE01 上个月（2026-08-01 ~ 2026-08-31）ACoS 从 **20.17% 涨到 32.1%**，涨了 **11.93 个百分点（+59.15%）**。\n\n**主因是广告销售额下滑**，不是花费失控：\n\n| 驱动因子 | 对 ACoS 变化的影响 |\n|---|---|\n| 广告销售额变化（主因） | **+7.12 个百分点** |\n| 广告花费变化 | +4.81 个百分点 |\n\n两部分相加正好等于总变化 11.93 个百分点（残差 0）。\n\n## 依据\n\n**期间汇总（2026-08-01 ~ 2026-08-31，30 天）**\n- 广告花费 3,855.37，广告销售额 13,845.29，ACoS 32.1%\n- 点击 2,969，曝光 542,673，广告订单 281\n- 点击率 0.547%，转化率 9.46%，CPC 1.30\n- 业务报告：总销量 276，退货 0，退货率 0%\n\n**环比上一等长区间**\n\n| 指标 | 上期 | 本期 | 变化 |\n|---|---|---|---|\n| ACoS | 20.17% | 32.1% | +11.93pp（+59.15%） |\n| 广告花费 | 3,112.86 | 3,855.37 | +742.51（+23.85%） |\n| 广告销售额 | 17,449.74 | 13,845.29 | **-3,604.45（-20.66%）** |\n| 广告订单 | 366 | 281 | -85（-23.22%） |\n| 转化率 | 12% | 9.46% | **-2.54pp（-21.17%）** |\n| CPC | 1.02 | 1.30 | +0.28（+27.45%） |\n| 点击率 | 0.548% | 0.547% | 基本持平（-0.18%） |\n| 曝光 | 556,607 | 542,673 | -2.5% |\n\n**机制解读**：曝光和点击率基本没变（点击量仅 -2.66%），说明流量入口正常；问题出在**转化率下滑 21.17%**（12% → 9.46%），同时 **CPC 上涨 27.45%**（1.02 → 1.30）。花更多的钱买来同样多的点击，但成交效率下降，导致销售额掉 20.66%，而花费还涨了 23.85%——分子涨、分母跌，ACoS 因此被双向推高。\n\n**异常判定**：本期未触发任一预警线（ACoS>35%、转化率<7%、点击率<0.25%），系统未标记为异常项。也就是说 ACoS 涨幅明显，但尚未触及预警阈值。\n\n---\n\n**数据来源与时效**：Amazon 广告日报、Amazon 业务报告（销售日报），人工导出后导入，为准实时数据、非实时数据；报表数据覆盖至 **2026-08-30**，导入于 2026-09-11。以上数字均由系统计算得出。",
+      "calledTools": [
+        "query_amazon_performance"
+      ],
+      "blockKinds": [
+        "metrics",
+        "table",
+        "chart"
+      ],
+      "truth": [
+        {
+          "label": "current.acos",
+          "value": 32.1
+        },
+        {
+          "label": "decomposition.totalDelta",
+          "value": 11.93
+        },
+        {
+          "label": "decomposition.salesEffect",
+          "value": 7.12
+        }
+      ],
+      "checks": {
+        "toolOk": true,
+        "acceptableTools": [
+          "query_amazon_performance"
+        ],
+        "blocksOk": true,
+        "numbersOk": true,
+        "keywordsOk": true,
+        "noDataOk": true,
+        "freshnessOk": true
+      },
+      "passed": true,
+      "latencyMs": 6582,
+      "tokensOut": 871,
+      "humanVerdict": null
+    },
+    {
+      "id": "D02",
+      "scenario": "场景二 · 花费与销售额",
+      "question": "B0SAMPLE01 八月（2026-08-01 到 2026-08-31）的广告花费和广告销售额分别是多少？",
+      "answer": "**结论：ASIN B0SAMPLE01（US 站）2026-08-01 ~ 2026-08-31 期间：**\n\n| 指标 | 数值 |\n|---|---|\n| 广告花费 | **3,855.37** |\n| 广告销售额 | **13,845.29** |\n| ACoS | 32.1% |\n| 点击 / 曝光 | 2,969 / 542,673 |\n| 广告订单 | 281 |\n| 点击率 / 转化率 | 0.547% / 9.46% |\n| CPC | 1.30 |\n\n补充说明：\n- 该期间未触发任一预警线（ACoS>35%、转化率<7%、点击率<0.25%），系统未判定异常。\n- 因缺少对比期数据，无法给出环比/同比变化，也无法做 ACoS 变化分解。\n- 业务报告侧：总销量 276，退货 0，退货率 0%。\n\n**数据来源与时效**：Amazon 广告日报、Amazon 业务报告（销售日报），人工导出后导入，导入时间 2026-09-11，报表数据覆盖至 **2026-08-30**（非实时数据）。",
+      "calledTools": [
+        "query_amazon_performance"
+      ],
+      "blockKinds": [
+        "metrics",
+        "table",
+        "chart"
+      ],
+      "truth": [
+        {
+          "label": "current.spend",
+          "value": 3855.37
+        },
+        {
+          "label": "current.sales",
+          "value": 13845.29
+        }
+      ],
+      "checks": {
+        "toolOk": true,
+        "acceptableTools": [
+          "query_amazon_performance"
+        ],
+        "blocksOk": true,
+        "numbersOk": true,
+        "keywordsOk": true,
+        "noDataOk": true,
+        "freshnessOk": true
+      },
+      "passed": true,
+      "latencyMs": 5464,
+      "tokensOut": 371,
+      "humanVerdict": null
+    },
+    {
+      "id": "D03",
+      "scenario": "场景二 · 同比对比",
+      "question": "B0SAMPLE01 美国站 2026 年 8 月和去年同期比，表现差在哪？",
+      "answer": "## 结论\n\nB0SAMPLE01（美国站）2026 年 8 月同比去年同期**明显变差，核心问题是\"花得更多、卖得更少\"**：ACoS 从 16.39% 涨到 32.1%（+15.71 个百分点，+95.85%），几乎翻倍。驱动分解显示，**主因是广告销售额下滑（贡献 9.46 个百分点），其次是花费上涨（贡献 6.25 个百分点）**，两者相加正好等于总变化 15.71 个百分点。\n\n## 具体差在哪\n\n| 指标 | 2026-08 | 去年同期 | 变化 |\n|---|---|---|---|\n| ACoS | 32.1% | 16.39% | +15.71pp（+95.85%） |\n| 广告花费 | 3855.37 | 2791.07 | +1064.3（+38.13%） |\n| 广告销售额 | 13845.29 | 19098.47 | −5253.18（−27.51%） |\n| 广告订单 | 281 | 403 | −122（−30.27%） |\n| 销量（units） | 276 | 427 | −151（−35.36%） |\n| 转化率 | 9.46% | 13.24% | −3.78pp（−28.55%） |\n| CPC | 1.30 | 0.92 | +0.38（+41.3%） |\n| 点击率 | 0.547% | 0.545% | 基本持平（+0.37%） |\n| 曝光 | 542673 | 558006 | −2.75% |\n| 客单价 | 42.75 | 42.26 | +1.16% |\n\n**问题链条**：曝光和点击率基本没变（流量入口正常），但 **CPC 涨了 41.3%**，导致同样点击量下花费多花 38.13%；同时 **转化率掉了 28.55%**，同样的点击换来的订单少了三成，销售额因此下滑 27.51%。也就是\"买流量更贵 + 流量转化更差\"双重挤压。\n\n**相对好的一面**：退货 0 单、退货率 0%，客单价小幅上升 1.16%，说明产品本身和定价没有恶化，问题集中在广告投放效率与转化环节。\n\n**预警状态**：本区间**未触发任一预警线**（ACoS>35%、转化率<7%、点击率<0.25%），系统异常清单为空——即尚未到\"必须立即干预\"的红线，但同比恶化幅度已很大，建议主动排查转化率下滑原因（如 listing 改版、竞品降价、评分变化、广告结构变化）。\n\n---\n\n**数据来源与截至时间**：Amazon 广告日报、Amazon 业务报告（销售日报），数据覆盖至 **2026-08-30**，导入于 2026-09-11，为人工导出后导入的准实时数据，非实时数据。以上数字均取自系统计算结果。",
+      "calledTools": [
+        "query_amazon_performance"
+      ],
+      "blockKinds": [
+        "metrics",
+        "table",
+        "chart"
+      ],
+      "truth": [
+        {
+          "label": "current.acos",
+          "value": 32.1
+        }
+      ],
+      "checks": {
+        "toolOk": true,
+        "acceptableTools": [
+          "query_amazon_performance"
+        ],
+        "blocksOk": true,
+        "numbersOk": true,
+        "keywordsOk": true,
+        "noDataOk": true,
+        "freshnessOk": true
+      },
+      "passed": true,
+      "latencyMs": 7422,
+      "tokensOut": 814,
+      "humanVerdict": null
+    },
+    {
+      "id": "D04",
+      "scenario": "场景三 · 库存与在途",
+      "question": "SKU KT-JH-001-BK 现在还有多少库存？有多少在途？",
+      "answer": "**结论：SKU KT-JH-001-BK 当前可用库存 400 件，在途 500 件，占用 51 件。**\n\n分仓明细：\n\n| 仓库 | 可用库存 | 在途 | 占用 |\n|---|---|---|---|\n| 美国仓 | 320 | 500 | 45 |\n| 加拿大仓 | 80 | 0 | 6 |\n| **合计** | **400** | **500** | **51** |\n\n最近订单（共 5 条）：\n- 112-0000005-0000005：2 件，待发货（2026-08-31）\n- 112-0000003-0000003：3 件，待发货（2026-08-31）\n- 112-0000002-0000002：1 件，已发货（2026-08-30）\n- 112-0000001-0000001：2 件，已发货（2026-08-30）\n- 112-0000004-0000004：1 件，已退款（2026-08-29）\n\n数据来源：库存快照、订单快照（人工导出后导入，准实时数据，非实时数据）；数据覆盖至 2026-08-30，导入于 2026-09-11。\n\n如需判断该 SKU 是否存在断货或积压风险、要不要补货，我可以再做一次库存风险分析。",
+      "calledTools": [
+        "query_inventory_orders"
+      ],
+      "blockKinds": [
+        "metrics",
+        "table"
+      ],
+      "truth": [
+        {
+          "label": "sum.available",
+          "value": 400
+        },
+        {
+          "label": "sum.in_transit",
+          "value": 500
+        }
+      ],
+      "checks": {
+        "toolOk": true,
+        "acceptableTools": [
+          "query_inventory_orders"
+        ],
+        "blocksOk": true,
+        "numbersOk": true,
+        "keywordsOk": true,
+        "noDataOk": true,
+        "freshnessOk": true
+      },
+      "passed": true,
+      "latencyMs": 4379,
+      "tokensOut": 357,
+      "humanVerdict": null
+    },
+    {
+      "id": "D05",
+      "scenario": "场景三 · 订单状态",
+      "question": "KT-JH-001-BK 有几个待发货的订单？订单号分别是哪些？",
+      "answer": "**结论：KT-JH-001-BK 有 2 个待发货订单**，订单号分别是：\n\n| 订单号 | 数量 | 状态 | 下单时间 |\n|---|---|---|---|\n| 112-0000005-0000005 | 2 件 | 待发货 | 2026-08-31 07:20:00 |\n| 112-0000003-0000003 | 3 件 | 待发货 | 2026-08-31 01:05:00 |\n\n**顺带说明库存情况**（同一数据源）：\n- 可用库存合计 400：加拿大仓 80、美国仓 320\n- 在途 500（全部在美国仓）\n- 占用 51：加拿大仓 6、美国仓 45\n\n**数据来源与时效**：库存快照、订单快照（人工导出后导入，准实时数据，非实时），数据覆盖至 **2026-08-30**，导入于 2026-09-11。订单明细为最近订单记录，如需更早的历史订单请以完整报表为准。",
+      "calledTools": [
+        "query_inventory_orders"
+      ],
+      "blockKinds": [
+        "metrics",
+        "table"
+      ],
+      "truth": [
+        {
+          "label": "orderCount",
+          "value": 2
+        }
+      ],
+      "checks": {
+        "toolOk": true,
+        "acceptableTools": [
+          "query_inventory_orders"
+        ],
+        "blocksOk": true,
+        "numbersOk": true,
+        "keywordsOk": true,
+        "noDataOk": true,
+        "freshnessOk": true
+      },
+      "passed": true,
+      "latencyMs": 4426,
+      "tokensOut": 332,
+      "humanVerdict": null
+    },
+    {
+      "id": "D06",
+      "scenario": "负样本 · 不存在的 ASIN",
+      "question": "ASIN B0NOTEXIST99 上个月的 ACoS 是多少？",
+      "answer": "**结论：查不到 ASIN B0NOTEXIST99 在 2026-08-01 ~ 2026-08-31（上个月）的 ACoS 数据，因此无法给出该数值。**\n\n依据：\n- 调用 Amazon 广告与销售表现查询（站点默认 US，区间 2026-08-01 ~ 2026-08-31），返回结果为空（0 行），系统提示：该区间内该 ASIN 可能没有投放或没有销售。\n- 建议核对 ASIN 是否填写正确（示例格式如 B0XXXXXXXX）、站点是否为 US，以及该 ASIN 是否确实在上月有投放。\n\n补充说明：本次查询区间在上月范围内，属于数据覆盖范围之内，所以不是\"数据未覆盖\"的问题，而是该 ASIN 本身没有记录。\n\n数据来源：Amazon 广告日报、Amazon 业务报告（销售日报），由人工导出报表导入；数据截至 2026-08-30（导入时间 2026-09-11）。\n\n如果你能确认正确的 ASIN，我可以立刻重新查询。",
+      "calledTools": [
+        "query_amazon_performance"
+      ],
+      "blockKinds": [],
+      "truth": [],
+      "checks": {
+        "toolOk": true,
+        "acceptableTools": [
+          "query_amazon_performance"
+        ],
+        "blocksOk": true,
+        "numbersOk": true,
+        "keywordsOk": true,
+        "noDataOk": true,
+        "freshnessOk": true
+      },
+      "passed": true,
+      "latencyMs": 5049,
+      "tokensOut": 364,
+      "humanVerdict": null
+    },
+    {
+      "id": "D07",
+      "scenario": "负样本 · 不存在的 SKU",
+      "question": "SKU NOT-EXIST-999 的库存是多少？",
+      "answer": "**结论：没有查到 SKU `NOT-EXIST-999` 的库存与订单记录。**\n\n依据：调用库存查询工具返回 0 行，系统提示「没有查到 NOT-EXIST-999 的库存与订单记录，请确认 SKU 是否正确」。\n\n建议：\n1. 核对 SKU 拼写与格式（现有 SKU 形如 `KT-JH-001-BK`，含字母、数字与后缀）；\n2. 确认该 SKU 是否属于当前库存快照覆盖范围（快照共 5 行）；\n3. 若确认 SKU 无误但仍查不到，可能是该商品尚未建档或未纳入快照，请联系管理员核实。\n\n数据来源：库存快照、订单快照（人工导出报表，准实时数据）；数据截至 2026-08-30，导入时间 2026-09-11。",
+      "calledTools": [
+        "query_inventory_orders"
+      ],
+      "blockKinds": [],
+      "truth": [],
+      "checks": {
+        "toolOk": true,
+        "acceptableTools": [
+          "query_inventory_orders"
+        ],
+        "blocksOk": true,
+        "numbersOk": true,
+        "keywordsOk": true,
+        "noDataOk": true,
+        "freshnessOk": true
+      },
+      "passed": true,
+      "latencyMs": 5259,
+      "tokensOut": 233,
+      "humanVerdict": null
+    },
+    {
+      "id": "D08",
+      "scenario": "M-B · 主动发现异常",
+      "question": "八月美国站有哪几个 ASIN 的广告需要关注？分别是什么问题？",
+      "answer": "# 八月美国站广告需关注的 ASIN\n\n**结论：8 月美国站共扫描 2 个 ASIN，全部需要关注——1 个高风险（B0SAMPLE02）、1 个需关注（B0SAMPLE01），无正常 ASIN。**\n\n## 1. B0SAMPLE02 —— 高风险（严重度 7）\n\n| 指标 | 8 月 | 7 月 | 变化 |\n|---|---|---|---|\n| ACoS | 35.84% | 20.17% | +15.67 个百分点（+77.69%） |\n| 转化率 | 5.17% | 7.18% | -2.01 个百分点（-27.99%） |\n| 花费 | $2,448.77 | $1,867.75 | +31.11% |\n| 销售额 | $6,833.26 | $9,261.13 | -26.22% |\n| 订单 | 159 | 219 | -27.4% |\n| CPC | $0.80 | $0.61 | +31.15% |\n\n**命中的信号（5 项）：**\n- ACoS 35.84% 超过 35% 预警线\n- 转化率 5.17% 低于 7% 预警线\n- ACoS 环比上升 77.69%（超 20% 趋势阈值）\n- 转化率环比下降 27.99%（超 -20% 趋势阈值）\n- 花费上涨 31.11% 但销售额下滑（超 30% 阈值）\n\n**问题定性：** 曝光和点击基本持平（+0.82%），但 CPC 上涨 31.15% 推高花费，同时转化率大幅下滑导致订单和销售额双降，属于典型的「成本上升 + 转化恶化」双重挤压，ACoS 已突破预警线。\n\n## 2. B0SAMPLE01 —— 需关注（严重度 2）\n\n| 指标 | 8 月 | 7 月 | 变化 |\n|---|---|---|---|\n| ACoS | 32.03% | 20.17% | +11.86 个百分点（+58.8%） |\n| 转化率 | 9.46% | 12.00% | -2.54 个百分点（-21.17%） |\n| 花费 | $3,979.18 | $3,112.86 | +27.83% |\n| 销售额 | $12,424.14 | $15,435.19 | -19.51% |\n| 订单 | 291 | 366 | -20.49% |\n| CPC | $1.29 | $1.02 | +26.47% |\n\n**命中的信号（2 项）：**\n- ACoS 环比上升 58.8%\n- 转化率环比下降 21.17%\n\n**问题定性：** ACoS 尚未突破 35% 预警线、转化率仍在 7% 以上，但两项趋势信号均已触发，走势与 B0SAMPLE02 同源（CPC 上涨、转化率下滑），属于需要提前干预的对象。\n\n## 建议关注顺序\n优先处理 **B0SAMPLE02**（已越线，且花费上涨与销售下滑同时发生）；**B0SAMPLE01** 作为趋势预警跟进，避免其继续向高风险演变。\n\n---\n\n**数据来源与时效声明：** 数据来自 Amazon 广告日报、Amazon 业务报告（销售日报），由人工导出后导入，为准实时数据、非实时数据；报表数据覆盖至 **2026-08-30**，导入于 2026-09-11。以上判定与数字均由系统计算得出。",
+      "calledTools": [
+        "scan_amazon_anomalies"
+      ],
+      "blockKinds": [
+        "metrics",
+        "table",
+        "chart"
+      ],
+      "truth": [
+        {
+          "label": "scan.highCount",
+          "value": 1
+        }
+      ],
+      "checks": {
+        "toolOk": true,
+        "acceptableTools": [
+          "scan_amazon_anomalies"
+        ],
+        "blocksOk": true,
+        "numbersOk": true,
+        "keywordsOk": true,
+        "noDataOk": true,
+        "freshnessOk": true
+      },
+      "passed": true,
+      "latencyMs": 6727,
+      "tokensOut": 906,
+      "humanVerdict": null
+    },
+    {
+      "id": "D09",
+      "scenario": "M-B · 库存风险",
+      "question": "现在有哪些 SKU 快断货了？需要补多少？",
+      "answer": "## 结论\n\n**1 个 SKU 存在断货风险，需要补货：**\n\n| SKU | 可用库存 | 在途 | 日均销量 | 可售天数 | 判定 | 建议补货量 |\n|---|---|---|---|---|---|---|\n| **KT-JH-002-BK** | 12 | 0 | 3 | **4 天** | 断货风险 | **123** |\n\n其余 3 个 SKU 均**不需要补货**：\n- **KT-JH-001-BK**：可用 400、在途 500，可售天数 133.3 天 → 判定「样本不足」，建议补货 0\n- **HM-JH-011-S**：可用 150、在途 20 → 判定「缺销量数据」，无法测算可售天数，建议补货 0\n- **OD-JH-007-WH**：可用 600、在途 0 → 判定「缺销量数据」，无法测算可售天数，建议补货 0\n\n## 依据与提醒\n\n- 判定阈值：断货 < 14 天、积压 > 90 天、补货目标 45 天。\n- 全部 4 个 SKU 可用库存合计 1162，在途合计 520；断货风险 1 个、滞销 0 个、积压 0 个。\n- **KT-JH-002-BK 的补货建议置信度偏低**：日均销量 3 来自订单快照样本区间 2026-08-31 ~ 2026-08-31（仅 1 天），样本不足 7 天、波动较大，123 这个数字仅供参考。建议结合更长周期的实际销量复核后再下单。\n- KT-JH-001-BK 虽然可售天数 133.3 天，但同样标注样本不足（样本区间 2026-08-29 ~ 2026-08-31，3 天），该天数也仅供参考。\n- HM-JH-011-S、OD-JH-007-WH 因缺销量数据无法测算，建议先补齐销量口径再评估。\n\n---\n\n**数据来源与时效**：库存快照、订单快照（人工导出后导入，非实时数据），数据覆盖至 **2026-08-30**，导入于 2026-09-11。以上数字均由系统计算得出。",
+      "calledTools": [
+        "analyze_inventory_risk"
+      ],
+      "blockKinds": [
+        "metrics",
+        "table"
+      ],
+      "truth": [
+        {
+          "label": "sum.stockoutCount",
+          "value": 1
+        }
+      ],
+      "checks": {
+        "toolOk": true,
+        "acceptableTools": [
+          "analyze_inventory_risk"
+        ],
+        "blocksOk": true,
+        "numbersOk": true,
+        "keywordsOk": true,
+        "noDataOk": true,
+        "freshnessOk": true
+      },
+      "passed": true,
+      "latencyMs": 5160,
+      "tokensOut": 556,
+      "humanVerdict": null
+    },
+    {
+      "id": "D10",
+      "scenario": "M-B · 库存风险",
+      "question": "库存里有没有滞销或者积压的 SKU？",
+      "answer": "**结论：没有滞销或积压的 SKU。** 本次分析的 4 个 SKU 中，滞销 0 个、积压 0 个。\n\n**明细（阈值：积压 > 90 天可售）**\n\n| SKU | 可用 | 在途 | 日均销量 | 可售天数 | 判定 |\n|---|---|---|---|---|---|\n| KT-JH-002-BK | 12 | 0 | 3 | 4 | 断货风险 |\n| KT-JH-001-BK | 400 | 500 | 3 | 133.3 | 样本不足 |\n| HM-JH-011-S | 150 | 20 | 无 | 无法测算 | 缺销量数据 |\n| OD-JH-007-WH | 600 | 0 | 无 | 无法测算 | 缺销量数据 |\n\n**需要留意的两点：**\n\n1. **KT-JH-002-BK 是断货风险**，不是积压：可用仅 12，可售天数 4 天，建议补货 123。这是本次唯一需要立即处理的 SKU。\n2. **KT-JH-001-BK 可售天数 133.3 天，但判定为\"样本不足\"而非积压**——日均销量只来自 2026-08-29 ~ 2026-08-31 共 3 天样本，波动大，133.3 天这个数字参考价值有限，不能据此认定积压。\n3. HM-JH-011-S、OD-JH-007-WH 因缺销量数据无法测算可售天数，**无法判断是否滞销**，建议补充销量数据后再评估。\n\n**数据来源与时效：** 库存快照、订单快照（人工导出后导入，非实时数据），数据覆盖至 2026-08-30，导入于 2026-09-11。日均销量样本区间为 2026-08-31（1 天），样本不足 7 天，波动较大，仅供参考。",
+      "calledTools": [
+        "analyze_inventory_risk"
+      ],
+      "blockKinds": [
+        "metrics",
+        "table"
+      ],
+      "truth": [],
+      "checks": {
+        "toolOk": true,
+        "acceptableTools": [
+          "analyze_inventory_risk"
+        ],
+        "blocksOk": true,
+        "numbersOk": true,
+        "keywordsOk": true,
+        "noDataOk": true,
+        "freshnessOk": true
+      },
+      "passed": true,
+      "latencyMs": 6299,
+      "tokensOut": 478,
+      "humanVerdict": null
+    },
+    {
+      "id": "D11",
+      "scenario": "M-B · 全站聚合",
+      "question": "八月美国站整体广告表现怎么样？花了多少钱？",
+      "answer": "## 结论\n\n八月美国站整体广告表现**明显恶化**：花了 **$6,427.95**，但广告销售额下滑、ACoS 大幅走高。\n\n**核心数字（2026-08-01 ~ 2026-08-31）**\n- 广告花费：**$6,427.95**\n- 广告销售额：$21,664.36\n- ACoS：**33.38%**\n- 点击 6,150 / 曝光 1,122,348 / 订单 450 / 转化率 7.32% / 点击率 0.548% / CPC $1.05\n\n**环比上一等长区间（恶化明显）**\n- ACoS：20.17% → 33.38%，**+65.49%**\n- 花费：$4,980.61 → $6,427.95，**+29.06%**\n- 广告销售额：$24,696.32 → $21,664.36，**-12.28%**\n- 订单：585 → 450，**-23.08%**\n- 转化率：9.59% → 7.32%，**-23.67%**\n- CPC：$0.82 → $1.05，**+28.05%**\n\n即典型的「花费涨、转化跌、ACoS 飙升」组合：点击量基本持平（+0.82%），但单次点击成本上升、转化率下滑，导致同样的流量产出更少的订单和销售额。\n\n**分 ASIN（按花费降序）**\n| ASIN | 花费 | 销售额 | 订单 | ACoS | 转化率 | CPC |\n|---|---|---|---|---|---|---|\n| B0SAMPLE01 | $3,979.18 | $12,424.14 | 291 | 32.03% | 9.46% | $1.29 |\n| B0SAMPLE02 | $2,448.77 | $6,833.26 | 159 | 35.84% | 5.17% | $0.80 |\n\n两个 ASIN 的 ACoS 都偏高，其中 **B0SAMPLE02 最差（35.84%）**，主要拖累项是转化率仅 5.17%；B0SAMPLE01 转化率尚可（9.46%），但 CPC 高达 $1.29，是花费上升的主要来源。\n\n**建议**：优先排查 B0SAMPLE02 的转化率下滑原因（Listing/价格/竞品/流量结构），并对 B0SAMPLE01 的高 CPC 关键词做竞价与匹配方式优化。\n\n---\n数据来源：Amazon 广告日报、Amazon 业务报告（销售日报），人工导出后导入，为准实时数据；**数据覆盖至 2026-08-30**，导入于 2026-09-11。",
+      "calledTools": [
+        "query_amazon_performance"
+      ],
+      "blockKinds": [
+        "metrics",
+        "table",
+        "chart"
+      ],
+      "truth": [
+        {
+          "label": "current.spend",
+          "value": 6427.95
+        }
+      ],
+      "checks": {
+        "toolOk": true,
+        "acceptableTools": [
+          "query_amazon_performance"
+        ],
+        "blocksOk": true,
+        "numbersOk": true,
+        "keywordsOk": true,
+        "noDataOk": true,
+        "freshnessOk": true
+      },
+      "passed": true,
+      "latencyMs": 6477,
+      "tokensOut": 732,
+      "humanVerdict": null
+    },
+    {
+      "id": "D12",
+      "scenario": "M-B · 全站聚合 / ASIN 排行",
+      "question": "八月美国站哪个 ASIN 的 ACoS 最高？",
+      "answer": "**结论：2026 年 8 月美国站 ACoS 最高的 ASIN 是 B0SAMPLE02，ACoS 35.84%。**\n\n各 ASIN 8 月表现（按 ACoS 降序）：\n\n| ASIN | 广告花费 | 广告销售额 | 订单 | ACoS | 转化率 | CPC |\n|---|---|---|---|---|---|---|\n| **B0SAMPLE02** | 2448.77 | 6833.26 | 159 | **35.84%** | 5.17% | 0.80 |\n| B0SAMPLE01 | 3979.18 | 12424.14 | 291 | 32.03% | 9.46% | 1.29 |\n\n**站点整体参考**：US 站 8 月整体 ACoS 33.38%，广告花费 6427.95，广告销售额 21664.36，点击 6150，订单 450，转化率 7.32%。环比上一等长区间，ACoS 从 20.17% 升至 33.38%（+65.49%），花费 +29.06%，广告销售额 -12.28%，转化率 -23.67%。\n\nB0SAMPLE02 虽然花费低于 B0SAMPLE01，但转化率仅 5.17%（B0SAMPLE01 为 9.46%），是拉高其 ACoS 的主要原因。\n\n**数据来源与时效**：Amazon 广告日报、Amazon 业务报告（销售日报），数据覆盖至 2026-08-30，导入于 2026-09-11，为人工导出后导入的准实时数据，非实时数据。",
+      "calledTools": [
+        "query_amazon_performance"
+      ],
+      "blockKinds": [
+        "metrics",
+        "table",
+        "chart"
+      ],
+      "truth": [],
+      "checks": {
+        "toolOk": true,
+        "acceptableTools": [
+          "query_amazon_performance",
+          "scan_amazon_anomalies"
+        ],
+        "blocksOk": true,
+        "numbersOk": true,
+        "keywordsOk": true,
+        "noDataOk": true,
+        "freshnessOk": true
+      },
+      "passed": true,
+      "latencyMs": 4892,
+      "tokensOut": 482,
+      "humanVerdict": null
+    }
+  ]
+}
