@@ -262,6 +262,10 @@ app.patch('/api/users/:id', requireUser, requireAdmin, async (req, res, next) =>
     if (error instanceof UserUpdateValidationError) return res.status(400).json({ message: error.message })
     return next(error)
   }
+  // 参数先校验再进 SQL：把 'abc' 直接传进 `WHERE id = $1` 会让 PG 抛 22P02 变成 500，
+  // 而这是典型的客户端错误，应当是 400（同文件的导航接口早就是这么处理的）。
+  const targetId = resourceId(req.params.id)
+  if (!targetId) return res.status(400).json({ message: '用户 ID 不合法。' })
   const client = await pool.connect()
   try {
     await client.query('BEGIN')
@@ -274,7 +278,7 @@ app.patch('/api/users/:id', requireUser, requireAdmin, async (req, res, next) =>
     }
     const targetResult = await client.query(
       'SELECT id, role, status FROM users WHERE id = $1 FOR UPDATE',
-      [req.params.id]
+      [targetId]
     )
     const target = targetResult.rows[0]
     if (!target) {
@@ -336,6 +340,9 @@ app.patch('/api/users/:id/status', requireUser, requireAdmin, async (req, res, n
     }
     return next(error)
   }
+  // 同 PATCH /api/users/:id：非法 id 必须是 400，而不是让 PG 抛错变成 500
+  const targetId = resourceId(req.params.id)
+  if (!targetId) return res.status(400).json({ message: '用户 ID 不合法。' })
   const client = await pool.connect()
   try {
     await client.query('BEGIN')
@@ -348,7 +355,7 @@ app.patch('/api/users/:id/status', requireUser, requireAdmin, async (req, res, n
     }
     const targetResult = await client.query(
       'SELECT id, role, status FROM users WHERE id = $1 FOR UPDATE',
-      [req.params.id]
+      [targetId]
     )
     const target = targetResult.rows[0]
     if (!target) {

@@ -32,6 +32,7 @@ import {
   listNoteStats,
   listNotes,
   listNotesForExport,
+  EXPORT_MAX_ROWS,
   notesToCsv,
   notesToMarkdown,
   reserveDistillQuota,
@@ -210,14 +211,17 @@ export function createNotesRouter({ adminGuard }) {
         tag: optionalString(req.query.tag, { max: 20 }),
       })
       const fields = await loadExportFields()
+      // 达到上限说明还有数据没被导出：审计与响应头都要标出来，前端据此提示用户缩小范围
+      const truncated = rows.length >= EXPORT_MAX_ROWS
       await recordAudit({
         actorId: req.user.id,
         action: AUDIT_ACTIONS.noteExport,
         targetType: 'ai_knowledge_note',
         targetId: req.user.id,
-        detail: { scope: 'self', format, rows: rows.length },
+        detail: { scope: 'self', format, rows: rows.length, truncated },
         ip: clientIp(req),
       })
+      if (truncated) res.setHeader('X-Export-Truncated', 'true')
       const extension = format === 'md' ? 'md' : format
       sendExport(res, {
         filename: `my-knowledge-notes-${formatStamp()}.${extension}`,
@@ -548,6 +552,7 @@ export function createNotesRouter({ adminGuard }) {
       const filters = parseAdminNoteFilters(req.query)
       const rows = await listNotesForExport(filters)
       const fields = await loadExportFields()
+      const truncated = rows.length >= EXPORT_MAX_ROWS
       await recordAudit({
         actorId: req.user.id,
         action: AUDIT_ACTIONS.noteExport,
@@ -557,6 +562,7 @@ export function createNotesRouter({ adminGuard }) {
           scope: 'all',
           format,
           rows: rows.length,
+          truncated,
           // 完整筛选条件都留痕：审计台要能回答"这份导出到底覆盖了什么范围"
           filters: {
             userId: filters.userId,
@@ -569,6 +575,7 @@ export function createNotesRouter({ adminGuard }) {
         },
         ip: clientIp(req),
       })
+      if (truncated) res.setHeader('X-Export-Truncated', 'true')
       const extension = format === 'md' ? 'md' : format
       sendExport(res, {
         filename: `knowledge-notes-export-${formatStamp()}.${extension}`,

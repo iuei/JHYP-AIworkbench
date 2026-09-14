@@ -631,6 +631,14 @@ export async function listNotes({
 }
 
 /** 导出用：不分页，但有硬上限（防止一次导出把内存打满）。 */
+/**
+ * 单次导出的最大条数。
+ *
+ * 超过这个量就截断：导出是不分页的全量拉取，无上限时既会把库扫一遍、响应体也会过大。
+ * 调用方**必须把「是否被截断」告知用户与审计** —— 静默截断会让"导出成功"被误解为拿到全量。
+ */
+export const EXPORT_MAX_ROWS = 2000
+
 export async function listNotesForExport(filters = {}) {
   const limited = { ...filters, page: 1, pageSize: 100 }
   const { rows, total } = await listNotes(limited)
@@ -642,7 +650,7 @@ export async function listNotesForExport(filters = {}) {
     all.push(...next.rows)
     page += 1
   }
-  return all.slice(0, 2000)
+  return all.slice(0, EXPORT_MAX_ROWS)
 }
 
 async function fetchNoteRow(id) {

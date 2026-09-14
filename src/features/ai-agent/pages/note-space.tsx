@@ -134,7 +134,7 @@ export function NoteSpace() {
         },
       },
       {
-        onSuccess: (text) => {
+        onSuccess: ({ text, truncated }) => {
           const mime =
             format === 'csv'
               ? 'text/csv'
@@ -142,7 +142,11 @@ export function NoteSpace() {
                 ? 'text/markdown'
                 : 'application/json'
           downloadText(`我的知识沉淀-${Date.now()}.${format}`, text, mime)
-          toast.success('导出完成（导出动作已写入审计）')
+          toast.success(
+            truncated
+              ? '导出完成，但条数已达上限（2000 条），请缩小筛选范围后重新导出（导出动作已写入审计）'
+              : '导出完成（导出动作已写入审计）'
+          )
         },
         onError: () => toast.error('导出失败，请稍后重试'),
       }

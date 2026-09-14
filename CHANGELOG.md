@@ -9,6 +9,34 @@
 >
 > **本项目变更记录**
 
+## 低优先缺陷清理 + 检索性能实测结论（2026-09-14）
+
+### Fix
+
+- **订单时间按本地时区显示**（`data-queries.mjs` 的 `formatTimestamp`）：原先用 `toISOString()` 输出 TIMESTAMPTZ，东八区用户看到的订单时间**早 8 小时**（实测同一行：旧 07:20 → 新 15:20）。改为本地时区格式化，与界面其它时间口径一致。
+- **站点级查询触顶时不再丢掉最新数据**（`queryAdsDailyByMarketplace` / `querySalesDailyByMarketplace` / `querySalesForVelocity`）：`ORDER BY stat_date ASC LIMIT N` 在超过上限时截掉的是**最新**日期，而异常扫描与全站聚合正是靠这批数据下结论。改成 `DESC` 取最近窗口、返回前 `reverse()` 回升序（下游无需感知；实测 215 行仍严格升序）。
+- **非法路径参数返回 400 而不是 500**（`PATCH /api/users/:id`、`PATCH /api/users/:id/status`）：`req.params.id` 此前直接进 SQL，传 `abc` 会让 PG 抛 22P02 变成 500。
+- **导出截断不再静默**：`listNotesForExport` 的 2000 条上限提取为 `EXPORT_MAX_ROWS`，触顶时写审计（`detail.truncated`）并带 `X-Export-Truncated` 响应头，前端 toast 明确提示"条数已达上限，请缩小筛选范围"（此前用户会以为拿到的是全量）。
+
+### Perf 结论：关键词检索 SQL 的索引化改写——用实测关闭
+
+实测当前检索查询（与 `knowledge.mjs` 同构，含 LATERAL 逐行 `ILIKE`）：
+
+```
+数据规模：88 个切片 / 35 篇生效文档
+Seq Scan on ai_chunks → 88 行
+Execution Time: 0.868 ms（Planning Time: 1.322 ms）
+```
+
+结论：**当前规模下不存在可优化的性能瓶颈**（亚毫秒级）。而改写唯一可行的路径是用 trgm 索引预裁剪候选集，这会改变「关键词命中数 / 关键词总数 ≥ 下限」的召回语义 —— 该语义与相关性下限 0.2、A1 召回率 87% 都是标定过的，必须同步重跑 `eval/compare-retrieval.mjs` 重新标定，属于独立的检索优化轮次。
+
+**触发条件**（达到任一条件再做，并带上评测）：切片量到万级、检索 P95 超过 100ms、或引入 embedding 混合检索（需求文档二期）。届时正解是「每个 token 单独走 GIN 索引 + 应用层合并命中集合」，而不是在 SQL 里写 `'%' || token || '%'` 这种规划器无法索引化的动态模式。
+
+### Verify
+
+- 服务端单测 **348/348**；`lint`、`build` 全绿
+- 实测：订单时间 07:20 → 15:20（修正 8 小时时差）；站点级与销量窗口查询 215 行仍严格升序；非法 id 返回 400；导出 200 且未触顶时不带截断头；竞品分析与首页接口回归正常
+
 ## 剩余问题清零：令牌吊销、批量插入、前端请求收敛（2026-09-14）
 
 ### Feat

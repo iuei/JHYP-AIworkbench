@@ -606,12 +606,19 @@ export function useExportAudit() {
 
 /* ---------- 知识沉淀（账号级） ---------- */
 
+/** 导出结果：文本 + 是否因达到服务端上限而被截断。 */
+export type ExportPayload = { text: string; truncated: boolean }
+
 /** 带 token 拉取导出文本（服务端同时写导出审计）。 */
-async function fetchExport(path: string): Promise<string> {
+async function fetchExport(path: string): Promise<ExportPayload> {
   // 服务端会给出可操作的原因（时间范围超限、筛选参数非法等），rawRequest 会把它原样抛出，
   // 而不是统一吞成"导出失败"。
   const response = await rawRequest(path)
-  return await response.text()
+  return {
+    text: await response.text(),
+    // 达到导出上限时服务端会带这个头：静默截断会让"导出成功"被误解成拿到了全量数据
+    truncated: response.headers.get('X-Export-Truncated') === 'true',
+  }
 }
 
 export function useMyNotes(params: {

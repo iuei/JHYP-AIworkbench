@@ -76,14 +76,17 @@ export async function querySalesDaily({ asin, marketplace, startDate, endDate })
 /** 按站点+区间取全部 ASIN 的广告数据（用于异常扫描与全站聚合）。 */
 export async function queryAdsDailyByMarketplace({ marketplace, startDate, endDate, limit = 20000 }) {
   const { rows } = await query(
+    // 取"最近"的 N 行。
+    // `ORDER BY stat_date ASC LIMIT N` 在触顶时丢掉的是**最新**日期 —— 分析会停留在旧数据上，
+    // 而异常扫描与全站聚合正是靠这批数据下结论。改成 DESC 取最近窗口，返回前 reverse 回升序。
     `SELECT stat_date, asin, marketplace, campaign, impressions, clicks, spend, orders, sales, acos
        FROM amazon_ads_daily
       WHERE marketplace = $1 AND stat_date BETWEEN $2 AND $3
-      ORDER BY stat_date ASC
+      ORDER BY stat_date DESC
       LIMIT $4`,
     [marketplace, startDate, endDate, limit]
   )
-  return rows.map((row) => ({
+  return rows.reverse().map((row) => ({
     ...row,
     stat_date: dateOnly(row.stat_date),
     spend: Number(row.spend),
@@ -95,14 +98,15 @@ export async function queryAdsDailyByMarketplace({ marketplace, startDate, endDa
 /** 按站点+区间取全部 ASIN 的销售数据。 */
 export async function querySalesDailyByMarketplace({ marketplace, startDate, endDate, limit = 20000 }) {
   const { rows } = await query(
+    // 同 queryAdsDailyByMarketplace：触顶时优先保最近的数据
     `SELECT stat_date, asin, marketplace, units, sales, returns
        FROM amazon_sales_daily
       WHERE marketplace = $1 AND stat_date BETWEEN $2 AND $3
-      ORDER BY stat_date ASC
+      ORDER BY stat_date DESC
       LIMIT $4`,
     [marketplace, startDate, endDate, limit]
   )
-  return rows.map((row) => ({ ...row, stat_date: dateOnly(row.stat_date), sales: Number(row.sales) }))
+  return rows.reverse().map((row) => ({ ...row, stat_date: dateOnly(row.stat_date), sales: Number(row.sales) }))
 }
 
 /** 全部库存行（库存风险分析用）。 */
@@ -147,15 +151,16 @@ export function buildSkuChannelMap(productRows) {
 /** 按 ASIN 集合取销售报告行（用于算真实销量速度）。 */
 export async function querySalesForVelocity({ windowStart, windowEnd, limit = 50000 } = {}) {
   const { rows } = await query(
+    // 同 queryAdsDailyByMarketplace：触顶时优先保最近的数据
     `SELECT stat_date, asin, marketplace, units
        FROM amazon_sales_daily
       WHERE ($1::date IS NULL OR stat_date >= $1)
         AND ($2::date IS NULL OR stat_date <= $2)
-      ORDER BY stat_date ASC
+      ORDER BY stat_date DESC
       LIMIT $3`,
     [windowStart ?? null, windowEnd ?? null, limit]
   )
-  return rows.map((row) => ({ ...row, stat_date: dateOnly(row.stat_date), units: Number(row.units) }))
+  return rows.reverse().map((row) => ({ ...row, stat_date: dateOnly(row.stat_date), units: Number(row.units) }))
 }
 
 /** 销售报告里最新的日期（用于确定销量统计窗口的锚点）。 */
@@ -634,11 +639,18 @@ export async function inventoryOrdersPayload({ sku, includeOrders = true, orderS
   }
 }
 
+/**
+ * TIMESTAMPTZ → 'YYYY-MM-DD HH:mm:ss'（**本地时区**）。
+ *
+ * 不能用 `toISOString()`：TIMESTAMPTZ 是绝对时刻，按 UTC 输出会让东八区用户看到
+ * 早 8 小时的时间（09:30 下单显示成 01:30），而且与界面其它本地时间口径不一致。
+ */
 function formatTimestamp(value) {
   if (!value) return null
   const date = value instanceof Date ? value : new Date(value)
   if (Number.isNaN(date.getTime())) return String(value).slice(0, 19)
-  return date.toISOString().replace('T', ' ').slice(0, 19)
+  const pad = (part) => String(part).padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
 }
 
 /* ---------- 时效与引用 ---------- */

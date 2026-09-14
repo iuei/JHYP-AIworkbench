@@ -161,7 +161,7 @@ export function DistillManagement() {
     exportNotes.mutate(
       { format, params: filters },
       {
-        onSuccess: (text) => {
+        onSuccess: ({ text, truncated }) => {
           const mime =
             format === 'csv'
               ? 'text/csv'
@@ -169,7 +169,11 @@ export function DistillManagement() {
                 ? 'text/markdown'
                 : 'application/json'
           downloadText(`全站知识沉淀-${Date.now()}.${format}`, text, mime)
-          toast.success('导出完成（与当前列表筛选一致，导出动作已写入审计）')
+          toast.success(
+            truncated
+              ? '导出完成，但条数已达上限（2000 条），请缩小筛选范围后重新导出（导出动作已写入审计）'
+              : '导出完成（与当前列表筛选一致，导出动作已写入审计）'
+          )
         },
         onError: (error) =>
           toast.error(

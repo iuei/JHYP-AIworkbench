@@ -263,8 +263,8 @@ export function ChatWorkbench() {
     <div className='flex h-full min-h-0 gap-4'>
       {/* 三栏工作台没有可见标题，补一个只读屏可见的 h1，保证标题层级不缺失 */}
       <h1 className='sr-only'>AI 对话</h1>
-      {/* 左栏：会话列表 */}
-      <aside className='hidden w-64 shrink-0 flex-col border-e pe-4 lg:flex'>
+      {/* 左栏：会话列表（页面铺满宽度后同步放宽：会话标题常带日期与长主题，256px 会频繁截断） */}
+      <aside className='hidden w-72 shrink-0 flex-col border-e pe-4 lg:flex'>
         <ConversationList
           activeId={activeId}
           conversations={conversations.data ?? []}
@@ -289,7 +289,7 @@ export function ChatWorkbench() {
         <ScrollArea className='min-h-0 flex-1 pe-2'>
           <div className='space-y-4 pb-4'>
             {activeId === null && !stream && (
-              <div className='mx-auto max-w-3xl pt-6'>
+              <div className='mx-auto max-w-4xl pt-6'>
                 <div className='mb-6 text-center'>
                   <Sparkles className='mx-auto mb-3 size-6 text-primary' />
                   <h2 className='text-2xl font-bold tracking-tight'>AI 助手</h2>
@@ -452,8 +452,8 @@ export function ChatWorkbench() {
         </div>
       </section>
 
-      {/* 右栏：本次回答的依据 */}
-      <aside className='hidden w-80 shrink-0 border-s ps-4 xl:block'>
+      {/* 右栏：本次回答的依据（引用文档标题与工具调用参数较长，320px 会频繁换行） */}
+      <aside className='hidden w-96 shrink-0 border-s ps-4 xl:block'>
         <h2 className='mb-3 text-sm font-semibold'>本次回答的依据</h2>
         <ScrollArea className='h-full pb-6'>
           {(stream ?? lastAssistant) ? (
