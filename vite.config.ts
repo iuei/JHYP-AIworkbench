@@ -21,6 +21,24 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  /**
+   * 开发服务器：允许局域网访问，并把 /api 代理到后端。
+   *
+   * 为什么要这两项：
+   * 1. Vite 默认只绑 `localhost`（回环），内网其他机器访问会直接 ERR_CONNECTION_REFUSED；
+   * 2. 前端在 dev 模式用同源相对路径 `/api`（见 `.env.development`），
+   *    由这里的代理转发到 API —— 浏览器侧不存在跨域，也就不必维护 CORS_ORIGIN 白名单。
+   *    代理是服务端行为，因此内网访问 `http://<内网IP>:5173` 时后端仍然可达。
+   */
+  server: {
+    host: true,
+    proxy: {
+      '/api': {
+        target: `http://127.0.0.1:${process.env.API_PORT ?? 8787}`,
+        changeOrigin: true,
+      },
+    },
+  },
   test: {
     silent: 'passed-only',
     unstubEnvs: true,

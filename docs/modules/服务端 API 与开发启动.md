@@ -63,6 +63,10 @@
 - **用户迁移 3 新增 `users.token_version`**：JWT 里带 `ver` 声明，`requireUser` 与 AI 模块的 `identityGuard` 都比对，重置密码时 `+1` → 旧 token 立即失效。**这两处守卫必须同时改**：AI 路由挂在独立 router 上、不共用 `requireUser`，漏一处旧 token 仍能访问 `/api/ai/*`。
 - **`test:server` 的覆盖范围**：脚本显式列出 `server/*.node-test.mjs`、`server/ai-agent/*.node-test.mjs`、`server/ai-agent/providers/*.node-test.mjs`。**新增子目录测试时必须同步加进去** —— 此前 `providers/` 被漏掉，那 24 项 provider 测试长期没有执行过。
 - **批量写入**：数据集导入按 500 行、文档切片按 200 片分批 `INSERT`（`datasets.mjs` / `knowledge.mjs`）。不要退回逐行 `client.query` —— 那是"一行一次往返"，且全程占着同一事务与连接。
+- **局域网访问开发服务（2026-09-14 起）**：`vite.config.ts` 设了 `server.host: true` 与 `/api` 代理，并新增 `.env.development`（`VITE_API_BASE_URL=/api`）；内网机器访问 `http://<本机内网IP>:5173` 即可（Vite 启动日志会打印 `Network:` 行）。
+  - **为什么用相对路径 + 代理**：浏览器侧变成同源请求，不必把每个访问来源加进 `CORS_ORIGIN` 白名单（白名单不含来源时预检会直接失败），换网络/IP 也不用改配置；代理是服务端行为，所以内网访问时后端仍然可达。改回绝对地址会同时踩到"跨域"和"内网机器请求打到它自己的 localhost"两个坑。
+  - `.env.development` **只在 dev 模式加载**，`pnpm run build` 的产物仍用 `.env` 的绝对地址 —— 生产部署若静态站点与 API 不同端口，需要在网关层做同样的 `/api` 转发，或把 `VITE_API_BASE_URL` 指向后端绝对地址。
+  - 注意 Vite 默认只绑回环，去掉 `server.host` 后内网访问会直接 `ERR_CONNECTION_REFUSED`。
 
 ## 约束
 
