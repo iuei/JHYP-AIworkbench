@@ -1,9 +1,12 @@
 import pg from 'pg'
 import bcrypt from 'bcryptjs'
 import dotenv from 'dotenv'
-import { runNavigationMigrations } from './navigation-migrations.mjs'
 import { runUserMigrations } from './user-migrations.mjs'
+import { runCompetitorMigrations } from './competitor-migrations.mjs'
 import { runAiAgentMigrations } from './ai-agent/migrations.mjs'
+import { runProductDevMigrations } from './product-dev-migrations.mjs'
+import { runMarketInsightMigrations } from './market-insight-migrations.mjs'
+import { runAnnouncementMigrations } from './announcement-migrations.mjs'
 
 dotenv.config()
 const database = process.env.PGDATABASE ?? 'jhyp_workbench'
@@ -42,8 +45,11 @@ if (login && password) {
   await client.query(`INSERT INTO users (login, name, password_hash, role) VALUES ($1, '系统管理员', $2, 'admin') ON CONFLICT (login) DO NOTHING`, [login, hash])
 }
 
-await runNavigationMigrations(client)
 await runUserMigrations(client)
+await runCompetitorMigrations(client)
 await runAiAgentMigrations(client)
+await runProductDevMigrations(client)
+await runMarketInsightMigrations(client)
+await runAnnouncementMigrations(client)
 await client.end()
 process.stdout.write('数据库初始化完成。\n')

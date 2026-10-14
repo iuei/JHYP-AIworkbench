@@ -6,31 +6,49 @@ import dotenv from 'dotenv'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { pool, query } from './db.mjs'
-import { runNavigationMigrations } from './navigation-migrations.mjs'
 import { runUserMigrations } from './user-migrations.mjs'
+import { runCompetitorMigrations } from './competitor-migrations.mjs'
 import { defaultDashboardShortcutIds } from './dashboard-shortcuts.mjs'
-import { analyzeCompetitor, CompetitorInputError } from './competitor-analysis.mjs'
+import {
+  analyzeCompetitor,
+  CompetitorInputError,
+  getCompetitorAnalysis,
+  listCompetitorAnalyses,
+  recordCompetitorAnalysis,
+  toHistoryItem,
+} from './competitor-analysis.mjs'
+import {
+  attachDispositions,
+  clearDisposition,
+  collectFindingKeys,
+  listDispositions,
+  setDisposition,
+  USER_SETTABLE_STATUSES,
+  verifyDispositions,
+} from './finding-dispositions.mjs'
 import { runAiAgentMigrations } from './ai-agent/migrations.mjs'
 import { createAiAgentRouter } from './ai-agent/router.mjs'
+import { createAnnouncementRouter } from './announcement-routes.mjs'
+import { runAnnouncementMigrations } from './announcement-migrations.mjs'
+import { createProductDevRouter } from './product-dev-routes.mjs'
+import { runProductDevMigrations } from './product-dev-migrations.mjs'
+import { createMarketInsightRouter } from './market-insight-routes.mjs'
+import { runMarketInsightMigrations } from './market-insight-migrations.mjs'
 import { AUDIT_ACTIONS, recordAudit } from './ai-agent/audit.mjs'
 import { clientIp } from './ai-agent/http-utils.mjs'
 import {
+  describeUserDeletionBlock,
   isEnabledAdmin,
   isEnabledUser,
   isLastEnabledAdminDemotion,
   isLastEnabledAdminRemoval,
   parseUserCreate,
+  parseUserRegister,
   parseUserStatusUpdate,
   parseUserUpdate,
+  PENDING_USER_STATUS,
   UserUpdateValidationError,
 } from './user-management.mjs'
-import {
-  assembleQuickNavigation,
-  parseCategoryInput,
-  parseNavigationItemInput,
-  parseTagInput,
-  QuickNavigationValidationError,
-} from './quick-navigation.mjs'
 
 dotenv.config()
 const app = express()
@@ -110,68 +128,92 @@ function resourceId(value) {
   return Number.isInteger(id) && id > 0 ? id : null
 }
 
-function handleNavigationError(error, res, next) {
-  if (error instanceof QuickNavigationValidationError) {
-    return res.status(400).json({ message: error.message })
-  }
-  if (error?.code === '23505') {
-    return res.status(409).json({ message: '名称或导航地址已存在。' })
-  }
-  if (error?.code === '23503') {
-    return res.status(409).json({ message: '该数据仍被导航项使用，无法删除。' })
-  }
-  return next(error)
-}
+/**
+ * 注册接口的简易频率限制（进程内存计数）。
+ *
+ * 为什么必须有：`/api/auth/register` 是本项目唯一的「未登录可写」接口。没有它，
+ * 任何人都能用脚本每分钟灌进成千上万条 pending 账号，把 users 表与审计表刷爆
+ * （服务端目前没有任何其他限流设施，为一个注册接口专门引入 Redis 不划算）。
+ *
+ * 已知限制：只对**单进程**生效。将来若多实例部署，必须换成共享存储（如 Redis），
+ * 否则各实例各算各的窗口，限流等于没做。
+ */
+const REGISTER_WINDOW_MS = 60_000
+const REGISTER_MAX_PER_WINDOW = 3
+const registerAttempts = new Map()
 
-async function loadQuickNavigation() {
-  const [categories, items, tags, itemTags] = await Promise.all([
-    query('SELECT id, name, sort_order FROM navigation_categories'),
-    query(
-      'SELECT id, category_id, name, url, description, placement, sort_order FROM navigation_items'
-    ),
-    query('SELECT id, name FROM navigation_tags'),
-    query('SELECT item_id, tag_id, sort_order FROM navigation_item_tags'),
-  ])
-  return assembleQuickNavigation({
-    categories: categories.rows,
-    items: items.rows,
-    tags: tags.rows,
-    itemTags: itemTags.rows,
-  })
-}
+function registerRateLimitExceeded(ip) {
+  const now = Date.now()
+  const key = ip || 'unknown'
+  const hits = (registerAttempts.get(key) ?? []).filter(
+    (at) => now - at < REGISTER_WINDOW_MS
+  )
 
-async function validateNavigationReferences(client, item) {
-  if (item.categoryId !== null) {
-    const category = await client.query(
-      'SELECT id FROM navigation_categories WHERE id = $1',
-      [item.categoryId]
-    )
-    if (!category.rowCount) {
-      throw new QuickNavigationValidationError('所选分类不存在。')
+  if (hits.length >= REGISTER_MAX_PER_WINDOW) {
+    registerAttempts.set(key, hits)
+    return true
+  }
+
+  hits.push(now)
+  registerAttempts.set(key, hits)
+
+  // 顺手清理整窗已过期的 IP，避免 Map 随扫描来源数量无限增长
+  if (registerAttempts.size > 1000) {
+    for (const [staleKey, times] of registerAttempts) {
+      if (times.every((at) => now - at >= REGISTER_WINDOW_MS)) {
+        registerAttempts.delete(staleKey)
+      }
     }
   }
-  if (item.tagIds.length) {
-    const tags = await client.query(
-      'SELECT id FROM navigation_tags WHERE id = ANY($1::int[])',
-      [item.tagIds]
-    )
-    if (tags.rowCount !== item.tagIds.length) {
-      throw new QuickNavigationValidationError('所选标签包含无效数据。')
-    }
-  }
+
+  return false
 }
 
-async function replaceNavigationItemTags(client, itemId, tagIds) {
-  await client.query('DELETE FROM navigation_item_tags WHERE item_id = $1', [
-    itemId,
-  ])
-  for (const [sortOrder, tagId] of tagIds.entries()) {
-    await client.query(
-      'INSERT INTO navigation_item_tags (item_id, tag_id, sort_order) VALUES ($1, $2, $3)',
-      [itemId, tagId, sortOrder]
-    )
+/**
+ * 自助注册（公开接口，无需登录）。
+ *
+ * 落库即 `pending`：注册者**拿不到 token**，必须在管理员于「用户管理」页放行后才能登录。
+ * role 固定 operator、department 留空 —— 注册者不能自选角色（那是一条自助提权路径），
+ * 部门属于管理信息，由管理员审核时补填。
+ */
+app.post('/api/auth/register', async (req, res, next) => {
+  const ip = clientIp(req)
+  if (registerRateLimitExceeded(ip)) {
+    return res.status(429).json({ message: '提交过于频繁，请稍后再试。' })
   }
-}
+
+  let input
+  try {
+    input = parseUserRegister(req.body)
+  } catch (error) {
+    if (error instanceof UserUpdateValidationError) {
+      return res.status(400).json({ message: error.message })
+    }
+    return next(error)
+  }
+
+  try {
+    const hash = await bcrypt.hash(input.password, 12)
+    const { rows } = await query(
+      "INSERT INTO users (login, name, password_hash, role, status, department) VALUES ($1,$2,$3,'operator',$4,'') RETURNING id, login, name, status",
+      [input.login, input.name, hash, PENDING_USER_STATUS]
+    )
+    // 申请入库必须留痕：这是「谁在什么时候申请了什么账号」的唯一记录（detail 绝不记密码）。
+    await recordAudit({
+      actorId: null,
+      action: AUDIT_ACTIONS.userRegister,
+      targetType: 'user',
+      targetId: rows[0].id,
+      detail: { login: rows[0].login, name: rows[0].name, status: rows[0].status },
+      ip,
+    })
+    return res.status(201).json({ message: '注册申请已提交，请等待管理员审核。' })
+  } catch (error) {
+    // 账号唯一约束：与管理员开通同口径返回 409，而不是 500
+    if (error?.code === '23505') return res.status(409).json({ message: '该账号已存在。' })
+    return next(error)
+  }
+})
 
 app.post('/api/auth/login', async (req, res, next) => {
   const { login, password } = req.body ?? {}
@@ -194,7 +236,7 @@ app.post('/api/auth/login', async (req, res, next) => {
     const user = rows[0]
     const passwordOk = user ? await bcrypt.compare(password, user.password_hash) : false
 
-    if (!user || user.status !== 'enabled' || !passwordOk) {
+    if (!user || !passwordOk) {
       // 登录失败也留痕：这是暴力尝试与异常时间登录的唯一回溯依据。detail 只记账号，绝不记密码。
       await recordAudit({
         actorId: user?.id ?? null,
@@ -204,11 +246,40 @@ app.post('/api/auth/login', async (req, res, next) => {
         detail: {
           login: login.trim().slice(0, 120),
           result: 'failed',
-          reason: !user ? 'unknown_account' : user.status !== 'enabled' ? 'disabled_account' : 'bad_password',
+          reason: !user ? 'unknown_account' : 'bad_password',
         },
         ip: clientIp(req),
       })
       return res.status(401).json({ message: '账号或密码错误。' })
+    }
+
+    /*
+     * 账号状态在**密码校验通过之后**才区分，这是刻意的：
+     * 注册接口会用 409 告诉调用方「某账号已存在」，因此对已经输对密码的人如实说明状态
+     * 不会新增账号枚举面；反之若密码错误时也回「等待审核 / 已停用」，不用密码就能白拿账号状态。
+     */
+    if (user.status === PENDING_USER_STATUS) {
+      await recordAudit({
+        actorId: user.id,
+        action: AUDIT_ACTIONS.login,
+        targetType: 'user',
+        targetId: user.id,
+        detail: { login: user.login, result: 'failed', reason: 'pending_account' },
+        ip: clientIp(req),
+      })
+      return res.status(401).json({ message: '账号正在等待管理员审核，通过后即可登录。' })
+    }
+
+    if (user.status !== 'enabled') {
+      await recordAudit({
+        actorId: user.id,
+        action: AUDIT_ACTIONS.login,
+        targetType: 'user',
+        targetId: user.id,
+        detail: { login: user.login, result: 'failed', reason: 'disabled_account' },
+        ip: clientIp(req),
+      })
+      return res.status(401).json({ message: '账号已被停用，请联系管理员。' })
     }
 
     await query('UPDATE users SET last_login_at = NOW() WHERE id = $1', [user.id])
@@ -440,263 +511,118 @@ app.post('/api/users/:id/reset-password', requireUser, requireAdmin, async (req,
     return next(error)
   }
 })
-app.get('/api/quick-navigation', requireUser, async (_req, res, next) => {
+/**
+ * 删除账号（DELETE /api/users/:id）。
+ *
+ * **不可逆**：users 行删除后，外键按既有语义级联 —— 该账号的业务数据
+ * （AI 会话与消息、经验沉淀、我的 ASIN、竞品分析、公告已读、快捷偏好、工作任务）
+ * 是 ON DELETE CASCADE，一并清掉；审计与「创建人 / 审核人」类字段是 ON DELETE SET NULL，
+ * 记录保留但操作人置空。因此这里的三道闸一个都不能少：
+ *   1. 仅管理员（requireAdmin + 事务内 hasCurrentAdminAccess，防"刚被降级的人还在删"）；
+ *   2. 不能删自己；
+ *   3. 必须至少保留一个已启用的管理员。
+ * 后两条与改角色 / 停用共用 `describeUserDeletionBlock`（纯函数、有单测）。
+ *
+ * 审计写在同一个事务里，且**落 detail 身份信息**：`ai_audit_logs.actor_id` 对 users 是
+ * SET NULL，被删者自己的历史记录会失去操作人；只有这次删除的 detail 里记下 login / role，
+ * 事后才回答得了"删的是谁"（只留一个 target_id 是没有意义的，那行已经不存在了）。
+ */
+app.delete('/api/users/:id', requireUser, requireAdmin, async (req, res, next) => {
+  // 同 PATCH：非法 id 必须先判成 400，不能让 PG 抛 22P02 变成 500
+  const targetId = resourceId(req.params.id)
+  if (!targetId) return res.status(400).json({ message: '用户 ID 不合法。' })
+  const client = await pool.connect()
   try {
-    res.json(await loadQuickNavigation())
+    await client.query('BEGIN')
+    // 与改角色 / 改状态同一把锁：先锁住启用中的管理员集合，
+    // 否则两个管理员并发互删时，双方都能读到"还有一个管理员"而各删各的。
+    await client.query(
+      "SELECT id FROM users WHERE role = 'admin' AND status = 'enabled' FOR UPDATE"
+    )
+    if (!(await hasCurrentAdminAccess(client, req.user.id))) {
+      await client.query('ROLLBACK')
+      return res.status(403).json({ message: '仅管理员可执行此操作。' })
+    }
+    const targetResult = await client.query(
+      'SELECT id, login, role, status, department, last_login_at FROM users WHERE id = $1 FOR UPDATE',
+      [targetId]
+    )
+    const target = targetResult.rows[0]
+    if (!target) {
+      await client.query('ROLLBACK')
+      return res.status(404).json({ message: '用户不存在。' })
+    }
+    const adminCountResult = await client.query(
+      "SELECT COUNT(*)::int AS count FROM users WHERE role = 'admin' AND status = 'enabled' AND id <> $1",
+      [target.id]
+    )
+    const blockedReason = describeUserDeletionBlock({
+      actorId: req.user.id,
+      targetId: target.id,
+      targetRole: target.role,
+      targetStatus: target.status,
+      otherEnabledAdminCount: adminCountResult.rows[0].count,
+    })
+    if (blockedReason) {
+      await client.query('ROLLBACK')
+      return res.status(409).json({ message: blockedReason })
+    }
+    await recordAudit({
+      actorId: req.user.id,
+      action: AUDIT_ACTIONS.userDelete,
+      targetType: 'user',
+      targetId: target.id,
+      detail: {
+        login: target.login,
+        role: target.role,
+        status: target.status,
+        department: target.department || null,
+        lastLoginAt: target.last_login_at ?? null,
+      },
+      ip: clientIp(req),
+      client,
+    })
+    await client.query('DELETE FROM users WHERE id = $1', [target.id])
+    await client.query('COMMIT')
+    return res.status(204).end()
   } catch (error) {
-    next(error)
+    await client.query('ROLLBACK')
+    return next(error)
+  } finally {
+    client.release()
   }
 })
-app.post(
-  '/api/navigation-categories',
-  requireUser,
-  requireAdmin,
-  async (req, res, next) => {
-    try {
-      const input = parseCategoryInput(req.body)
-      const { rows } = await query(
-        'INSERT INTO navigation_categories (name, sort_order) VALUES ($1, $2) RETURNING id, name, sort_order',
-        [input.name, input.sortOrder]
-      )
-      res.status(201).json({
-        id: rows[0].id,
-        name: rows[0].name,
-        sortOrder: rows[0].sort_order,
-      })
-    } catch (error) {
-      handleNavigationError(error, res, next)
-    }
-  }
-)
-app.patch(
-  '/api/navigation-categories/:id',
-  requireUser,
-  requireAdmin,
-  async (req, res, next) => {
-    try {
-      const id = resourceId(req.params.id)
-      if (!id) return res.status(400).json({ message: '分类参数无效。' })
-      const input = parseCategoryInput(req.body)
-      const { rows } = await query(
-        'UPDATE navigation_categories SET name = $1, sort_order = $2, updated_at = NOW() WHERE id = $3 RETURNING id, name, sort_order',
-        [input.name, input.sortOrder, id]
-      )
-      if (!rows[0]) return res.status(404).json({ message: '分类不存在。' })
-      return res.json({
-        id: rows[0].id,
-        name: rows[0].name,
-        sortOrder: rows[0].sort_order,
-      })
-    } catch (error) {
-      return handleNavigationError(error, res, next)
-    }
-  }
-)
-app.delete(
-  '/api/navigation-categories/:id',
-  requireUser,
-  requireAdmin,
-  async (req, res, next) => {
-    try {
-      const id = resourceId(req.params.id)
-      if (!id) return res.status(400).json({ message: '分类参数无效。' })
-      const result = await query(
-        'DELETE FROM navigation_categories WHERE id = $1',
-        [id]
-      )
-      if (!result.rowCount) {
-        return res.status(404).json({ message: '分类不存在。' })
-      }
-      return res.status(204).end()
-    } catch (error) {
-      return handleNavigationError(error, res, next)
-    }
-  }
-)
-app.post(
-  '/api/navigation-tags',
-  requireUser,
-  requireAdmin,
-  async (req, res, next) => {
-    try {
-      const input = parseTagInput(req.body)
-      const { rows } = await query(
-        'INSERT INTO navigation_tags (name) VALUES ($1) RETURNING id, name',
-        [input.name]
-      )
-      res.status(201).json(rows[0])
-    } catch (error) {
-      handleNavigationError(error, res, next)
-    }
-  }
-)
-app.patch(
-  '/api/navigation-tags/:id',
-  requireUser,
-  requireAdmin,
-  async (req, res, next) => {
-    try {
-      const id = resourceId(req.params.id)
-      if (!id) return res.status(400).json({ message: '标签参数无效。' })
-      const input = parseTagInput(req.body)
-      const { rows } = await query(
-        'UPDATE navigation_tags SET name = $1, updated_at = NOW() WHERE id = $2 RETURNING id, name',
-        [input.name, id]
-      )
-      if (!rows[0]) return res.status(404).json({ message: '标签不存在。' })
-      return res.json(rows[0])
-    } catch (error) {
-      return handleNavigationError(error, res, next)
-    }
-  }
-)
-app.delete(
-  '/api/navigation-tags/:id',
-  requireUser,
-  requireAdmin,
-  async (req, res, next) => {
-    try {
-      const id = resourceId(req.params.id)
-      if (!id) return res.status(400).json({ message: '标签参数无效。' })
-      const result = await query('DELETE FROM navigation_tags WHERE id = $1', [
-        id,
-      ])
-      if (!result.rowCount) {
-        return res.status(404).json({ message: '标签不存在。' })
-      }
-      return res.status(204).end()
-    } catch (error) {
-      return handleNavigationError(error, res, next)
-    }
-  }
-)
-app.post(
-  '/api/navigation-items',
-  requireUser,
-  requireAdmin,
-  async (req, res, next) => {
-    let input
-    try {
-      input = parseNavigationItemInput(req.body)
-    } catch (error) {
-      return handleNavigationError(error, res, next)
-    }
-    const client = await pool.connect()
-    try {
-      await client.query('BEGIN')
-      await validateNavigationReferences(client, input)
-      const { rows } = await client.query(
-        `INSERT INTO navigation_items
-          (category_id, name, url, description, placement, sort_order, created_by)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)
-         RETURNING id`,
-        [
-          input.categoryId,
-          input.name,
-          input.url,
-          input.description,
-          input.placement,
-          input.sortOrder,
-          req.user.id,
-        ]
-      )
-      await replaceNavigationItemTags(client, rows[0].id, input.tagIds)
-      await client.query('COMMIT')
-      return res.status(201).json({ id: rows[0].id })
-    } catch (error) {
-      await client.query('ROLLBACK')
-      return handleNavigationError(error, res, next)
-    } finally {
-      client.release()
-    }
-  }
-)
-app.patch(
-  '/api/navigation-items/:id',
-  requireUser,
-  requireAdmin,
-  async (req, res, next) => {
-    const id = resourceId(req.params.id)
-    if (!id) return res.status(400).json({ message: '导航参数无效。' })
-    let input
-    try {
-      input = parseNavigationItemInput(req.body)
-    } catch (error) {
-      return handleNavigationError(error, res, next)
-    }
-    const client = await pool.connect()
-    try {
-      await client.query('BEGIN')
-      await validateNavigationReferences(client, input)
-      const { rows } = await client.query(
-        `UPDATE navigation_items
-         SET category_id = $1, name = $2, url = $3, description = $4,
-             placement = $5, sort_order = $6, updated_at = NOW()
-         WHERE id = $7 RETURNING id`,
-        [
-          input.categoryId,
-          input.name,
-          input.url,
-          input.description,
-          input.placement,
-          input.sortOrder,
-          id,
-        ]
-      )
-      if (!rows[0]) {
-        await client.query('ROLLBACK')
-        return res.status(404).json({ message: '导航项不存在。' })
-      }
-      await replaceNavigationItemTags(client, id, input.tagIds)
-      await client.query('COMMIT')
-      return res.json({ id })
-    } catch (error) {
-      await client.query('ROLLBACK')
-      return handleNavigationError(error, res, next)
-    } finally {
-      client.release()
-    }
-  }
-)
-app.delete(
-  '/api/navigation-items/:id',
-  requireUser,
-  requireAdmin,
-  async (req, res, next) => {
-    try {
-      const id = resourceId(req.params.id)
-      if (!id) return res.status(400).json({ message: '导航参数无效。' })
-      const result = await query('DELETE FROM navigation_items WHERE id = $1', [
-        id,
-      ])
-      if (!result.rowCount) {
-        return res.status(404).json({ message: '导航项不存在。' })
-      }
-      return res.status(204).end()
-    } catch (error) {
-      return handleNavigationError(error, res, next)
-    }
-  }
-)
 app.get('/api/dashboard', requireUser, async (req, res) => { const work = await query('SELECT id,module,title,progress,route,updated_at FROM work_items WHERE user_id=$1 AND progress < 100 ORDER BY updated_at DESC', [req.user.id]); const pref = await query('SELECT shortcut_ids FROM shortcut_preferences WHERE user_id=$1', [req.user.id]); const analyses = await query('SELECT id,input_type,input_value,created_at FROM competitor_analyses WHERE user_id=$1 ORDER BY created_at DESC LIMIT 5', [req.user.id]); res.json({ workItems: work.rows, shortcutIds: pref.rows[0]?.shortcut_ids ?? defaultDashboardShortcutIds, analyses: analyses.rows }) })
 app.put('/api/dashboard/shortcuts', requireUser, async (req, res) => { await query('INSERT INTO shortcut_preferences (user_id, shortcut_ids) VALUES ($1,$2) ON CONFLICT (user_id) DO UPDATE SET shortcut_ids=EXCLUDED.shortcut_ids,updated_at=NOW()', [req.user.id, JSON.stringify(req.body.shortcutIds)]); res.status(204).end() })
 /**
- * 竞品分析：单个 ASIN 的真实广告与销售表现。
+ * 竞品分析：一组 ASIN（第一个为「本品」）在同一站点、同一区间的真实广告与销售表现对比。
  *
  * 改动原因：历史实现返回与输入无关的写死结论（无论输入什么都得到同一组
  * 「portable blender / 电池续航不足」），并顺带往 work_items 写一条 progress=65 的假任务
  * —— 那条任务永远不会完成、也没有任何入口能清除它，首页「正在进行的工作」因此长期挂着假数据。
  * 现在数字全部来自数据集与 analytics 的确定性计算，也不再写假进度。
+ *
+ * 本轮扩展：多 ASIN 横向对比、站点/区间/对比基线可选、确定性结论、库存联动，
+ * 并把结果快照一起落库以支持历史回看。
  */
 app.post('/api/competitor-analyses', requireUser, async (req, res, next) => {
   try {
     // req.body 可能为 undefined（缺 Content-Type 时），先兜底再校验，避免 TypeError。
     const analysis = await analyzeCompetitor(req.body ?? {})
-    const { rows } = await query(
-      'INSERT INTO competitor_analyses (user_id,input_type,input_value) VALUES ($1,$2,$3) RETURNING id,input_type,input_value,created_at',
-      [req.user.id, analysis.inputType, analysis.inputValue]
-    )
-    res.json({ record: rows[0], result: analysis })
+    // 快照落库：历史回看看到的是「当时的结论」，而不是用今天的数据重算出来的另一套数字
+    const record = await recordCompetitorAnalysis({ userId: req.user.id, result: analysis })
+    /*
+     * 处置核验必须落在"分析已经落库"之后：用户上次标记的「我已处理」在这里被判定
+     * —— 该结论不再命中 → 已核验解决；仍然命中 → 打回待处理并在界面上说明原因。
+     * 顺序不能反：核验结果要跟着 `attachDispositions` 一起返回给前端。
+     */
+    await verifyDispositions({ userId: req.user.id, analysisId: record.id, result: analysis })
+    const result = await attachDispositions(req.user.id, {
+      ...analysis,
+      analysisId: record.id,
+      createdAt: record.created_at,
+    })
+    res.json({ record, result })
   } catch (error) {
     if (error instanceof CompetitorInputError) {
       return res.status(400).json({ message: error.message })
@@ -705,8 +631,120 @@ app.post('/api/competitor-analyses', requireUser, async (req, res, next) => {
   }
 })
 
+/** 历史分析记录列表（只返回摘要，不返回快照，避免列表接口传大 JSON）。 */
+app.get('/api/competitor-analyses', requireUser, async (req, res, next) => {
+  try {
+    const rows = await listCompetitorAnalyses(req.user.id, req.query.limit)
+    // 台账一次读全（每账号几十行），在内存里算"每条记录还有几条没销账" —— 用于首页报警口径
+    const dispositions = await listDispositions(req.user.id)
+    res.json({ items: rows.map((row) => toHistoryItem(row, dispositions)) })
+  } catch (error) {
+    return next(error)
+  }
+})
+
+/** 单条历史分析（含结果快照）；越权或不存在一律 404，不区分两者。 */
+app.get('/api/competitor-analyses/:id', requireUser, async (req, res, next) => {
+  try {
+    const row = await getCompetitorAnalysis(req.user.id, req.params.id)
+    if (!row) return res.status(404).json({ message: '分析记录不存在。' })
+    // 快照里的结论要带上当前处置状态，界面才能显示「待核验 / 已核验解决 / 已忽略」
+    const result = row.result
+      ? await attachDispositions(req.user.id, row.result)
+      : null
+    res.json({ record: toHistoryItem(row), result })
+  } catch (error) {
+    return next(error)
+  }
+})
+
+/**
+ * 结论处置：标记「我已处理（待核验）」或「不处理（必填原因）」。
+ *
+ * `code` + `target` 必须**真的属于这次分析** —— 否则前端一旦传错（或有人手工构造请求），
+ * 台账里就会沉淀一条永远不会被任何分析核验到的垃圾状态。校验用分析自己的
+ * `finding_keys`；老记录没有这一列时回退到从快照里现算。
+ */
+app.put('/api/competitor-analyses/:id/findings/disposition', requireUser, async (req, res, next) => {
+  try {
+    const row = await getCompetitorAnalysis(req.user.id, req.params.id)
+    if (!row) return res.status(404).json({ message: '分析记录不存在。' })
+
+    const body = req.body ?? {}
+    const code = typeof body.code === 'string' ? body.code.trim() : ''
+    const target = typeof body.target === 'string' ? body.target.trim() : ''
+    const status = typeof body.status === 'string' ? body.status.trim() : ''
+    const note = typeof body.note === 'string' ? body.note.trim() : ''
+
+    if (!code || !target) {
+      return res.status(400).json({ message: '缺少结论的诊断码或处置目标。' })
+    }
+    if (!USER_SETTABLE_STATUSES.includes(status)) {
+      return res.status(400).json({ message: `处置状态只能是 ${USER_SETTABLE_STATUSES.join(' / ')}。` })
+    }
+    /*
+     * 「不处理」必须给原因：它是**长期**决定（系统之后不再自动核验、也不再报警），
+     * 没有原因的话，半年后没人记得为什么忽略了一条「需立即处理」。
+     */
+    if (status === 'ignored' && !note) {
+      return res.status(400).json({ message: '选择「不处理」时必须填写原因。' })
+    }
+
+    const knownKeys = Array.isArray(row.finding_keys) && row.finding_keys.length > 0
+      ? row.finding_keys
+      : collectFindingKeys(row.result?.findings, { asin: row.result?.asin ?? null })
+    const belongs = knownKeys.some(
+      (key) => String(key.code) === code && String(key.target) === target
+    )
+    if (!belongs) {
+      return res.status(400).json({ message: '这条结论不属于该次分析，无法标记处置状态。' })
+    }
+
+    const saved = await setDisposition({
+      userId: req.user.id,
+      analysisId: row.id,
+      code,
+      target,
+      status,
+      note: note || null,
+    })
+    res.json({ disposition: saved })
+  } catch (error) {
+    return next(error)
+  }
+})
+
+/** 撤销自己刚才的标记（回到「待处理」）—— 删行，语义是"我什么都没标记过"。 */
+app.delete('/api/competitor-analyses/:id/findings/disposition', requireUser, async (req, res, next) => {
+  try {
+    const row = await getCompetitorAnalysis(req.user.id, req.params.id)
+    if (!row) return res.status(404).json({ message: '分析记录不存在。' })
+    const code = typeof req.query.code === 'string' ? req.query.code.trim() : ''
+    const target = typeof req.query.target === 'string' ? req.query.target.trim() : ''
+    if (!code || !target) {
+      return res.status(400).json({ message: '缺少结论的诊断码或处置目标。' })
+    }
+    await clearDisposition({ userId: req.user.id, code, target })
+    res.json({ disposition: null })
+  } catch (error) {
+    return next(error)
+  }
+})
+
 // AI 助手模块（企业 AI 与 Agent 统一入口），见 docs/modules/AI 助手.md
 app.use('/api/ai', createAiAgentRouter({ requireUser }))
+
+// 公告（管理员发布、员工登录时弹窗），见 docs/modules/公告.md
+app.use(
+  '/api/announcements',
+  createAnnouncementRouter({ requireUser, requireAdmin })
+)
+
+// 产品开发（候选产品池、横向对比与保存），见 docs/modules/产品开发.md
+app.use('/api/product-dev', createProductDevRouter({ requireUser }))
+
+// 市场洞察（市场报告快照与回看），见 docs/modules/市场洞察.md
+app.use('/api/market-insights', createMarketInsightRouter({ requireUser }))
 
 /**
  * 统一错误出口（必须注册在所有路由之后）。
@@ -723,12 +761,18 @@ app.use((error, _req, res, _next) => {
 
 const migrationClient = await pool.connect()
 try {
-  await runNavigationMigrations(migrationClient)
   await runUserMigrations(migrationClient)
+  await runCompetitorMigrations(migrationClient)
   await runAiAgentMigrations(migrationClient)
+  // 公告的审计写进 ai_audit_logs，因此必须在 AI 助手迁移（建表）之后运行。
+  await runAnnouncementMigrations(migrationClient)
+  // 产品开发复用 AI 助手建立的报表表（只读），同样必须排在它之后。
+  await runProductDevMigrations(migrationClient)
+  await runMarketInsightMigrations(migrationClient)
 } finally {
   migrationClient.release()
 }
+
 app.listen(port, () => process.stdout.write(`JHYP 智能工作台 API 已启动：http://localhost:${port}\n`))
 
 if (process.env.SERVE_STATIC !== 'false') {

@@ -581,8 +581,13 @@ export async function importDataset({
   }
 }
 
-/** 导入记录（含失败原因与失败行明细）。 */
-export async function listImports({ dataset = null, limit = 50 } = {}) {
+/**
+ * 导入记录（含失败原因与失败行明细）。
+ *
+ * 支持 offset 分页：导入记录会随每次上传长期累积，只能看"最近 50 条"等于把历史留痕藏起来，
+ * 而导入失败排查恰恰最需要往前翻。
+ */
+export async function listImports({ dataset = null, limit = 50, offset = 0 } = {}) {
   const { rows } = await query(
     `SELECT i.id, i.dataset, i.file_name, i.mode, i.period_start, i.period_end,
             i.row_count, i.failed_rows, i.fail_reason, i.status, i.imported_at,
@@ -591,10 +596,20 @@ export async function listImports({ dataset = null, limit = 50 } = {}) {
        LEFT JOIN users u ON u.id = i.imported_by
       WHERE ($1::text IS NULL OR i.dataset = $1)
       ORDER BY i.imported_at DESC, i.id DESC
-      LIMIT $2`,
-    [dataset, Math.min(200, Math.max(1, limit))]
+      LIMIT $2 OFFSET $3`,
+    [dataset, Math.min(200, Math.max(1, limit)), Math.max(0, offset)]
   )
   return rows
+}
+
+/** 导入记录总数（与 `listImports` 同一筛选条件，供分页器计算页数）。 */
+export async function countImports({ dataset = null } = {}) {
+  const { rows } = await query(
+    `SELECT COUNT(*)::int AS total FROM ai_imports i
+      WHERE ($1::text IS NULL OR i.dataset = $1)`,
+    [dataset]
+  )
+  return rows[0].total
 }
 
 /** 数据集清单：行数与最近一次成功导入时间（数据时效的唯一来源）。 */
@@ -632,6 +647,120 @@ export async function datasetOverview() {
     })
   }
   return overview
+}
+
+/**
+ * 行详情里的附加展示列（不属于导入模板）。
+ *
+ * 这些列由数据库默认值填充，用户不该在 CSV 里提供，所以不进 `spec.columns`；
+ * 但排查"刚导入的这批数据到底长什么样"时，快照时点是唯一能区分批次的字段，必须看得到。
+ */
+const ROW_EXTRA_COLUMNS = {
+  inventory_snapshot: [
+    { key: 'snapshot_at', label: '快照时间', type: 'timestamp', required: false },
+  ],
+}
+
+/**
+ * 行详情展示列 = 模板列 + 附加列。
+ *
+ * 列名一律来自数据集规格这个白名单：行详情的 SQL 会把列名拼进语句（列名不能参数化），
+ * 只要列名只可能来自规格，就不存在经由列名的注入面。
+ */
+export function datasetRowColumns(spec) {
+  if (!spec) return []
+  return [...spec.columns, ...(ROW_EXTRA_COLUMNS[spec.key] ?? [])].map((item) => ({
+    key: item.key,
+    label: item.label,
+    type: item.type,
+    required: Boolean(item.required),
+  }))
+}
+
+/**
+ * 关键词可搜索的列：只搜文本类列。
+ *
+ * 为什么不搜数值列：`spend::text ILIKE '%1%'` 几乎命中所有行，用户既搜不准，
+ * 又让每次搜索都退化成全表扫描（数值列上没有可用的前缀索引）。
+ */
+export function datasetSearchColumns(spec) {
+  const searchable = new Set(['string', 'marketplace', 'date', 'timestamp'])
+  return (spec?.columns ?? [])
+    .filter((item) => searchable.has(item.type))
+    .map((item) => item.key)
+}
+
+/**
+ * 行详情排序：有日期列按日期倒序（看最新数据），否则按自增主键倒序（看最近写入）。
+ *
+ * `NULLS LAST` 不是可选项：`order_snapshot.ordered_at` 允许为空，
+ * 默认的 `DESC` 会把 NULL 排在最前面，第一页全是空行。
+ */
+export function datasetRowOrder(spec) {
+  const dateColumn = spec?.dateColumn
+  return dateColumn ? `${dateColumn} DESC NULLS LAST, id DESC` : 'id DESC'
+}
+
+/**
+ * SELECT 表达式：日期/时间列用 `to_char` 直接取文本。
+ *
+ * `db.mjs` 的 `setTypeParser(1082)` 已经让 DATE 按字符串返回，但 **TIMESTAMPTZ 仍会被解析成
+ * JS Date 并以 UTC 序列化**（`snapshot_at` / `ordered_at`），东八区显示时会比库内值差 8 小时，
+ * 管理员核对导入结果时会以为导错了时间。统一用 `to_char` 让所有时间列按库内字面值展示。
+ */
+export function datasetRowSelectList(spec) {
+  return [
+    'id',
+    ...datasetRowColumns(spec).map((item) => {
+      if (item.type === 'date') return `to_char(${item.key}, 'YYYY-MM-DD') AS ${item.key}`
+      if (item.type === 'timestamp') {
+        return `to_char(${item.key}, 'YYYY-MM-DD HH24:MI:SS') AS ${item.key}`
+      }
+      return item.key
+    }),
+  ].join(', ')
+}
+
+/**
+ * 数据集行详情（分页 + 关键词）。
+ *
+ * 与数据集清单分开查询：清单是每次进页面都要的轻量统计，行详情是管理员显式点开才拉的数据，
+ * 把行数据塞进 `/datasets` 会让页面首屏为一份没人看的数据买单。
+ */
+export async function listDatasetRows({ spec, limit = 50, offset = 0, keyword = null } = {}) {
+  if (!spec) throw new DatasetValidationError('未知数据集。')
+  const text = String(keyword ?? '').trim()
+  const params = []
+  let whereSql = ''
+  if (text) {
+    const searchColumns = datasetSearchColumns(spec)
+    if (searchColumns.length > 0) {
+      params.push(`%${text}%`)
+      whereSql = `WHERE (${searchColumns
+        .map((column) => `${column}::text ILIKE $${params.length}`)
+        .join(' OR ')})`
+    }
+  }
+
+  const [counts, rows] = await Promise.all([
+    query(`SELECT COUNT(*)::int AS total FROM ${spec.table} ${whereSql}`, params),
+    query(
+      `SELECT ${datasetRowSelectList(spec)} FROM ${spec.table} ${whereSql}
+        ORDER BY ${datasetRowOrder(spec)}
+        LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+      [...params, Math.min(200, Math.max(1, limit)), Math.max(0, offset)]
+    ),
+  ])
+  return { rows: rows.rows, total: counts.rows[0].total }
+}
+
+/** 导出行数上限：再多就不是"核对"而是"搬运全表"，前端会提示缩小关键词范围。 */
+export const MAX_EXPORT_ROWS = 20000
+
+/** 导出用行集（最多 MAX_EXPORT_ROWS 行，与列表同一筛选条件）。 */
+export async function listDatasetRowsForExport({ spec, keyword = null, limit = MAX_EXPORT_ROWS } = {}) {
+  const { rows, total } = await listDatasetRows({ spec, limit, offset: 0, keyword })
+  return { rows, total, truncated: total > rows.length }
 }
 
 /** Date / 字符串 → ISO 字符串；空值返回 null。 */

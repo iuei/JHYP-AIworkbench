@@ -24,7 +24,23 @@ import {
 
 const SIDEBAR_COOKIE_NAME = 'sidebar_state'
 const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7
-const SIDEBAR_WIDTH = '16rem'
+/**
+ * 侧边栏展开态宽度（**本项目的定制值，不是 shadcn 默认的 16rem**）。
+ *
+ * 2026-09-16 由 16rem(256px) 收窄到 13rem(208px)：用户提出"侧边栏收窄 1/3 或 1/4"，
+ * 但两个候选实测都不可取 ——
+ *   - 1/3（≈171px）：最宽的导航项「任务中心」+「开发中」徽标放不下，文字折成两行
+ *     （截图 `verify-artifacts/sidebar-width-172-收窄三分之一.png`）；
+ *   - 1/4（192px）：一级类目仍可单行，但顶部品牌名被截断成「JHYP 智能工…」
+ *     （截图 `verify-artifacts/sidebar-width-192-收窄四分之一.png`）。
+ * 208px 是"类目名与品牌名都完整"的最窄值（最宽那行仍有约 28px 余量），
+ * 相对原宽度收窄 48px（约 19%，约等于 1/5），内容区在同视口下同时变宽 48px。
+ *
+ * 改这个值时必须一并复验：① 一级类目是否折行（`span.getClientRects().length > 1`）、
+ * ② 顶部品牌区与底部用户区是否被截断、③ 折叠态（`SIDEBAR_WIDTH_ICON`）与移动端抽屉
+ * （`SIDEBAR_WIDTH_MOBILE`）不受影响。口径见 `docs/modules/全局布局与导航.md`。
+ */
+const SIDEBAR_WIDTH = '13rem'
 const SIDEBAR_WIDTH_MOBILE = '18rem'
 const SIDEBAR_WIDTH_ICON = '3rem'
 const SIDEBAR_KEYBOARD_SHORTCUT = 'b'
@@ -184,7 +200,13 @@ function Sidebar({
           data-sidebar='sidebar'
           data-slot='sidebar'
           data-mobile='true'
-          className='w-(--sidebar-width) bg-sidebar p-0 text-sidebar-foreground [&>button]:hidden'
+          /*
+           * 明确关闭按钮（2026-09-18）：此处此前是 `[&>button]:hidden`，把 Sheet 自带的
+           * 关闭按钮藏了起来 —— 移动端只能点遮罩或按 Esc 退出（用户口径："增加清晰关闭按钮"）。
+           * 现在把按钮放回右上角、调成侧边栏配色，并给品牌区让出右侧空间（`pe-11`），
+           * 否则这个绝对定位的按钮会压在品牌名与 plan 文案上。
+           */
+          className='w-(--sidebar-width) bg-sidebar p-0 text-sidebar-foreground [&_[data-slot=sidebar-header]]:pe-11 [&>button]:inset-e-2.5! [&>button]:top-3! [&>button]:size-7 [&>button]:rounded-md! [&>button]:text-sidebar-foreground [&>button]:opacity-70 [&>button]:hover:bg-sidebar-accent [&>button]:hover:opacity-100'
           style={
             {
               '--sidebar-width': SIDEBAR_WIDTH_MOBILE,
@@ -289,16 +311,18 @@ function SidebarRail({ className, ...props }: React.ComponentProps<'button'>) {
       title='切换侧边栏'
       className={cn(
         'absolute inset-y-0 z-20 hidden w-4 -translate-x-1/2 transition-all ease-linear group-data-[side=left]:-inset-e-4 group-data-[side=right]:inset-s-0 after:absolute after:inset-y-0 after:inset-s-1/2 after:w-0.5 hover:after:bg-sidebar-border sm:flex',
-        'in-data-[side=left]:cursor-w-resize in-data-[side=right]:cursor-e-resize',
-        '[[data-side=left][data-state=collapsed]_&]:cursor-e-resize [[data-side=right][data-state=collapsed]_&]:cursor-w-resize',
+        /*
+         * 指针语义必须是"可点击"：这条边缘的**唯一行为**是点击折叠 / 展开侧边栏
+         * （`onClick={toggleSidebar}`），此前写成 `cursor-w-resize / e-resize`，
+         * 暗示"拖拽改宽度"，而拖拽并不存在（用户口径：控件暗示与实际行为不符）。
+         */
+        'cursor-pointer',
         'group-data-[collapsible=offcanvas]:translate-x-0 group-data-[collapsible=offcanvas]:after:start-full hover:group-data-[collapsible=offcanvas]:bg-sidebar',
         '[[data-side=left][data-collapsible=offcanvas]_&]:-inset-e-2',
         '[[data-side=right][data-collapsible=offcanvas]_&]:-inset-s-2',
 
-        // RTL support
+        // RTL support（指针语义同上：RTL 下同样是"点击折叠"，不是 resize）
         'rtl:translate-x-1/2',
-        'rtl:in-data-[side=left]:cursor-e-resize rtl:in-data-[side=right]:cursor-w-resize',
-        'rtl:[[data-side=left][data-state=collapsed]_&]:cursor-w-resize rtl:[[data-side=right][data-state=collapsed]_&]:cursor-e-resize',
         className
       )}
       {...props}
@@ -475,18 +499,31 @@ function SidebarMenuItem({ className, ...props }: React.ComponentProps<'li'>) {
   )
 }
 
+/**
+ * 菜单行高网格（2026-09-18 统一，2026-09-20 收紧）：
+ * - 一级项桌面端 `h-9`（36px，2026-09-20 由 40px 收紧 —— 用户要求"一级类目紧凑一点"；
+ *   36px 与浮窗子项同高，仍远高于 WCAG 2.2 AA 的 24px 指针目标下限）、
+ *   移动端 `max-md:h-11`（44px 触摸行高，**不跟着桌面端收紧**）；
+ * - 折叠成图标时仍由 `group-data-[collapsible=icon]:size-8!` 覆盖成 32px 方块；
+ * - 品牌区 / 底部用户区保持 `lg`（48px）—— 它们是"区块"，不是列表行。
+ *
+ * 悬停与当前页**必须分层**（此前两者都是 `bg-sidebar-accent`，只靠字重区分）：
+ * - 悬停 = 更浅的 `bg-sidebar-accent/60`（临时反馈）；
+ * - 当前页 = `bg-sidebar-accent` + `text-sidebar-primary` + `font-semibold`（底色 + 主题色 + 字重）。
+ */
 const sidebarMenuButtonVariants = cva(
-  'peer/menu-button flex w-full items-center gap-2 overflow-hidden rounded-md p-2 text-start text-sm outline-hidden ring-sidebar-ring transition-[width,height,padding] hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 group-has-data-[sidebar=menu-action]/menu-item:pe-8 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:bg-sidebar-accent data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground data-[state=open]:hover:bg-sidebar-accent data-[state=open]:hover:text-sidebar-accent-foreground group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-2! [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0',
+  'peer/menu-button flex w-full items-center gap-2 overflow-hidden rounded-md p-2 text-start text-sm outline-hidden ring-sidebar-ring transition-[width,height,padding] focus-visible:ring-2 disabled:pointer-events-none disabled:opacity-50 group-has-data-[sidebar=menu-action]/menu-item:pe-8 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:bg-sidebar-accent data-[active=true]:font-semibold data-[active=true]:text-sidebar-primary group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-2! [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0',
   {
     variants: {
       variant: {
-        default: 'hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
+        default:
+          'hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground active:bg-sidebar-accent/70 active:text-sidebar-accent-foreground data-[state=open]:bg-sidebar-accent/60',
         outline:
-          'bg-background shadow-[0_0_0_1px_hsl(var(--sidebar-border))] hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:shadow-[0_0_0_1px_hsl(var(--sidebar-accent))]',
+          'bg-background shadow-[0_0_0_1px_hsl(var(--sidebar-border))] hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground hover:shadow-[0_0_0_1px_hsl(var(--sidebar-accent))]',
       },
       size: {
-        default: 'h-8 text-sm',
-        sm: 'h-7 text-xs',
+        default: 'h-9 text-sm max-md:h-11',
+        sm: 'h-9 text-xs',
         lg: 'h-12 text-sm group-data-[collapsible=icon]:p-0!',
       },
     },
@@ -688,8 +725,9 @@ function SidebarMenuSubButton({
       data-size={size}
       data-active={isActive}
       className={cn(
-        'flex h-7 min-w-0 -translate-x-px items-center gap-2 overflow-hidden rounded-md px-2 text-sidebar-foreground ring-sidebar-ring outline-hidden hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0 [&>svg]:text-inherit',
-        'data-[active=true]:bg-sidebar-accent data-[active=true]:text-sidebar-accent-foreground',
+        // 移动端内联子项：40px 行高（桌面端走浮窗，用不到这个组件）
+        'flex h-10 min-w-0 -translate-x-px items-center gap-2 overflow-hidden rounded-md px-2 text-sidebar-foreground ring-sidebar-ring outline-hidden hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground focus-visible:ring-2 active:bg-sidebar-accent/70 active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0 [&>svg]:text-inherit',
+        'data-[active=true]:bg-sidebar-accent data-[active=true]:font-medium data-[active=true]:text-sidebar-primary',
         size === 'sm' && 'text-xs',
         size === 'md' && 'text-sm',
         'group-data-[collapsible=icon]:hidden',

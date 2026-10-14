@@ -1,0 +1,52 @@
+# ============================================================================
+# JHYP 智能工作台 —— 后端常驻服务（systemd）
+#
+# 作用：让 Node 后端开机自启、崩了自动重启，不需要手动开着终端。
+# 安装：
+#   sudo cp deploy/jhyp.service /etc/systemd/system/jhyp.service
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now jhyp
+# 查看状态 / 日志：
+#   sudo systemctl status jhyp
+#   sudo journalctl -u jhyp -f          # 实时看日志，Ctrl+C 退出
+#
+# 需要按你的实际情况改 User 与 WorkingDirectory（都标了「★改这里」）
+# ============================================================================
+[Unit]
+Description=JHYP AI Workbench API
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# ★改这里：跑服务的账号。用 root 也能跑，但不建议；若用 www-data 要先把代码目录给它
+#   sudo chown -R www-data:www-data /srv/jhyp
+User=www-data
+# ★改这里：代码目录（与部署文档一致就不用改）
+WorkingDirectory=/srv/jhyp/app
+
+# 环境变量全部来自代码目录下的 .env（PG 连接、JWT_SECRET 等）
+EnvironmentFile=/srv/jhyp/app/.env
+Environment=NODE_ENV=production
+# 关掉 Node 自带的静态托管：静态文件由 Nginx 直接发，Node 只负责 API
+Environment=SERVE_STATIC=false
+# 时区必须设置，否则页面上的时间会差 8 小时
+Environment=TZ=Asia/Shanghai
+
+ExecStart=/usr/bin/node server/index.mjs
+
+# 崩了自动拉起；重启间隔 3 秒（避免疯狂重启刷日志）
+Restart=always
+RestartSec=3
+
+# 日志走 journald，用 journalctl 查看
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=jhyp
+
+# 一点点安全加固（不影响功能）
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

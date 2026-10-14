@@ -9,7 +9,7 @@
  * - 所有产物都带 mode = 'demo' 标记，UI 与审计中必须明示，禁止把它当作模型效果验收依据；
  * - 它的"意图识别"是正则规则，不是语义理解。
  */
-import { NO_RESULT_ANSWER } from '../prompt.mjs'
+import { flattenSnippetText, NO_RESULT_ANSWER } from '../prompt.mjs'
 import { BLOCKED_MESSAGE } from '../permissions.mjs'
 
 export const DEMO_MODE = 'demo'
@@ -58,12 +58,6 @@ export function planDemoToolCall(question) {
   return null
 }
 
-const SOURCE_LABELS = {
-  feishu: '飞书同步文档',
-  upload: '人工上传文档',
-  experience: '员工经验',
-}
-
 function formatDate(value) {
   if (!value) return '未知'
   const date = new Date(value)
@@ -98,55 +92,64 @@ function composeFromSearch(result) {
   const rows = Array.isArray(result.rows) ? result.rows : []
   if (rows.length === 0) {
     return [
-      `结论：${NO_RESULT_ANSWER}`,
+      '## 结论',
       '',
-      '该问题在知识库现有文档中没有匹配内容，请确认是否已有对应制度或 SOP 文档；如需补充，可联系管理员上传。',
+      NO_RESULT_ANSWER,
       '',
+      '## 说明',
+      '',
+      '- 该问题在知识库现有文档中没有匹配内容，请确认是否已有对应制度或 SOP 文档。',
+      '- 如需补充内容，可联系管理员上传。',
+      '',
+      '---',
       declarationsOf([result]),
     ].join('\n')
   }
 
-  const citations = rows.map((row, index) => {
-    const label = SOURCE_LABELS[row.sourceType] ?? '未知来源'
-    const submitter = row.sourceType === 'experience' && row.submitter ? `，提报人 ${row.submitter}` : ''
-    return `${index + 1}. 《${row.title}》· ${label} · 更新于 ${formatDate(row.updatedAt)}${submitter}`
-  })
-
-  const steps = rows.map((row, index) => {
-    const snippet = String(row.snippet ?? '').replace(/\s+/g, ' ').slice(0, 160)
-    return `${index + 1}. ${snippet}（来源：《${row.title}》）`
+  // 正文只列要点，不列引用清单与文档出处：依据统一由界面侧栏展示
+  // （与提示词第 4 条、`orchestrator.selectTopDocumentCitations` 的口径一致）。
+  // 用 `-` 而非 `1.`：检索片段是并列要点、不是执行步骤（骨架 F3）。
+  const steps = rows.map((row) => {
+    const snippet = flattenSnippetText(row.snippet, { maxChars: 160 })
+    return `- ${snippet}`
   })
 
   return [
-    `结论：已从知识库检索到 ${rows.length} 个相关片段，依据如下。`,
+    '## 结论',
     '',
-    '要点：',
+    `已从知识库检索到 ${rows.length} 个相关片段，要点如下。`,
+    '',
+    '## 说明',
+    '',
     ...steps,
     '',
-    '引用来源：',
-    ...citations,
-    '',
+    '---',
     declarationsOf([result]),
   ].join('\n')
 }
 
 function composeFromAdminTool(result) {
   const rows = Array.isArray(result.rows) ? result.rows : []
+  // 每个字段单独一行：原先把整行字段用「，」拼成一句，字段一多就成一条读不完的长句
   const detail = rows.length
     ? rows
         .map((row) =>
           Object.entries(row)
-            .map(([key, value]) => `${key}: ${value}`)
-            .join('，')
+            .map(([key, value]) => `- ${key}：${value}`)
+            .join('\n')
         )
         .join('\n')
-    : '（无返回明细）'
+    : '- （无返回明细）'
   return [
-    `结论：${result.summary || '操作已完成。'}`,
+    '## 结论',
     '',
-    '执行结果：',
+    result.summary || '操作已完成。',
+    '',
+    '## 说明',
+    '',
     detail,
     '',
+    '---',
     declarationsOf([result]),
   ].join('\n')
 }
@@ -155,10 +158,11 @@ function composeFromAdminTool(result) {
 export function composeDemoAnswer(results, { roleLabel = '普通用户' } = {}) {
   if (!Array.isArray(results) || results.length === 0) {
     return [
-      '结论：本次没有可用的检索结果。',
+      '## 结论',
       '',
       NO_RESULT_ANSWER,
       '',
+      '---',
       // 同 declarationsOf：措辞不能构成权限泄露模式，否则回答会被编排层判成越权拦截
       `📊 数据来源：企业知识库 · 🕐 数据截至 未知 · 🔒 检索范围：${roleLabel}`,
     ].join('\n')
@@ -176,20 +180,27 @@ export function composeDemoAnswer(results, { roleLabel = '普通用户' } = {}) 
   const failed = results.find((result) => result.status === 'error')
   if (failed) {
     return [
-      `结论：查询「${failed.toolName ?? '数据'}」失败，未能获取可用结果，因此无法给出结论。`,
+      '## 结论',
       '',
-      `失败原因：${failed.error ?? '未知错误'}`,
+      `查询「${failed.toolName ?? '数据'}」失败，未能获取可用结果，因此无法给出结论。`,
       '',
-      '请稍后重试；若持续失败请联系管理员。本次回答不包含任何推测数据。',
+      '## 说明',
+      '',
+      `- 失败原因：${failed.error ?? '未知错误'}`,
+      '- 请稍后重试；若持续失败请联系管理员。',
+      '- 本次回答不包含任何推测数据。',
     ].join('\n')
   }
 
   const search = results.find((result) => result.toolName === 'search_knowledge')
   const body = search ? composeFromSearch(search) : composeFromAdminTool(results[0])
+  // 演示模式提示从**开头移到末尾**：开头的位置已被 `## 结论` 占用 —— 骨架要求首段固定是结论，
+  // 提示挂在开头会让演示模式与真实模式的第一屏结构不一致。卡片头部本来就有「演示模式」徽章，
+  // 这条说明是补充说明而非唯一提示，放末尾不损失边界信息。
   return [
-    '> 演示模式：当前环境未接入云模型，以下内容由知识库检索结果直接汇总生成，仅用于链路演示。',
-    '',
     body,
+    '',
+    '> 演示模式：当前环境未接入云模型，以上内容由知识库检索结果直接汇总生成，仅用于链路演示。',
   ].join('\n')
 }
 

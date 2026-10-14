@@ -133,7 +133,7 @@ function NoteEditorForm({
               ? '同标题旧版本已发布，已存为新修订（旧版本转历史归档），需重新提交审核'
               : result.merged
                 ? `已合并到同标题的既有沉淀（第 ${result.note.noteVersion} 版）`
-                : '沉淀已保存到「我的沉淀」'
+                : '沉淀已保存到「个人知识库」'
           )
           onOpenChange(false)
         },
@@ -269,7 +269,7 @@ function NoteEditorForm({
             ) : (
               <Save className='size-4' />
             )}
-            {isEdit ? '保存修改' : '保存到我的沉淀'}
+            {isEdit ? '保存修改' : '保存到个人知识库'}
           </Button>
         </DialogFooter>
       </DialogContent>

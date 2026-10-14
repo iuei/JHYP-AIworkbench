@@ -40,7 +40,7 @@ describe('AuthLayout', () => {
       .element(screen.getByText('登录品牌区域'))
       .toBeVisible()
     await expect
-      .element(screen.getByText('JHYP 智能工作台'))
+      .element(screen.getByTestId('auth-brand-name'))
       .not.toBeVisible()
 
     const contentWidth = getAuthContentWidth(screen)
@@ -73,7 +73,7 @@ describe('AuthLayout', () => {
       .element(screen.getByText('登录品牌区域'))
       .not.toBeVisible()
     await expect
-      .element(screen.getByText('JHYP 智能工作台'))
+      .element(screen.getByTestId('auth-brand-name'))
       .toBeVisible()
     await expect
       .element(screen.getByText('登录表单区域'))

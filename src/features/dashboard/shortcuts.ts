@@ -1,4 +1,4 @@
-import { BarChart3, Bot, Compass, NotebookPen } from 'lucide-react'
+import { BarChart3, Bot, NotebookPen } from 'lucide-react'
 import type { DashboardShortcut, DashboardShortcutId } from './types'
 
 /**
@@ -16,13 +16,6 @@ export const dashboardShortcuts: DashboardShortcut[] = [
     to: '/ai-agent',
   },
   {
-    id: 'quick-navigation',
-    title: '快捷导航',
-    description: '搜索并打开常用外部工具',
-    icon: Compass,
-    to: '/quick-navigation',
-  },
-  {
     id: 'competitor',
     title: '竞品分析',
     description: '进行 ASIN、品牌或店铺分析',
@@ -30,11 +23,17 @@ export const dashboardShortcuts: DashboardShortcut[] = [
     to: '/competitor-analysis',
   },
   {
+    /*
+     * `my-notes` 这个 id **刻意不改**：它是用户拖拽顺序的持久化键，
+     * 改名会让已保存的顺序被重置（`normalizeShortcutIds` 只认识当前有效 id）。
+     * 2026-09-18 起它的落脚点是「知识库 → 个人知识库」（`/knowledge`），
+     * 标题随之与侧边栏入口逐字一致 —— 同一件东西在侧边栏、顶栏、首页叫同一个名字。
+     */
     id: 'my-notes',
-    title: '我的沉淀',
+    title: '个人知识库',
     description: '查看个人知识沉淀',
     icon: NotebookPen,
-    to: '/ai-agent/notes',
+    to: '/knowledge',
   },
 ]
 
@@ -45,7 +44,7 @@ export const defaultShortcutIds: DashboardShortcutId[] = dashboardShortcuts.map(
 const knownShortcutIds = new Set<string>(defaultShortcutIds)
 
 /**
- * 把服务端保存的入口顺序归一化成四个有效入口的稳定顺序。
+ * 把服务端保存的入口顺序归一化成当前有效入口的稳定顺序。
  *
  * 需要归一化的原因：历史用户在数据库里可能已经保存了 `project/listing/reviews`
  * 这类已下线的占位 ID。若直接按保存值渲染，首页会只剩一个竞品分析入口，甚至出现空白卡片。
@@ -54,7 +53,7 @@ const knownShortcutIds = new Set<string>(defaultShortcutIds)
  * 1. 丢弃不认识的和重复的 ID；
  * 2. 保留仍然有效的 ID 的原有相对顺序；
  * 3. 缺失的入口按默认顺序追加到末尾；
- * 4. 因此无论输入多脏，返回结果恒为四个有效入口。
+ * 4. 因此无论输入多脏，返回结果恒为当前全部有效入口。
  */
 export function normalizeShortcutIds(savedIds: unknown): DashboardShortcutId[] {
   const seen = new Set<string>()

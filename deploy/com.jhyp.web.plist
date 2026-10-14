@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  JHYP 智能工作台 — 前端开发服务器常驻配置（macOS launchd）。
+
+  为什么跑 dev 而不是 dist 静态包：dist 是构建期写死 VITE_API_BASE_URL 的，
+  现有 dist 产物里写的是 http://localhost:8787/api，内网用户打开页面后
+  请求会打向「用户自己的 localhost」，必然失败。dev 模式走 .env.development
+  的 /api + vite.config.ts 代理，本机与内网共用同一份配置，换 IP 不用重新构建。
+
+  vite.config.ts 里已配 server.host=true（等价 --host），因此内网可直接访问。
+
+  安装/卸载统一走 deploy/macos-service.sh，不要手工 cp。
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.jhyp.web</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/opt/homebrew/bin/node</string>
+    <string>/Users/lzg/codex/codex项目文件/JHYP-AIworkbench-main/node_modules/vite/bin/vite.js</string>
+  </array>
+  <key>WorkingDirectory</key>
+  <string>/Users/lzg/codex/codex项目文件/JHYP-AIworkbench-main</string>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+  <key>ThrottleInterval</key>
+  <integer>10</integer>
+  <key>StandardOutPath</key>
+  <string>/Users/lzg/codex/codex项目文件/JHYP-AIworkbench-main/logs/web.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/lzg/codex/codex项目文件/JHYP-AIworkbench-main/logs/web.log</string>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    <key>TZ</key>
+    <string>Asia/Shanghai</string>
+  </dict>
+</dict>
+</plist>

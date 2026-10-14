@@ -223,7 +223,7 @@ describe('UserAuthForm', () => {
 
     await vi.waitFor(() =>
       expect(mocks.toastError).toHaveBeenCalledWith(
-        '账号或密码错误，或后端服务未启动。'
+        '登录失败，请稍后重试。'
       )
     )
     expect(mocks.setUser).not.toHaveBeenCalled()
@@ -231,6 +231,32 @@ describe('UserAuthForm', () => {
     expect(mocks.navigate).not.toHaveBeenCalled()
     expect(mocks.reset).not.toHaveBeenCalled()
     await expect.element(loginButton).toBeEnabled()
+  })
+
+  it('distinguishes invalid credentials from a connection failure', async () => {
+    const unauthorized = Object.assign(new Error('Unauthorized'), {
+      isAxiosError: true,
+      response: { status: 401 },
+    })
+    const disconnected = Object.assign(new Error('Network Error'), {
+      isAxiosError: true,
+    })
+
+    mocks.post.mockRejectedValueOnce(unauthorized)
+    const first = await renderForm()
+    await submitCredentials(first.accountInput, first.passwordInput, first.loginButton)
+    await vi.waitFor(() =>
+      expect(mocks.toastError).toHaveBeenCalledWith('账号或密码错误。')
+    )
+
+    mocks.post.mockRejectedValueOnce(disconnected)
+    await submitCredentials(first.accountInput, first.passwordInput, first.loginButton)
+    await vi.waitFor(() =>
+      expect(mocks.toastError).toHaveBeenCalledWith(
+        '无法连接服务，请检查网络或后端服务。'
+      )
+    )
+    expect(mocks.setUser).not.toHaveBeenCalled()
   })
 
   it('disables repeated submissions while authentication is pending', async () => {
@@ -278,7 +304,7 @@ describe('UserAuthForm', () => {
 
     await vi.waitFor(() =>
       expect(mocks.toastError).toHaveBeenCalledWith(
-        '账号或密码错误，或后端服务未启动。'
+        '登录响应格式异常，请联系管理员。'
       )
     )
     expect(mocks.setUser).not.toHaveBeenCalled()
@@ -303,7 +329,7 @@ describe('UserAuthForm', () => {
       )
     })
     expect(mocks.toastError).not.toHaveBeenCalledWith(
-      '账号或密码错误，或后端服务未启动。'
+      '账号或密码错误。'
     )
     expect(mocks.toastSuccess).not.toHaveBeenCalled()
     await expect.element(loginButton).toBeEnabled()

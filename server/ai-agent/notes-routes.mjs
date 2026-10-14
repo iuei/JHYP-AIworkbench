@@ -16,6 +16,7 @@ import {
   clientIp,
   handleAiError,
   optionalString,
+  parseBatchRequest,
   parseDateRange,
   parsePageQuery,
 } from './http-utils.mjs'
@@ -56,10 +57,66 @@ import {
 
 const EXPORT_FORMATS = new Set(['csv', 'md', 'json'])
 const MAX_EXPORT_ROWS = 2000
+/** 沉淀批量动作白名单与上限（与知识库批量接口同一套口径）。 */
+const BATCH_NOTE_ACTIONS = ['archive', 'delete']
+const MAX_BATCH_NOTES = 100
 
 function resourceId(value) {
   const id = Number(value)
   return Number.isInteger(id) && id > 0 ? id : null
+}
+
+/**
+ * 沉淀批量操作的单条执行单元。
+ *
+ * 刻意不抛错：批量里"已发布条目不能删除"这类业务拒绝只应拦下这一条，
+ * 其余条目照常处理，前端需要逐条原因（否则用户只知道"批量删除失败"）。
+ */
+async function runBatchNoteItem({ action, id, user, ip }) {
+  try {
+    if (action === 'archive') {
+      const note = await transitionNote({
+        id,
+        user,
+        to: NOTE_STATUS.archived,
+        scope: 'admin',
+      })
+      if (!note) return { id, ok: false, message: '沉淀不存在' }
+      await recordAudit({
+        actorId: user.id,
+        action: AUDIT_ACTIONS.noteArchive,
+        targetType: 'ai_knowledge_note',
+        targetId: id,
+        detail: {
+          title: note.title,
+          scope: 'admin',
+          ownerUserId: note.ownerUserId,
+          via: 'batch',
+        },
+        ip,
+      })
+      return { id, ok: true, title: note.title, status: note.status }
+    }
+
+    const note = await deleteNote({ id, user, scope: 'admin' })
+    if (!note) return { id, ok: false, message: '沉淀不存在' }
+    await recordAudit({
+      actorId: user.id,
+      action: AUDIT_ACTIONS.noteDelete,
+      targetType: 'ai_knowledge_note',
+      targetId: id,
+      detail: {
+        title: note.title,
+        scope: 'admin',
+        ownerUserId: note.ownerUserId,
+        via: 'batch',
+      },
+      ip,
+    })
+    return { id, ok: true, title: note.title, deleted: true }
+  } catch (error) {
+    return { id, ok: false, message: error instanceof Error ? error.message : '操作失败' }
+  }
 }
 
 function formatStamp(date = new Date()) {
@@ -580,6 +637,44 @@ export function createNotesRouter({ adminGuard }) {
       sendExport(res, {
         filename: `knowledge-notes-export-${formatStamp()}.${extension}`,
         ...buildExportBody({ format, rows, fields }),
+      })
+    } catch (error) {
+      handleAiError(error, res, next)
+    }
+  })
+
+  /**
+   * 批量归档 / 批量删除（管理员）。
+   *
+   * 只做「归档」与「删除」这两类**不改变知识内容本身**的清理动作：
+   *   审核（通过/驳回）刻意不做批量 —— 通过会为每条生成一篇公共知识库文档，
+   *   误操作的代价是往知识库里灌一批没人看过的内容，且驳回必须逐条给出原因。
+   *
+   * 与知识库批量接口同一套口径：逐条调用既有领域函数（归档已发布条目会连同公共文档
+   * 一起下线）、**逐条写审计**、单条失败不中断整批并把原因返回给前端。
+   */
+  router.post('/distill/notes/batch', adminGuard, async (req, res, next) => {
+    try {
+      const parsed = parseBatchRequest(req.body ?? {}, {
+        actions: BATCH_NOTE_ACTIONS,
+        actionMessage: '批量动作只能是 archive（归档）/ delete（删除）。',
+        max: MAX_BATCH_NOTES,
+        subject: '条沉淀',
+      })
+      if (!parsed.ok) return res.status(400).json({ message: parsed.message })
+      const { action, ids } = parsed
+
+      const results = []
+      for (const id of ids) {
+        results.push(await runBatchNoteItem({ action, id, user: req.user, ip: clientIp(req) }))
+      }
+      const succeeded = results.filter((item) => item.ok).length
+      res.json({
+        action,
+        requested: ids.length,
+        succeeded,
+        failed: results.length - succeeded,
+        results,
       })
     } catch (error) {
       handleAiError(error, res, next)

@@ -5,18 +5,23 @@
  * 数据集、导入模式等元信息通过查询参数传递；导入动作本身写审计。
  */
 import express from 'express'
-import { recordAudit } from './audit.mjs'
+import { AUDIT_ACTIONS, recordAudit } from './audit.mjs'
+import { toCsv } from './csv.mjs'
 import {
   DATASET_SPECS,
   DatasetValidationError,
   MAX_IMPORT_BYTES,
+  countImports,
   datasetOverview,
+  datasetRowColumns,
   datasetTemplate,
   findDatasetSpec,
   importDataset,
+  listDatasetRows,
+  listDatasetRowsForExport,
   listImports,
 } from './datasets.mjs'
-import { clientIp, handleAiError, optionalString, parseLimit } from './http-utils.mjs'
+import { clientIp, handleAiError, optionalString, parsePageQuery } from './http-utils.mjs'
 
 function decodeFileName(value) {
   const text = optionalString(value, { max: 900 })
@@ -65,6 +70,83 @@ export function createDatasourceRouter({ adminGuard }) {
     }
   })
 
+  /**
+   * 数据集行详情（分页 + 关键词）。
+   *
+   * 这条接口存在的原因：数据集清单只给"多少行、覆盖哪段周期"，管理员导入完一批报表后
+   * 无法在页面上确认到底写进去了什么。行详情是"导入结果可核对"的最后一环。
+   */
+  router.get('/datasets/rows', adminGuard, async (req, res, next) => {
+    try {
+      const spec = findDatasetSpec(optionalString(req.query.dataset, { max: 40 }) ?? '')
+      if (!spec) {
+        return res.status(400).json({ message: '未知数据集，请先选择数据集。' })
+      }
+      const { page, pageSize } = parsePageQuery(req.query)
+      const keyword = optionalString(req.query.keyword, { max: 100 })
+      const { rows, total } = await listDatasetRows({
+        spec,
+        limit: pageSize,
+        offset: (page - 1) * pageSize,
+        keyword,
+      })
+      res.json({
+        dataset: spec.key,
+        label: spec.label,
+        description: spec.description,
+        columns: datasetRowColumns(spec),
+        rows,
+        total,
+        page,
+        pageSize,
+      })
+    } catch (error) {
+      handleAiError(error, res, next)
+    }
+  })
+
+  /**
+   * 行数据导出 CSV：与页面同一筛选条件（含关键词）。
+   *
+   * 导出是"数据出境"动作，与审计导出、沉淀导出同一口径写审计；
+   * 触达行数上限时用 `X-Export-Truncated` 明示，避免把"部分导出"当成"全量导出"。
+   */
+  router.get('/datasets/rows/export', adminGuard, async (req, res, next) => {
+    try {
+      const spec = findDatasetSpec(optionalString(req.query.dataset, { max: 40 }) ?? '')
+      if (!spec) {
+        return res.status(400).json({ message: '未知数据集，请先选择数据集。' })
+      }
+      const keyword = optionalString(req.query.keyword, { max: 100 })
+      const { rows, total, truncated } = await listDatasetRowsForExport({ spec, keyword })
+      await recordAudit({
+        actorId: req.user.id,
+        action: AUDIT_ACTIONS.datasetExport,
+        targetType: 'ai_dataset',
+        targetId: spec.key,
+        detail: {
+          dataset: spec.key,
+          keyword: keyword ?? null,
+          rows: rows.length,
+          total,
+          truncated,
+        },
+        ip: clientIp(req),
+      })
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8')
+      res.setHeader(
+        'Content-Disposition',
+        `attachment; filename="${encodeURIComponent(
+          `${spec.label}-${new Date().toISOString().slice(0, 10)}.csv`
+        )}"`
+      )
+      if (truncated) res.setHeader('X-Export-Truncated', 'true')
+      res.send(toCsv(datasetRowColumns(spec), rows))
+    } catch (error) {
+      handleAiError(error, res, next)
+    }
+  })
+
   /** 模板下载：表头即导入要求，避免"列名不匹配整批拒绝"时用户反复试错。 */
   router.get('/imports/template', adminGuard, (req, res, next) => {
     try {
@@ -85,14 +167,17 @@ export function createDatasourceRouter({ adminGuard }) {
     }
   })
 
+  /** 导入记录（分页）：失败的导入同样留痕，因此历史必须可往前翻，不能只给"最近 N 条"。 */
   router.get('/imports', adminGuard, async (req, res, next) => {
     try {
+      const { page, pageSize } = parsePageQuery(req.query)
       const spec = findDatasetSpec(optionalString(req.query.dataset, { max: 40 }) ?? '')
-      const rows = await listImports({
-        dataset: spec?.key ?? null,
-        limit: parseLimit(req.query, { fallback: 50, max: 200 }),
-      })
-      res.json({ imports: rows.map(serializeImportRow) })
+      const dataset = spec?.key ?? null
+      const [rows, total] = await Promise.all([
+        listImports({ dataset, limit: pageSize, offset: (page - 1) * pageSize }),
+        countImports({ dataset }),
+      ])
+      res.json({ imports: rows.map(serializeImportRow), total, page, pageSize })
     } catch (error) {
       handleAiError(error, res, next)
     }

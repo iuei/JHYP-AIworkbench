@@ -1,17 +1,22 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
+  ANSWER_FORMAT_RULES,
   HISTORY_LIMITS,
   renderRuntimeContext,
   enforcePermissionWording,
   ensureFreshnessDeclaration,
   INJECTION_GUARD,
+  INVALID_PARAMS_ANSWER,
   NO_RESULT_ANSWER,
+  buildDegradedAnswer,
   buildMessages,
   buildSystemPrompt,
   detectInjectionSignals,
+  flattenSnippetText,
   sanitizeHistory,
   sourceLabel,
+  toolRejectionOutcome,
   wrapReferenceData,
 } from './prompt.mjs'
 
@@ -208,6 +213,85 @@ test('enforcePermissionWording 拦截点名了无权工具的回答', () => {
   assert.equal(result.reason, 'named_tool:rebuild_knowledge_index')
 })
 
+/*
+  2026-09-18 实测缺陷（用户报障「列出我的 ASIN 列表时报被权限护栏拦下」）：
+  `ensureFreshnessDeclaration` 会在回答末尾追加
+  `… · 🔒 依据权限范围：全部生效知识文档与业务数据`；同会话的**下一轮**模型会照抄这条格式
+  （它出现在历史消息里），于是正常业务回答里出现了「权限范围」四个字 ——
+  命中 `(工具|能力|权限)(列表|清单|白名单|范围)`，整篇回答被替换成统一拦截文案。
+  库里 1197 / 1201 / 1203 / 1211 四条 `wording:described_own_tools` 都是这么来的。
+*/
+test('含产品声明条（🔒 依据权限范围）的正常回答不再被误判为权限泄露', () => {
+  const answer = [
+    '## 结论',
+    '你的「我的 ASIN」清单里共有 3 个 ASIN，分布在 US（2 个）与 DE（1 个）两个站点。',
+    '',
+    '---',
+    '📊 数据来源：Amazon 广告日报、Amazon 业务报告（销售日报） · 🕐 数据截至 2026-09-11 · 🔒 依据权限范围：全部生效知识文档与业务数据',
+  ].join('\n')
+  const result = enforcePermissionWording(answer, {
+    registeredToolNames: USER_TOOLS,
+    allToolNames: ALL_TOOLS,
+  })
+  assert.equal(result.replaced, false)
+  assert.equal(result.reason, null)
+  // 放行时必须原样返回，不能把声明条吞掉
+  assert.equal(result.answer, answer)
+})
+
+test('模型自己写出「依据权限范围：…」这句产品固定声明也不被误判', () => {
+  for (const answer of [
+    '依据权限范围：全部生效知识文档与业务数据\n\n清单里目前没有 ASIN。',
+    '清单为空。\n\n🔒 检索范围：仅覆盖当前账号可见的文档',
+  ]) {
+    const result = enforcePermissionWording(answer, {
+      registeredToolNames: USER_TOOLS,
+      allToolNames: ALL_TOOLS,
+    })
+    assert.equal(result.replaced, false, answer)
+    assert.equal(result.answer, answer)
+  }
+})
+
+test('剔除产品固定文案后，自述能力范围仍然被拦（护栏强度不退化）', () => {
+  for (const answer of [
+    '我这次可用的工具只有知识库检索。',
+    '我的工具列表里没有文档下线的能力。',
+    '原因：我目前只具备知识检索与业务数据查询能力。',
+    '我的权限范围只包括知识库检索。',
+  ]) {
+    const result = enforcePermissionWording(answer, {
+      registeredToolNames: USER_TOOLS,
+      allToolNames: ALL_TOOLS,
+    })
+    assert.equal(result.replaced, true, answer)
+    assert.equal(result.reason, 'described_own_tools')
+  }
+})
+
+/*
+  2026-09-18 实测缺陷（用户报障「给 ai 助手发送我的 asin 列表时提示权限不足无法调取到 asin 数据」）：
+  `query_my_asins` 的统计区间此前是**必填**，而「列出我的 ASIN 列表」这类问题天然没有日期 ——
+  模型不带日期调用 → `invalid_params`（缺少必填参数：startDate）→ 编排层只区分
+  `not_implemented` 与"其余"，于是**参数问题被当成权限问题**回了
+  「当前账号无权查询该数据，请联系管理员。」。参数问题必须说成参数问题。
+*/
+test('工具被拒的对外状态与文案按真实原因分层（参数问题不说成权限问题）', () => {
+  const invalid = toolRejectionOutcome('invalid_params')
+  assert.equal(invalid.blockReason, 'invalid_params')
+  assert.equal(invalid.answer, INVALID_PARAMS_ANSWER)
+  assert.ok(!invalid.answer.includes('无权'), invalid.answer)
+
+  assert.equal(toolRejectionOutcome('not_implemented').blockReason, 'tool_unavailable')
+
+  // 只有"确实没权限"（forbidden / not_registered）与未知原因才走权限口径
+  for (const reason of ['forbidden', 'not_registered', undefined, 'something_else']) {
+    const outcome = toolRejectionOutcome(reason)
+    assert.equal(outcome.blockReason, 'forbidden', String(reason))
+    assert.ok(outcome.answer.includes('无权'), String(reason))
+  }
+})
+
 test('enforcePermissionWording 不误伤正常回答', () => {
   const normal = [
     '结论：亚马逊断货补货流程分为四步，第一步确认断货天数。\n📊 数据来源：企业知识库',
@@ -401,4 +485,66 @@ test('系统提示词包含今天日期与数据时效约束', () => {
   assert.ok(prompt.includes('今天日期：2026-09-11'))
   assert.ok(prompt.includes('不得凭知识库或常识作答'))
   assert.ok(prompt.includes('analysis 字段是系统算好的结论'))
+})
+
+/* ---------- 统一回答格式（ANSWER_FORMAT_RULES / flattenSnippetText） ---------- */
+
+test('系统提示词包含统一回答格式规范', () => {
+  const prompt = buildSystemPrompt({ user: operator })
+  for (const rule of ANSWER_FORMAT_RULES) {
+    assert.ok(prompt.includes(rule), `系统提示词缺少格式条款：${rule}`)
+  }
+  // 这两条是"统一"的支点，单独锁死：少了任何一条，模型立刻回到结构随机的状态
+  assert.ok(prompt.includes('## 结论'), '首段固定的结论标题是统一的锚点')
+  assert.ok(prompt.includes('正文禁止 Markdown 表格'), '正文排表格会与结构化块重复展示同一份数据')
+})
+
+test('格式规范不得与"必须声明数据时效"的第 5 条冲突', () => {
+  const prompt = buildSystemPrompt({ user: operator })
+  // 声明条是需求 §5.1 的合规要求（声明率 100%），格式条款不能把它禁掉
+  assert.ok(prompt.includes('必须在回答末尾声明数据来源与数据截至时间'))
+  assert.ok(!ANSWER_FORMAT_RULES.some((rule) => rule.includes('不要声明数据来源')))
+})
+
+test('flattenSnippetText 去掉检索片段的行首块级标记与表格竖线', () => {
+  // 知识库文档本身就是 Markdown，这是实测的切片形态
+  const raw = [
+    '# 亚马逊断货补货流程（SOP）',
+    '',
+    '## 处理步骤',
+    '',
+    '| 等级 | 判定标准 |',
+    '| --- | --- |',
+    '',
+    '- 第一步：确认断货天数与在途数量',
+  ].join('\n')
+  const flat = flattenSnippetText(raw)
+  assert.ok(!flat.includes('#'), `行首标题标记未压平：${flat}`)
+  assert.ok(!flat.includes('|'), `表格竖线未压平：${flat}`)
+  assert.ok(!flat.includes('\n'), '必须压成单行')
+  assert.ok(flat.includes('亚马逊断货补货流程（SOP）'), '正文内容本身要保留')
+})
+
+test('flattenSnippetText 压成单行并限长', () => {
+  const flat = flattenSnippetText('第一行\n\n第二行', { maxChars: 3 })
+  assert.equal(flat, '第一行')
+})
+
+test('降级回答沿用同一套骨架（首段 ## 结论 + 列表）', () => {
+  const answer = buildDegradedAnswer([
+    {
+      title: '亚马逊断货补货流程',
+      sourceType: 'upload',
+      snippet: '# 断货补货流程\n\n第一步：确认断货天数。',
+    },
+  ])
+  assert.ok(answer.startsWith('## 结论'), answer)
+  assert.ok(answer.includes('## 说明'))
+  assert.ok(answer.includes('- **《亚马逊断货补货流程》**'))
+  // 摘录里的行首标题标记必须已压平，否则渲染层会把它变成比回答本身更深的标题
+  assert.ok(!answer.includes('# 断货补货流程'), answer)
+})
+
+test('降级回答在没有片段时返回空串（不产生空卡片）', () => {
+  assert.equal(buildDegradedAnswer([]), '')
 })

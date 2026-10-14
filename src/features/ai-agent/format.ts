@@ -114,3 +114,61 @@ export const NOTE_STATUS_VARIANTS: Record<
   rejected: 'destructive',
   archived: 'outline',
 }
+
+/* ---------- 提示词广场 ---------- */
+
+/** 提示词状态文案（与 server/ai-agent/prompt-library.mjs 的 PROMPT_STATUS_LABELS 保持一致）。 */
+export const PROMPT_STATUS_LABELS: Record<string, string> = {
+  private: '私有',
+  pending: '待审核',
+  published: '已共享',
+  rejected: '已驳回',
+}
+
+/** 提示词状态徽章样式。 */
+export const PROMPT_STATUS_VARIANTS: Record<
+  string,
+  'default' | 'secondary' | 'destructive' | 'outline'
+> = {
+  private: 'outline',
+  pending: 'default',
+  published: 'secondary',
+  rejected: 'destructive',
+}
+
+/**
+ * 能否提报共享 / 撤回。
+ *
+ * 与 `prompt-library.mjs` 的 `TRANSITIONS` 一一对应：这里只决定按钮显不显示，
+ * 真正确认合法性的是服务端 —— 前端算错了顶多按钮错显，不会造成越权。
+ */
+export function canSubmitPrompt(status: string): boolean {
+  return status === 'private' || status === 'rejected'
+}
+
+export function canWithdrawPrompt(status: string): boolean {
+  return status === 'pending'
+}
+
+/** 提示词名称里不允许 `@`：它是调用入口，会出现嵌套引用（与后端校验同一口径）。 */
+export function validatePromptName(name: string): string | null {
+  const text = name.trim()
+  if (!text) return '提示词名称不能为空。'
+  if (text.length > 60) return '提示词名称不能超过 60 个字符。'
+  if (text.includes('@')) return '提示词名称不能包含 @ 符号（@ 是调用入口）。'
+  return null
+}
+
+/**
+ * 取服务端返回的中文原因（统一错误出口为 `{ message }`），拿不到时退回兜底文案。
+ *
+ * 直接用 `error.message` 会拿到 axios 的 "Request failed with status code 409"，
+ * 服务端写好的原因（例如"你已有一条同名提示词"）就被丢掉了。
+ */
+export function apiErrorMessage(error: unknown, fallback: string): string {
+  const data = (
+    error as { response?: { data?: { message?: unknown } } } | undefined
+  )?.response?.data
+  const message = data?.message
+  return typeof message === 'string' && message.length > 0 ? message : fallback
+}

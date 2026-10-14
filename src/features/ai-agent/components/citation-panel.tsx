@@ -127,7 +127,9 @@ export function CitationList({ citations }: { citations: Citation[] }) {
                       {open ? '收起原文片段' : '查看原文片段'}
                     </Button>
                     {open && (
-                      <p className='mt-1 rounded-md bg-background/70 p-2 text-xs whitespace-pre-wrap text-muted-foreground'>
+                      /* 依据已移入回答卡片（2026-09-15 取消右栏）：片段里的长 URL / 无空格长串
+                         同样会溢出被裁，必须允许任意位置断行 */
+                      <p className='wrap-anywhere mt-1 rounded-md bg-background/70 p-2 text-xs whitespace-pre-wrap text-muted-foreground'>
                         {citation.snippet}
                       </p>
                     )}
@@ -162,8 +164,30 @@ export function FreshnessBar({
       ? citation.updatedAt
       : acc
   }, null)
-  const documents = new Set(citations.map((citation) => citation.documentId))
-    .size
+  const documentCitations = citations.filter(
+    (citation) => citation.kind === 'document'
+  )
+  const datasetCitations = citations.filter(
+    (citation) => citation.kind === 'dataset'
+  )
+  const documents = new Set(
+    documentCitations.map(
+      (citation) => citation.documentId ?? `title:${citation.title}`
+    )
+  ).size
+  const datasets = [
+    ...new Set(
+      datasetCitations
+        .map((citation) => citation.title || citation.dataset)
+        .filter(Boolean)
+    ),
+  ]
+  const sourceLabel = [
+    documents > 0 ? `企业知识库（${documents} 篇文档）` : null,
+    datasets.length > 0 ? `业务数据集（${datasets.join('、')}）` : null,
+  ]
+    .filter(Boolean)
+    .join('、')
 
   return (
     <div
@@ -175,7 +199,7 @@ export function FreshnessBar({
       <span className='inline-flex items-center gap-1'>
         <Sparkles className='size-3.5' />
         数据来源：
-        {documents > 0 ? `企业知识库（${documents} 篇文档）` : '无外部数据'}
+        {sourceLabel || '无外部数据'}
       </span>
       <span>🕐 数据截至 {formatDate(latest)}</span>
       <span className='inline-flex items-center gap-1'>

@@ -11,7 +11,7 @@ describe('pickPageTitle', () => {
   })
 
   it('子页没声明时继承模块级标题', () => {
-    // /admin/ai/knowledge：只有 /admin/ai 声明了「AI 治理」，子页由导航高亮表达位置
+    // /admin/ai/datasources：只有 /admin/ai 声明了「AI 治理」，子页由导航高亮表达位置
     expect(pickPageTitle([m(), m(), m('AI 治理'), m(), m()])).toBe('AI 治理')
     // /ai-agent/notes：同理继承「AI 助手」
     expect(pickPageTitle([m(), m(), m('AI 助手'), m()])).toBe('AI 助手')

@@ -20,9 +20,9 @@ describe('pickPageWide', () => {
 
   it('子页声明 true 时覆盖模块级的默认居中（AI 助手对话页）', () => {
     // /ai-agent 模块级路由只声明标题，对话页 index 声明 wide: true
-    expect(pickPageWide([m(), m(), { staticData: { title: 'AI 助手' } }, m(true)])).toBe(
-      true
-    )
+    expect(
+      pickPageWide([m(), m(), { staticData: { title: 'AI 助手' } }, m(true)])
+    ).toBe(true)
   })
 
   it('模块级声明宽屏时，子页可以用 wide: false 关掉', () => {
@@ -30,8 +30,8 @@ describe('pickPageWide', () => {
   })
 
   it('只认布尔值，标题等其它 staticData 字段不影响判定', () => {
-    expect(
-      pickPageWide([m(), { staticData: { title: 'AI 治理' } }, m()])
-    ).toBe(false)
+    expect(pickPageWide([m(), { staticData: { title: 'AI 治理' } }, m()])).toBe(
+      false
+    )
   })
 })

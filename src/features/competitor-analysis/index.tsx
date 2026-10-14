@@ -1,114 +1,101 @@
-import { useState } from 'react'
-import { useMutation } from '@tanstack/react-query'
-import { isAxiosError } from 'axios'
-import { RotateCcw, Search } from 'lucide-react'
-import { api } from '@/api/client'
-import { Main } from '@/components/layout/main'
+import { useEffect, useState } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useNavigate } from '@tanstack/react-router'
+import { RotateCcw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
+import { Main } from '@/components/layout/main'
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { AnswerBlocks } from '@/features/ai-agent/components/answer-blocks'
-import type { AnswerBlock } from '@/features/ai-agent/types'
+  apiErrorMessage,
+  fetchAnalysisHistory,
+  runCompetitorAnalysis,
+} from './api'
+import { AnalysisForm } from './components/analysis-form'
+import { HistoryPanel } from './components/history-panel'
+import type { AnalysisFormValues } from './types'
+
+/** 页面 props：路由参数由路由文件读出来传进来，本组件不依赖路由（便于独立渲染与测试）。 */
+export interface CompetitorAnalysisProps {
+  /** 深链参数：要打开哪一条分析（本页会转发到「分析结果」）。 */
+  analysisId?: number
+  /** 首页「新建分析」深链：进场即聚焦 ASIN 输入框。 */
+  autoFocusAsin?: boolean
+}
 
 /**
- * `POST /competitor-analyses` 的 result 结构（与 `server/competitor-analysis.mjs` 一一对应）。
+ * 竞品分析页 —— **只放"要分析什么"与"分析过什么"**。
  *
- * 数字全部由服务端基于已导入的数据集算出，前端只负责展示 —— 不再出现
- * 「无论输入什么都返回同一组结论」的写死结果（历史实现即如此）。
+ * 用户口径（2026-09-16）：「分析页面只保留需要分析数据的填充设置和分析历史，
+ * 其他内容都放入到分析结果内」。因此本页只有两件事：
+ * 1. 参数设置（表单；有结果时收成一行摘要，点「修改参数，重新分析」展开）；
+ * 2. 历史分析（点「回看」打开那一次的分析结果）。
+ *
+ * 结果（判定 + 头条、结论与建议、全部数据块、口径声明）全部在
+ * `/competitor-analysis/results`（分析结果页）。分析成功后**自动跳过去** ——
+ * 这样"提交 → 读结论"仍然是一步，不必在本页再点一次入口。
  */
-type CompetitorAnalysisResult = {
-  inputType: 'ASIN'
-  inputValue: string
-  asin: string
-  marketplace: string
-  startDate: string
-  endDate: string
-  windowDays: number
-  empty: boolean
-  rowCount: number
-  summary: string
-  blocks: AnswerBlock[]
-  /** 服务端 `combineFreshness` 的合并结果（对象，不是数组）。 */
-  dataFreshness: DataFreshness | null
-}
+export function CompetitorAnalysis({
+  analysisId,
+  autoFocusAsin,
+}: CompetitorAnalysisProps = {}) {
+  const queryClient = useQueryClient()
+  const navigate = useNavigate()
+  const [lastValues, setLastValues] = useState<AnalysisFormValues | null>(null)
 
-/**
- * 数据时效：服务端已生成好可读文案（覆盖至哪天、最旧来源何时导入、非实时声明），
- * 前端直接展示 `note`，避免自己再拼一遍口径不一致的说明。
- */
-type DataFreshness = {
-  label: string
-  importedAt: string | null
-  periodEnd: string | null
-  note: string
-}
-
-function apiErrorMessage(error: unknown, fallback: string) {
-  if (isAxiosError<{ message?: string }>(error)) {
-    return error.response?.data?.message ?? fallback
-  }
-  return fallback
-}
-
-export function CompetitorAnalysis() {
-  const [asin, setAsin] = useState('')
+  const history = useQuery({
+    queryKey: ['competitor-analyses'],
+    queryFn: () => fetchAnalysisHistory(10),
+  })
 
   const analysis = useMutation({
-    mutationFn: async (value: string) => {
-      const { data } = await api.post<{ result: CompetitorAnalysisResult }>(
-        '/competitor-analyses',
-        { inputType: 'ASIN', inputValue: value }
-      )
-      return data.result
+    mutationFn: runCompetitorAnalysis,
+    onSuccess: (data) => {
+      // 新记录已落库，刷新历史列表（不要乐观插入：id 与时间都以服务端为准）
+      void queryClient.invalidateQueries({ queryKey: ['competitor-analyses'] })
+      /*
+       * 结果不在本页展示 → 直接打开「分析结果」页。
+       * 用 push 而不是 replace：用户在结果页点「返回竞品分析」能回到这里，再改参数跑下一次。
+       */
+      void navigate({
+        to: '/competitor-analysis/results',
+        search: { analysisId: data.analysisId },
+      })
     },
   })
 
-  const result = analysis.data
+  /*
+   * 带 `analysisId` 进来（首页「最近分析 / 需处理」深链、旧收藏）时**直接转发到分析结果页**：
+   * 本页已不渲染任何结果，留在参数页等于把用户丢在一个空页上。用 `replace`，免得"返回"又弹回来。
+   */
+  useEffect(() => {
+    if (analysisId === undefined) return
+    void navigate({
+      to: '/competitor-analysis/results',
+      search: { analysisId },
+      replace: true,
+    })
+  }, [analysisId, navigate])
 
-  function onSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    const value = asin.trim()
-    if (!value) return
-    analysis.mutate(value)
+  function handleSubmit(values: AnalysisFormValues) {
+    setLastValues(values)
+    analysis.mutate(values)
   }
 
   return (
     <Main>
-      <Card className='mb-6'>
-        <CardContent className='pt-6'>
-          <form
-            className='flex flex-col gap-3 sm:flex-row sm:items-end'
-            onSubmit={onSubmit}
-          >
-            <div className='flex-1 space-y-2'>
-              <Label htmlFor='competitor-asin'>ASIN</Label>
-              <Input
-                id='competitor-asin'
-                value={asin}
-                onChange={(event) => setAsin(event.target.value)}
-                placeholder='例如：B0C1D2E3F4，也可粘贴亚马逊商品链接'
-                autoComplete='off'
-                spellCheck={false}
-              />
-            </div>
-            <Button type='submit' disabled={!asin.trim() || analysis.isPending}>
-              <Search aria-hidden='true' />
-              {analysis.isPending ? '分析中…' : '开始分析'}
-            </Button>
-          </form>
-          <p className='mt-3 text-xs text-muted-foreground'>
-            分析基于已导入的 Amazon 广告日报与业务报告，统计区间取该 ASIN
-            最新数据日期往前 30 天；数据为人工导出后导入，非实时数据。
-          </p>
-        </CardContent>
-      </Card>
+      {/*
+        本页只有两件事（用户口径 2026-09-16：「分析页面只保留需要分析数据的填充设置和分析历史，
+        其他内容都放入到分析结果内」）：
+        1. **参数设置**：始终是完整表单 —— 本页不再承载结果，也就没有"有结果时收起来"的需要
+           （摘要条与"本次分析已完成"卡因此一并删掉：分析成功会跳到结果页、组件卸载，
+           它们永远不会显示，属于死代码）；
+        2. **历史分析**：点「回看」打开那一次的分析结果。
+      */}
+      <AnalysisForm
+        autoFocusAsin={autoFocusAsin === true}
+        pending={analysis.isPending}
+        onSubmit={handleSubmit}
+      />
 
       {analysis.isError && (
         <Card className='mb-6 border-destructive/40'>
@@ -120,8 +107,8 @@ export function CompetitorAnalysis() {
               type='button'
               variant='outline'
               size='sm'
-              disabled={analysis.isPending || !asin.trim()}
-              onClick={() => analysis.mutate(asin.trim())}
+              disabled={analysis.isPending || !lastValues}
+              onClick={() => lastValues && analysis.mutate(lastValues)}
             >
               <RotateCcw aria-hidden='true' />
               重新分析
@@ -130,50 +117,21 @@ export function CompetitorAnalysis() {
         </Card>
       )}
 
-      {result && (
-        <>
-          <Card className='mb-6'>
-            <CardHeader className='gap-1'>
-              <CardTitle className='text-base'>
-                {result.asin} · {result.marketplace} 站
-              </CardTitle>
-              <CardDescription>
-                统计区间 {result.startDate} ~ {result.endDate}（近{' '}
-                {result.windowDays} 天）
-              </CardDescription>
-            </CardHeader>
-            <CardContent className='space-y-3'>
-              <p className='text-sm whitespace-pre-line text-muted-foreground'>
-                {result.summary}
-              </p>
-              {result.dataFreshness?.note && (
-                <p className='text-xs text-muted-foreground'>
-                  {result.dataFreshness.note}
-                </p>
-              )}
-            </CardContent>
-          </Card>
-
-          <AnswerBlocks blocks={result.blocks} />
-
-          <Card className='mt-6'>
-            <CardHeader className='gap-1'>
-              <CardTitle className='text-base'>未接入的分析维度</CardTitle>
-              <CardDescription>
-                下列结论需要当前数据集之外的来源，因此不提供推测
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ul className='space-y-2 text-sm text-muted-foreground'>
-                <li>关键词机会：需要 Amazon 品牌分析或搜索词报告</li>
-                <li>Listing 结构与图片卖点：需要商品详情与图片数据</li>
-                <li>评论痛点：需要评论数据</li>
-                <li>品牌名与店铺维度：需要品牌分析或 SP-API 授权</li>
-              </ul>
-            </CardContent>
-          </Card>
-        </>
-      )}
+      <HistoryPanel
+        activeId={null}
+        items={history.data ?? []}
+        loading={history.isLoading}
+        refreshing={history.isFetching}
+        onRefresh={() => void history.refetch()}
+        onSelect={(id) =>
+          // 回看 = 打开那一次的分析结果（用户口径：「点击回看时自动跳转到数据明细页」）
+          void navigate({
+            to: '/competitor-analysis/results',
+            search: { analysisId: id },
+          })
+        }
+      />
     </Main>
   )
 }
+

@@ -1,15 +1,10 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import {
-  ArrowDown,
-  ArrowUp,
-  GripVertical,
-  RotateCcw,
-} from 'lucide-react'
+import { ArrowDown, ArrowUp, GripVertical, RotateCcw } from 'lucide-react'
 import { toast } from 'sonner'
 import { api } from '@/api/client'
-import { Main } from '@/components/layout/main'
+import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -19,13 +14,24 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
-import { cn } from '@/lib/utils'
+import { Main } from '@/components/layout/main'
+import { fetchAnalysisHistory } from '@/features/competitor-analysis/api'
+import type { HistoryItem } from '@/features/competitor-analysis/types'
+import { ActionBar } from './action-bar'
+import {
+  ATTENTION_SCAN_LIMIT,
+  attentionLevelOf,
+  pickAttentionAnalyses,
+  takeRecentAnalyses,
+} from './analyses'
+import { AttentionCard, RecentAnalysesCard } from './analyses-cards'
 import { MyAiCard } from './my-ai-card'
+import { OverviewStats } from './overview-stats'
 import { moveShortcut, orderShortcuts, shiftShortcut } from './shortcuts'
-import type { DashboardAnalysis, DashboardData, DashboardShortcut } from './types'
+import type { DashboardData, DashboardShortcut } from './types'
+import { useMyAiSummary } from './use-my-ai'
 
-const SHORTCUT_CARD_HEIGHT = 'min-h-40'
-
+/** 仪表盘按两行等列宽卡片组织：上方处理与操作，下方分析与 AI。 */
 export function Dashboard() {
   const queryClient = useQueryClient()
   const [draggedId, setDraggedId] = useState<string | null>(null)
@@ -38,19 +44,33 @@ export function Dashboard() {
     queryFn: async () => (await api.get('/dashboard')).data,
   })
 
+  // 同一份分析历史同时供「待处理」「概览」与「最近分析」使用。
+  const analyses = useQuery<HistoryItem[]>({
+    // 不能复用竞品分析页的 ['competitor-analyses']：那边 limit 是 10，
+    // React Query 同 key 共享缓存会让两个页面互相覆盖条数。
+    queryKey: ['dashboard', 'recent-analyses'],
+    queryFn: () => fetchAnalysisHistory(ATTENTION_SCAN_LIMIT),
+  })
+
+  // 「我的 AI」与统计行共用查询缓存（见 use-my-ai.ts）。
+  const myAi = useMyAiSummary()
+
   const saveShortcuts = useMutation({
     mutationFn: async (shortcutIds: string[]) =>
       api.put('/dashboard/shortcuts', { shortcutIds }),
     // 保存成功后只刷新服务端数据，不清空 pendingOrder：
     // 清空会让界面在重新拉取完成前闪回旧顺序，而 pendingOrder 与服务端此刻的值本就相同。
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['dashboard'] }),
-    onError: () =>
-      toast.error('常用入口顺序保存失败，当前顺序仅在本页有效。'),
+    // exact 是必需的：前缀匹配会连带刷新本页的分析记录与「我的 AI」卡片（每次排序多发三个请求）。
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ['dashboard'], exact: true }),
+    onError: () => toast.error('常用入口顺序保存失败，当前顺序仅在本页有效。'),
   })
 
   // 服务端可能存着历史 ID（project/listing/reviews），必须归一化后再渲染，
   // 否则首页会缺卡片甚至出现无法跳转的空白卡片。
-  const shortcuts = orderShortcuts(pendingOrder ?? dashboard.data?.shortcutIds ?? [])
+  const shortcuts = orderShortcuts(
+    pendingOrder ?? dashboard.data?.shortcutIds ?? []
+  )
 
   function commitOrder(nextIds: string[], movedId: string) {
     setPendingOrder(nextIds)
@@ -80,47 +100,82 @@ export function Dashboard() {
     commitOrder(nextIds, movedId)
   }
 
+  const analysisItems = analyses.data ?? []
+  const attentionItems = pickAttentionAnalyses(analysisItems)
+  const attentionCount = analysisItems.filter(
+    (item) => attentionLevelOf(item) === 'high'
+  ).length
+  const recentItems = takeRecentAnalyses(analysisItems)
+
   return (
-    <>
-      <Main>
-        <ShortcutSection
-          shortcuts={shortcuts}
-          isLoading={dashboard.isLoading}
-          orderUnavailable={dashboard.isError}
-          saving={saveShortcuts.isPending}
-          draggedId={draggedId}
-          onDragStart={setDraggedId}
-          onDragEnd={() => setDraggedId(null)}
-          onDropOn={dropOn}
-          onReorder={reorder}
-        />
+    <Main className='space-y-6'>
+      <OverviewStats
+        analysisCount={analysisItems.length}
+        attentionCount={attentionCount}
+        conversationCount={myAi.conversationCount}
+        analysisLoading={analyses.isLoading}
+        analysisError={analyses.isError}
+        aiLoading={myAi.isLoading}
+        aiError={myAi.failed}
+        notesTotal={myAi.notesTotal}
+        pendingTotal={myAi.pendingTotal}
+      />
 
-        {/* 排序结果对屏幕阅读器不可见（拖拽和按钮顺序变化都不是可朗读的内容），这里播报一次。 */}
-        <p aria-live='polite' className='sr-only'>
-          {announcement}
-        </p>
-
-        {dashboard.isError ? (
-          <DashboardRetry
-            retrying={dashboard.isFetching}
-            onRetry={() => dashboard.refetch()}
-          />
-        ) : (
-          <div className='grid gap-6 xl:grid-cols-12'>
-            {/*
-              min-w-0 是必需的：grid item 默认 min-width: auto，列宽又是 1fr（最小值为 auto），
-              列表里 truncate 的长标题会把整列撑宽、把页面顶出横向滚动。
-            */}
-            <MyAiCard className='min-w-0 xl:col-span-7' />
-            <RecentActivityCard
-              className='min-w-0 xl:col-span-5'
-              items={dashboard.data?.analyses ?? []}
+      <div className='grid items-stretch gap-5 xl:grid-cols-12'>
+        <Card className='h-full min-w-0 gap-4 py-5 xl:order-2 xl:col-span-4'>
+          <CardHeader className='gap-1'>
+            <CardTitle className='text-base'>
+              <h2>开始工作</h2>
+            </CardTitle>
+            <CardDescription>
+              从最近的工作继续，或发起新的分析与提问。
+            </CardDescription>
+          </CardHeader>
+          <CardContent className='space-y-4'>
+            <ActionBar lastAnalysisId={analysisItems[0]?.id ?? null} />
+            <ShortcutSection
+              shortcuts={shortcuts}
               isLoading={dashboard.isLoading}
+              orderUnavailable={dashboard.isError}
+              saving={saveShortcuts.isPending}
+              draggedId={draggedId}
+              onDragStart={setDraggedId}
+              onDragEnd={() => setDraggedId(null)}
+              onDropOn={dropOn}
+              onReorder={reorder}
+              onRetry={() => void dashboard.refetch()}
+              retrying={dashboard.isFetching}
             />
-          </div>
-        )}
-      </Main>
-    </>
+          </CardContent>
+        </Card>
+
+        <AttentionCard
+          className='h-full min-w-0 xl:order-1 xl:col-span-8'
+          items={attentionItems}
+          totalCount={attentionCount}
+          hasRecords={analysisItems.length > 0}
+          isLoading={analyses.isLoading}
+          isError={analyses.isError}
+          onRetry={() => void analyses.refetch()}
+        />
+      </div>
+
+      {/* 排序结果对屏幕阅读器不可见（拖拽和按钮顺序变化都不是可朗读的内容），这里播报一次。 */}
+      <p aria-live='polite' className='sr-only'>
+        {announcement}
+      </p>
+
+      <div className='grid items-stretch gap-5 xl:grid-cols-12'>
+        <RecentAnalysesCard
+          className='h-full min-w-0 xl:col-span-8'
+          items={recentItems}
+          isLoading={analyses.isLoading}
+          isError={analyses.isError}
+          onRetry={() => void analyses.refetch()}
+        />
+        <MyAiCard className='h-full min-w-0 xl:col-span-4' />
+      </div>
+    </Main>
   )
 }
 
@@ -141,8 +196,11 @@ type ShortcutSectionProps = {
   onDragEnd: () => void
   onDropOn: (targetId: string) => void
   onReorder: (id: string, direction: 'up' | 'down') => void
+  onRetry: () => void
+  retrying: boolean
 }
 
+/** 开始工作卡片里的常用入口；保留拖拽、键盘排序与顺序持久化。 */
 function ShortcutSection({
   shortcuts,
   isLoading,
@@ -153,29 +211,25 @@ function ShortcutSection({
   onDragEnd,
   onDropOn,
   onReorder,
+  onRetry,
+  retrying,
 }: ShortcutSectionProps) {
   return (
-    <section className='mb-6' aria-labelledby='shortcut-heading'>
-      <div className='mb-3 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1'>
-        <h2 id='shortcut-heading' className='font-semibold'>
+    <section aria-labelledby='shortcut-heading' className='border-t pt-3'>
+      <div className='mb-1 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1'>
+        <h3 id='shortcut-heading' className='text-sm font-semibold'>
           常用入口
-        </h2>
-        <p className='text-xs text-muted-foreground'>
-          拖拽卡片，或用卡片上的按钮调整顺序
-        </p>
+        </h3>
       </div>
 
       {isLoading ? (
-        <div className='grid gap-4 md:grid-cols-2 xl:grid-cols-4'>
-          {[0, 1, 2, 3].map((index) => (
-            <Skeleton
-              key={index}
-              className={cn(SHORTCUT_CARD_HEIGHT, 'rounded-xl')}
-            />
+        <div className='space-y-1'>
+          {[0, 1, 2].map((index) => (
+            <Skeleton key={index} className='h-9 rounded-md' />
           ))}
         </div>
       ) : (
-        <div className='grid gap-4 md:grid-cols-2 xl:grid-cols-4'>
+        <div className='divide-y divide-border/70'>
           {shortcuts.map((shortcut, index) => (
             <ShortcutCard
               key={shortcut.id}
@@ -194,10 +248,20 @@ function ShortcutSection({
       )}
 
       {orderUnavailable && !isLoading && (
-        <p className='mt-2 text-xs text-muted-foreground'>
-          自定义顺序暂时无法读取，当前按默认顺序展示。
-        </p>
+        <div className='mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground'>
+          <span>自定义顺序暂时无法读取，当前按默认顺序展示。</span>
+          <Button
+            size='sm'
+            variant='ghost'
+            disabled={retrying}
+            onClick={onRetry}
+          >
+            <RotateCcw aria-hidden='true' />
+            {retrying ? '重新加载中…' : '重新加载'}
+          </Button>
+        </div>
       )}
+      <p className='sr-only'>拖拽入口，或使用右侧按钮调整顺序。</p>
     </section>
   )
 }
@@ -230,41 +294,45 @@ function ShortcutCard({
   const isLast = index === total - 1
 
   return (
-    <Card
+    <div
       onDragOver={(event) => event.preventDefault()}
       onDrop={() => onDropOn(shortcut.id)}
       className={cn(
-        SHORTCUT_CARD_HEIGHT,
-        'gap-0 overflow-hidden py-0 transition-shadow hover:shadow-md',
+        'min-w-0 transition-colors hover:bg-muted/40',
         dragging && 'opacity-50'
       )}
     >
-      {/* 拖拽只从卡片主体发起，避免按住排序按钮时误触发拖动。 */}
-      <Link
-        to={shortcut.to}
-        draggable
-        onDragStart={(event) => {
-          event.dataTransfer.setData('text/plain', shortcut.id)
-          event.dataTransfer.effectAllowed = 'move'
-          onDragStart(shortcut.id)
-        }}
-        onDragEnd={onDragEnd}
-        className='flex flex-1 cursor-grab flex-col gap-1.5 p-5 active:cursor-grabbing'
-      >
-        <Icon aria-hidden='true' className='mb-1 size-5 text-primary' />
-        <span className='font-semibold'>{shortcut.title}</span>
-        <span className='text-sm text-muted-foreground'>
-          {shortcut.description}
-        </span>
-      </Link>
+      <div className='flex min-w-0 items-stretch'>
+        {/* 拖拽只从卡片主体发起，避免按住排序按钮时误触发拖动。 */}
+        <Link
+          to={shortcut.to}
+          draggable
+          onDragStart={(event) => {
+            event.dataTransfer.setData('text/plain', shortcut.id)
+            event.dataTransfer.effectAllowed = 'move'
+            onDragStart(shortcut.id)
+          }}
+          onDragEnd={onDragEnd}
+          className='flex min-w-0 flex-1 cursor-grab items-center gap-2 py-1 pr-2 active:cursor-grabbing'
+        >
+          <Icon aria-hidden='true' className='size-4 shrink-0 text-primary' />
+          <span className='flex min-w-0 items-baseline gap-2 text-sm'>
+            <span className='shrink-0 font-medium'>{shortcut.title}</span>
+            <span
+              className='min-w-0 truncate text-xs text-muted-foreground'
+              title={shortcut.description}
+            >
+              {shortcut.description}
+            </span>
+          </span>
+        </Link>
 
-      {/* 拖拽不是唯一排序方式：键盘和屏幕阅读器用户用这两个按钮。 */}
-      <div className='flex items-center justify-between border-t px-3 py-1.5'>
-        <GripVertical
-          aria-hidden='true'
-          className='size-4 text-muted-foreground'
-        />
-        <div className='flex items-center gap-1'>
+        {/* 拖拽不是唯一排序方式：键盘和屏幕阅读器用户用这两个按钮。 */}
+        <div className='flex shrink-0 items-center gap-0.5'>
+          <GripVertical
+            aria-hidden='true'
+            className='size-4 text-muted-foreground'
+          />
           <Button
             type='button'
             size='icon'
@@ -289,83 +357,6 @@ function ShortcutCard({
           </Button>
         </div>
       </div>
-    </Card>
-  )
-}
-
-function RecentActivityCard({
-  items,
-  isLoading,
-  className,
-}: {
-  items: DashboardAnalysis[]
-  isLoading: boolean
-  className?: string
-}) {
-  return (
-    <Card className={className}>
-      <CardHeader>
-        <CardTitle>最近活动</CardTitle>
-        <CardDescription>最近完成的竞品分析记录。</CardDescription>
-      </CardHeader>
-      <CardContent className='space-y-3'>
-        {isLoading ? (
-          <ListSkeleton />
-        ) : items.length > 0 ? (
-          items.map((item) => (
-            <Link
-              key={item.id}
-              to='/competitor-analysis'
-              className='block rounded-lg border p-3 transition-colors hover:bg-muted/50'
-            >
-              <p className='truncate font-medium'>{item.input_value}</p>
-              <p className='text-sm text-muted-foreground'>
-                {item.input_type}
-              </p>
-            </Link>
-          ))
-        ) : (
-          <DashboardEmpty text='完成一次竞品分析后，最近的记录会显示在这里' />
-        )}
-      </CardContent>
-    </Card>
-  )
-}
-
-function ListSkeleton() {
-  return (
-    <div className='space-y-3'>
-      {[0, 1, 2].map((index) => (
-        <Skeleton key={index} className='h-20 rounded-lg' />
-      ))}
     </div>
-  )
-}
-
-function DashboardEmpty({ text }: { text: string }) {
-  return (
-    <p className='py-8 text-center text-sm text-muted-foreground'>{text}</p>
-  )
-}
-
-function DashboardRetry({
-  retrying,
-  onRetry,
-}: {
-  retrying: boolean
-  onRetry: () => void
-}) {
-  return (
-    <Card>
-      <CardContent className='flex flex-col items-center gap-3 py-10 text-center'>
-        <p className='text-sm text-muted-foreground'>
-          首页数据加载失败，请检查网络后重试。
-        </p>
-        <Button variant='outline' disabled={retrying} onClick={onRetry}>
-          <RotateCcw aria-hidden='true' />
-          {retrying ? '重新加载中…' : '重新加载'}
-        </Button>
-      </CardContent>
-    </Card>
   )
 }

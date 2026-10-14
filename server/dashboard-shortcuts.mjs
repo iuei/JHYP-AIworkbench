@@ -6,10 +6,12 @@
  *
  * 历史版本用过 `project` / `listing` / `reviews` 三个没有路由、没有数据的占位 ID，
  * 它们会让首页出现「即将上线」的假卡片，不要再加回来。
+ *
+ * 2026-09-15：`quick-navigation` 已随快捷导航模块删除一并移除；
+ * 前台 `normalizeShortcutIds` 会把历史用户偏好里的旧 ID 丢弃并补齐缺失项。
  */
 export const defaultDashboardShortcutIds = [
   'ai-chat',
-  'quick-navigation',
   'competitor',
   'my-notes',
 ]

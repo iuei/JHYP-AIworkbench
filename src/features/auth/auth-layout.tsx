@@ -12,7 +12,10 @@ function BrandLockup({ className = '' }: { className?: string }) {
   return (
     <div className={`flex items-center gap-2 ${className}`}>
       <Logo className='size-7' />
-      <span className='text-lg font-semibold tracking-tight'>
+      <span
+        className='text-lg font-semibold tracking-tight'
+        data-testid='auth-brand-name'
+      >
         JHYP 智能工作台
       </span>
     </div>

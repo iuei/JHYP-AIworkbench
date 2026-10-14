@@ -11,6 +11,10 @@ import { AdminAiNav } from '../components/admin-ai-nav'
  *
  * 拆成独立一层是为了让 `/admin/ai/*` 各页面共享同一排导航，而 `/admin` 下将来
  * 若新增其他治理域，不会被迫复用 AI 的导航。
+ *
+ * 内容容器同样必须是 flex 列容器：它嵌在 `AdminAreaLayout` 的 flex 容器里，
+ * 页面外壳 `PageShell` 靠 `flex-1 / h-full` 拿到确定高度后自己滚动。
+ * 少了 `flex flex-col`，这一层高度退回内容高度，治理页就会「内容超出但滚不动」。
  */
 export function AiAdminLayout() {
   return (
@@ -18,7 +22,7 @@ export function AiAdminLayout() {
       <HeaderSlot>
         <AdminAiNav />
       </HeaderSlot>
-      <div className='min-h-0 flex-1 overflow-hidden'>
+      <div className='flex min-h-0 flex-1 flex-col overflow-hidden'>
         <Outlet />
       </div>
     </>

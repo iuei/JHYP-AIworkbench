@@ -3,7 +3,7 @@
 ## Source of truth
 
 - Status: Active
-- Date: 2026-09-11
+- Date: 2026-09-20
 - Product surfaces: 登录后内部工作台、侧边栏与顶部栏、业务页、认证页和错误页。
 - Evidence reviewed: `README.md`、`AGENTS.md`、`docs/modules/`、`docs/superpowers/specs/2026-08-29-quick-navigation-design.md`、`src/components/layout/`、`src/components/ui/`、`src/styles/theme.css` 以及现有业务页。
 
@@ -30,6 +30,7 @@
 - 侧边栏是一级导航：常用业务在前，设置在后。
 - `Header` 承载当前位置、全局操作和用户入口；`Main` 承载页面任务。
 - 页面内按“主操作 → 核心内容 → 辅助信息”排序；同一标题不在顶部栏和内容区重复解释。
+- 仪表盘将四项工作概览置顶；宽屏用两排相同的 8:4 列宽，卡片在各排行内等高，分别展示待处理分析 / 开始工作和最近分析 / 个人 AI；窄屏依次显示概览、开始工作、待处理、最近分析与个人 AI，并让分析记录的操作直接可见。
 
 ## Design principles
 

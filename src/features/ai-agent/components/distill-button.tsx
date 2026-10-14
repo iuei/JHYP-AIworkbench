@@ -51,7 +51,8 @@ export function DistillButton({ conversationId, disabled = false }: Props) {
           <span>
             <Button
               aria-label='把这次问答沉淀为知识'
-              className='gap-2'
+              /* size-11：与聊天输入行的其它控件（文本域 min-h-[44px]、发送按钮 h-11）等高 */
+              className='size-11 gap-2'
               disabled={disabled || !conversationId || preview.isPending}
               size='icon'
               variant='outline'

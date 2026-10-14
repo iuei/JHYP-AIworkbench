@@ -53,7 +53,7 @@
 - 说明文字统一使用 `text-muted-foreground`。
 - 按钮使用 `Button`，图标按钮需要 `aria-label` 或 `sr-only` 文案。
 - 弹窗确认使用 `ConfirmDialog`。
-- 下拉选择优先使用 `SelectDropdown`。
+- 下拉选择使用 `src/components/ui/select.tsx` 的基础受控 `Select`；不要封装依赖 `FormField` 上下文的下拉组件（脱离 `<Form>` 使用会抛 `useFormContext is null` 并白屏）。
 - 密码输入使用 `PasswordInput`。
 - 日期选择使用 `DatePicker`。
 - 业务页面不得绕开现有 Header/Main 布局体系。

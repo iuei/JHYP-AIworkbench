@@ -2,6 +2,10 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
   DATASET_SPECS,
+  datasetRowColumns,
+  datasetRowOrder,
+  datasetRowSelectList,
+  datasetSearchColumns,
   datasetTemplate,
   findDatasetSpec,
   normalizeMarketplace,
@@ -224,6 +228,66 @@ test('数据集规格自身完整：表名、日期列与列定义齐全', () =>
       assert.ok(item.aliases.length >= 2, `${spec.key}.${item.key} 缺少别名`)
     }
   }
+})
+
+/* ---------- 行详情（数据源卡片点开查看） ---------- */
+
+test('datasetRowColumns = 模板列 + 附加列，且不改动规格自身', () => {
+  const inventory = findDatasetSpec('inventory_snapshot')
+  const columns = datasetRowColumns(inventory)
+  assert.ok(columns.some((item) => item.key === 'sku'))
+  // 快照时点不在导入模板里（由 DB 默认值填充），但行详情必须看得到，否则分不清批次
+  assert.ok(columns.some((item) => item.key === 'snapshot_at' && item.label === '快照时间'))
+  assert.equal(
+    inventory.columns.some((item) => item.key === 'snapshot_at'),
+    false,
+    '规格不应被污染'
+  )
+
+  // 无附加列的数据集原样返回模板列
+  const ads = findDatasetSpec('amazon_ads_daily')
+  assert.deepEqual(
+    datasetRowColumns(ads).map((item) => item.key),
+    ads.columns.map((item) => item.key)
+  )
+  assert.equal(datasetRowColumns(null).length, 0)
+})
+
+test('datasetSearchColumns 只收文本类列，排除数值列', () => {
+  const ads = findDatasetSpec('amazon_ads_daily')
+  const searchable = datasetSearchColumns(ads)
+  for (const key of ['asin', 'campaign', 'marketplace', 'stat_date']) {
+    assert.ok(searchable.includes(key), `${key} 应可搜索`)
+  }
+  // 数值列不参与搜索：`spend::text ILIKE '%1%'` 几乎命中全部行，且必然全表扫描
+  for (const key of ['spend', 'clicks', 'impressions', 'orders', 'sales', 'acos']) {
+    assert.equal(searchable.includes(key), false, `${key} 不应参与搜索`)
+  }
+})
+
+test('datasetRowOrder 对可空时间列加 NULLS LAST，快照表按主键倒序', () => {
+  // order_snapshot.ordered_at 允许为空：默认 DESC 会把空行排在第一页最前面
+  assert.equal(
+    datasetRowOrder(findDatasetSpec('order_snapshot')),
+    'ordered_at DESC NULLS LAST, id DESC'
+  )
+  assert.equal(datasetRowOrder(findDatasetSpec('inventory_snapshot')), 'id DESC')
+  assert.equal(datasetRowOrder(null), 'id DESC')
+})
+
+test('datasetRowSelectList 把日期/时间列取成文本，避免时区串味', () => {
+  const select = datasetRowSelectList(findDatasetSpec('amazon_ads_daily'))
+  assert.ok(select.startsWith('id, '))
+  // TEMPSTAMP 交给 pg 会解析成 Date 再按 UTC 序列化，东八区核对时会差 8 小时
+  assert.ok(select.includes(`to_char(stat_date, 'YYYY-MM-DD') AS stat_date`))
+
+  const inventory = datasetRowSelectList(findDatasetSpec('inventory_snapshot'))
+  assert.ok(inventory.includes(`to_char(snapshot_at, 'YYYY-MM-DD HH24:MI:SS') AS snapshot_at`))
+  assert.ok(inventory.includes('available'))
+
+  const master = datasetRowSelectList(findDatasetSpec('product_master'))
+  assert.ok(master.includes('product_name'))
+  assert.equal(master.includes('to_char'), false, '无日期列的数据集不应出现 to_char')
 })
 
 test('快照类数据集（无周期列）覆盖导入应整表替换，而不是合并', () => {

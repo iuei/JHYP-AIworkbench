@@ -129,9 +129,45 @@ export function parseLimit(query = {}, { fallback = 50, max = 200 } = {}) {
   return Math.min(max, Math.max(1, value))
 }
 
+/**
+ * 批量接口的公共校验：动作白名单 + id 归一化（去非法、去重、限单批上限）。
+ *
+ * 为什么抽出来：知识库批量与沉淀批量需要**完全一致**的边界口径。各写一份的结果是
+ * 一边允许重复 id 一边不允许、一边限 200 一边不限，前端拿到的失败原因也会不一致。
+ *
+ * 去重不是洁癖：重复 id 会让"成功 5 条"里其实只有 3 条文档，审计也会多出几条
+ * 指向同一对象的记录，事后无法解释。
+ */
+export function parseBatchRequest(
+  body = {},
+  { actions, actionMessage, max, subject } = {}
+) {
+  const action = optionalString(body?.action, { max: 20 })
+  if (!Array.isArray(actions) || !actions.includes(action)) {
+    return { ok: false, message: actionMessage ?? '批量动作无效。' }
+  }
+  const rawIds = Array.isArray(body?.ids) ? body.ids : []
+  const ids = [
+    ...new Set(
+      rawIds
+        .map((value) => {
+          const id = Number(value)
+          return Number.isInteger(id) && id > 0 ? id : null
+        })
+        .filter((id) => id !== null)
+    ),
+  ]
+  if (ids.length === 0) return { ok: false, message: `请至少选择 1 ${subject}。` }
+  if (ids.length > max) {
+    return { ok: false, message: `一次最多处理 ${max} ${subject}，请分批操作。` }
+  }
+  return { ok: true, action, ids }
+}
+
 export function csvEscape(value) {
   if (value === null || value === undefined) return ''
-  const text = typeof value === 'object' ? JSON.stringify(value) : String(value)
+  let text = typeof value === 'object' ? JSON.stringify(value) : String(value)
+  if (/^\s*[=+\-@]/.test(text)) text = `'${text}`
   if (/[",\n\r]/.test(text)) return `"${text.replaceAll('"', '""')}"`
   return text
 }

@@ -1,6 +1,7 @@
 import { CheckCircle2, Loader2, ShieldAlert, XCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
+import { blockedNoticeText } from '../blocked-notice'
 import type { StreamStep, ToolRun } from '../types'
 
 const STATUS_META: Record<
@@ -97,7 +98,23 @@ export function StreamSteps({ steps }: { steps: StreamStep[] }) {
   )
 }
 
-export function BlockedNotice({ className }: { className?: string }) {
+/**
+ * 「本次回答被拦截」的提示条。
+ *
+ * **文案按真实原因分开**（2026-09-17 修）：此前无论什么原因都写"当前账号无权查询该数据，
+ * 请联系管理员。"，而 `status='blocked'` 至少有三类完全不同的来源 ——
+ * 工具没上线（后端没重启）、确实没权限、模型措辞违规被护栏替换。
+ * 实测把用户带向"我是不是没权限"的错误排查方向，必须能分辨。
+ * 映射表在 `../blocked-notice.ts`（纯函数模块，实时流与历史消息共用同一份）。
+ */
+export function BlockedNotice({
+  className,
+  reason = null,
+}: {
+  className?: string
+  /** 拦截的细分原因（`tool_unavailable` / `forbidden` / `wording:*`）；不传时退回通用文案。 */
+  reason?: string | null
+}) {
   return (
     <div
       className={cn(
@@ -107,7 +124,7 @@ export function BlockedNotice({ className }: { className?: string }) {
       role='alert'
     >
       <ShieldAlert className='size-4 shrink-0' />
-      当前账号无权查询该数据，请联系管理员。
+      {blockedNoticeText(reason)}
     </div>
   )
 }

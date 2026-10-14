@@ -22,6 +22,8 @@ export const AUDIT_ACTIONS = {
   injectionDetected: 'injection_detected',
   settingsUpdate: 'settings_update',
   import: 'import',
+  // 数据集行数据导出：与知识库/审计导出同级的"数据出境"动作，必须留痕
+  datasetExport: 'dataset_export',
   // 知识沉淀（账号级）：创建、修改、提交审核、审核、归档、删除、导出、技能配置
   noteCreate: 'note_create',
   noteUpdate: 'note_update',
@@ -32,13 +34,32 @@ export const AUDIT_ACTIONS = {
   noteExport: 'note_export',
   noteDistill: 'note_distill',
   skillConfig: 'skill_config',
+  // 提示词广场：审核通过后即全员可用，属公司资产准入，创建/修改/提报/审核/删除全部留痕
+  promptCreate: 'prompt_create',
+  promptUpdate: 'prompt_update',
+  promptSubmit: 'prompt_submit',
+  promptReview: 'prompt_review',
+  promptDelete: 'prompt_delete',
   // 账号与凭据类管理动作：此前完全不写审计（提权、停用、重置密码都无痕），
   // 需求文档 §5.4 要求「登录、权限相关的管理动作」必须进入审计台。
+  // 自助注册：公开接口写入的用户申请（status=pending），必须留痕（谁、什么时候、申请了什么账号）。
+  // 审核动作不另立常量，复用 user_status（它就是"账号启用/停用"这一件事）。
+  userRegister: 'user_register',
   userCreate: 'user_create',
   userUpdate: 'user_update',
   userStatus: 'user_status',
   userResetPassword: 'user_reset_password',
+  // 删除账号是这群动作里唯一**不可逆**的：users 行连同其会话、沉淀、清单等一起被级联清掉。
+  // 审计表对 actor_id 是 ON DELETE SET NULL，所以被删者本人的历史记录会失去操作人，
+  // 更要紧的是**这一次删除本身**必须留下 login 等身份信息（写进 detail），否则事后无法回答"删的是谁"。
+  userDelete: 'user_delete',
   feedbackHandled: 'feedback_handled',
+  // 公告：发布出去的公告会**主动**弹给每个登录的员工，等于一次面向全公司的广播，
+  // 因此创建 / 改文案 / 上下线 / 删除四个动作全部留痕（谁、什么时候、改了什么）。
+  announcementCreate: 'announcement_create',
+  announcementUpdate: 'announcement_update',
+  announcementPublish: 'announcement_publish',
+  announcementDelete: 'announcement_delete',
 }
 
 export const RUN_STATUS = {
@@ -166,6 +187,29 @@ export async function listConversationTraces({
   return rows
 }
 
+/**
+ * 与 `listConversationTraces` 同一筛选条件的计数（分页器用）。
+ */
+export async function countConversationTraces({
+  userId = null,
+  keyword = null,
+  from = null,
+  to = null,
+} = {}) {
+  const { rows } = await query(
+    `SELECT COUNT(*)::int AS total FROM ai_conversations c
+      WHERE ($1::int IS NULL OR c.user_id = $1)
+        AND ($2::text IS NULL OR EXISTS (
+              SELECT 1 FROM ai_messages m
+               WHERE m.conversation_id = c.id AND m.content ILIKE '%' || $2 || '%'
+            ))
+        AND ($3::timestamptz IS NULL OR c.created_at >= $3)
+        AND ($4::timestamptz IS NULL OR c.created_at <= $4)`,
+    [userId, keyword, from, to]
+  )
+  return rows[0].total
+}
+
 /** 会话完整轨迹：消息 + 每步工具调用（用于 §7.3 审计回溯）。 */
 export async function loadConversationTrace(conversationId) {
   const messages = await query(
@@ -219,10 +263,11 @@ export async function listRuns({
   return rows
 }
 
-/** 管理动作日志查询。 */
+/** 管理动作日志查询。`actions` 用于"越权与拦截事件"这类多动作合并视图。 */
 export async function listAuditLogs({
   actorId = null,
   action = null,
+  actions = null,
   keyword = null,
   from = null,
   to = null,
@@ -236,15 +281,72 @@ export async function listAuditLogs({
        LEFT JOIN users u ON u.id = l.actor_id
       WHERE ($1::int IS NULL OR l.actor_id = $1)
         AND ($2::text IS NULL OR l.action = $2)
-        AND ($3::text IS NULL OR l.detail::text ILIKE '%' || $3 || '%'
-             OR COALESCE(l.target_id, '') ILIKE '%' || $3 || '%')
-        AND ($4::timestamptz IS NULL OR l.created_at >= $4)
-        AND ($5::timestamptz IS NULL OR l.created_at <= $5)
+        AND ($3::text[] IS NULL OR l.action = ANY($3))
+        AND ($4::text IS NULL OR l.detail::text ILIKE '%' || $4 || '%'
+             OR COALESCE(l.target_id, '') ILIKE '%' || $4 || '%')
+        AND ($5::timestamptz IS NULL OR l.created_at >= $5)
+        AND ($6::timestamptz IS NULL OR l.created_at <= $6)
       ORDER BY l.created_at DESC, l.id DESC
-      LIMIT $6 OFFSET $7`,
-    [actorId, action, keyword, from, to, limit, offset]
+      LIMIT $7 OFFSET $8`,
+    [actorId, action, actions, keyword, from, to, limit, offset]
   )
   return rows
+}
+
+/**
+ * 与 `listRuns` **完全同一组筛选条件**的计数。
+ *
+ * 为什么必须单独写：分页之后前端的指标卡不能再对"当前页数据"做 filter —— 那会变成
+ * "本页被拦截数"，翻页数字还会跟着变，是最容易被当成 bug 的假数据。
+ * 条件必须与列表逐字一致，否则总数与列表页数对不上（这类不一致最难被发现）。
+ */
+export async function countRuns({
+  userId = null,
+  toolName = null,
+  status = null,
+  keyword = null,
+  from = null,
+  to = null,
+} = {}) {
+  const { rows } = await query(
+    `SELECT COUNT(*)::int AS total,
+            COUNT(*) FILTER (WHERE r.status = 'blocked')::int AS blocked
+       FROM ai_runs r
+      WHERE ($1::int IS NULL OR r.user_id = $1)
+        AND ($2::text IS NULL OR r.tool_name = $2)
+        AND ($3::text IS NULL OR r.status = $3)
+        AND ($4::text IS NULL OR r.tool_name ILIKE '%' || $4 || '%'
+             OR r.params::text ILIKE '%' || $4 || '%')
+        AND ($5::timestamptz IS NULL OR r.created_at >= $5)
+        AND ($6::timestamptz IS NULL OR r.created_at <= $6)`,
+    [userId, toolName, status, keyword, from, to]
+  )
+  return rows[0]
+}
+
+/** 管理动作日志计数（筛选条件与 `listAuditLogs` 逐字一致）。 */
+export async function countAuditLogs({
+  actorId = null,
+  action = null,
+  actions = null,
+  keyword = null,
+  from = null,
+  to = null,
+} = {}) {
+  const { rows } = await query(
+    `SELECT COUNT(*)::int AS total,
+            COUNT(*) FILTER (WHERE l.action IN ('tool_blocked', 'forbidden'))::int AS blocked
+       FROM ai_audit_logs l
+      WHERE ($1::int IS NULL OR l.actor_id = $1)
+        AND ($2::text IS NULL OR l.action = $2)
+        AND ($3::text[] IS NULL OR l.action = ANY($3))
+        AND ($4::text IS NULL OR l.detail::text ILIKE '%' || $4 || '%'
+             OR COALESCE(l.target_id, '') ILIKE '%' || $4 || '%')
+        AND ($5::timestamptz IS NULL OR l.created_at >= $5)
+        AND ($6::timestamptz IS NULL OR l.created_at <= $6)`,
+    [actorId, action, actions, keyword, from, to]
+  )
+  return rows[0]
 }
 
 /** token 用量统计（按人按天聚合，不额外建表）。 */

@@ -4,7 +4,7 @@
  * 需求文档 §6.2：流式接口不使用 axios 默认拦截器，需单独封装 SSE 客户端。
  * 这里用 fetch + ReadableStream 手工解析 SSE，支持 AbortSignal 停止生成。
  */
-import { apiUrl, authHeaders } from '@/api/client'
+import { apiUrl, authHeaders, handleUnauthorized } from '@/api/client'
 import type { Citation, ProviderInfo, StreamStep, ToolRun } from './types'
 
 export interface ChatMetaPayload {
@@ -45,6 +45,13 @@ export interface ChatDonePayload {
   }>
   blocked?: boolean
   aborted?: boolean
+  /**
+   * 拦截的细分原因（`tool_unavailable` / `forbidden` / `wording:*`）。
+   *
+   * 服务端 2026-09-17 起下发：被拦的回答正文是统一文案，光看正文分不出"工具没上线"与"没权限"，
+   * 提示条要按它选文案（见 `BlockedNotice`）。
+   */
+  blockReason?: string | null
 }
 
 export type ChatEvent =
@@ -120,6 +127,7 @@ export async function streamChat({
   })
 
   if (!response.ok) {
+    if (response.status === 401) handleUnauthorized()
     throw new ChatStreamError(await readErrorMessage(response))
   }
   if (!response.body) {

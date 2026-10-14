@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { isAxiosError } from 'axios'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useNavigate } from '@tanstack/react-router'
@@ -67,8 +68,25 @@ export function UserAuthForm({
       try {
         const response = await api.post<unknown>('/auth/login', values)
         loginData = loginResponseSchema.parse(response.data)
-      } catch {
-        toast.error('账号或密码错误，或后端服务未启动。')
+      } catch (error) {
+        if (error instanceof z.ZodError) {
+          toast.error('登录响应格式异常，请联系管理员。')
+        } else if (isAxiosError(error) && error.response?.status === 401) {
+          /*
+           * 401 的原因不止「密码错误」：密码正确但账号**待审核**或**已停用**时，
+           * 服务端会给出具体原因（见 server/index.mjs 登录接口）。原样透出，
+           * 否则用户只会看到"账号或密码错误"，不知道该等审核还是找管理员。
+           * 服务端没带 message 时仍回退到原来的统一文案。
+           */
+          const message = (
+            error.response.data as { message?: string } | undefined
+          )?.message
+          toast.error(message ?? '账号或密码错误。')
+        } else if (isAxiosError(error) && !error.response) {
+          toast.error('无法连接服务，请检查网络或后端服务。')
+        } else {
+          toast.error('登录失败，请稍后重试。')
+        }
         return
       }
 

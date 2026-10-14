@@ -1,17 +1,27 @@
 import { useMemo, useState } from 'react'
 import {
+  ChevronDown,
+  Loader2,
   MessageSquarePlus,
+  MoreHorizontal,
   Pencil,
   Pin,
   PinOff,
   Search,
   Trash2,
 } from 'lucide-react'
+import { TABLE_SEARCH_ICON, TABLE_SEARCH_INPUT } from '@/lib/table-styles'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { useDeleteConversation, useRenameConversation } from '../api/queries'
@@ -20,12 +30,25 @@ import type { Conversation } from '../types'
 type ConversationListProps = {
   conversations: Conversation[]
   isLoading: boolean
+  /** 还有更早的会话没加载（服务端 total 大于已加载条数）。 */
+  hasMore?: boolean
+  isLoadingMore?: boolean
+  onLoadMore?: () => void
   activeId: number | null
   onSelect: (id: number) => void
   onNew: () => void
-  /** 搜索词由父组件持有并透传给服务端查询（受控）：只在本层过滤会漏掉 100 条以外的会话。 */
+  /** 搜索词由父组件持有并透传给服务端查询（受控）：只在本层过滤会漏掉更早的会话。 */
   keyword: string
   onKeywordChange: (value: string) => void
+  /**
+   * 删除成功后的通知。
+   *
+   * 删掉的那条**可能正是中栏正在看的会话**：左栏条目消失很容易，中栏却会停在
+   * 一个不再存在的会话上（`GET /ai/conversations/:id/messages` 返回 404），
+   * 变成"没有内容也没有引导"的空白页。只有父组件知道当前选中的是哪一条，
+   * 因此重置选中态的责任必须交出去。
+   */
+  onDeleted?: (id: number) => void
 }
 
 function groupLabel(value: string): string {
@@ -40,15 +63,19 @@ function groupLabel(value: string): string {
   return '更早'
 }
 
-/** 左栏：会话列表（新建、搜索、重命名、置顶、删除）。 */
+/** 左栏：会话列表（新建、搜索、重命名、置顶、删除、加载更多）。 */
 export function ConversationList({
   conversations,
   isLoading,
+  hasMore,
+  isLoadingMore,
+  onLoadMore,
   activeId,
   onSelect,
   onNew,
   keyword,
   onKeywordChange,
+  onDeleted,
 }: ConversationListProps) {
   const [editingId, setEditingId] = useState<number | null>(null)
   const [editingTitle, setEditingTitle] = useState('')
@@ -94,18 +121,27 @@ export function ConversationList({
       </Button>
 
       <div className='relative'>
-        <Search className='absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground' />
+        <Search className={TABLE_SEARCH_ICON} />
         <Input
           aria-label='搜索历史会话'
-          className='pl-9'
+          className={TABLE_SEARCH_INPUT}
           placeholder='搜索会话标题'
           value={keyword}
           onChange={(event) => onKeywordChange(event.target.value)}
         />
       </div>
 
-      <ScrollArea className='min-h-0 flex-1'>
-        <div className='space-y-4 pr-2'>
+      {/*
+        这里刻意**不用** `ScrollArea`（与中栏消息流同一结论）：
+        Radix 会在 Viewport 内插一层 `display: table; min-width: 100%` 的包装（内联样式，class 覆盖不掉），
+        table 布局按内容的 **min-content** 撑宽而不是跟随容器 —— 实测左栏 200 / 240 / 288 三档下，
+        这一层恒为 **407px**：行右端的「⋯」按钮（right 611）与「加载更早的会话」按钮的右段
+        落到左栏之外，被 Viewport 的 `overflow-x: hidden` 裁掉，用户看到按钮被遮挡/截断。
+        原生 block 滚动容器让内容宽度恒等于栏宽（长标题由 `truncate` 自己收），
+        与 `chat-workbench.tsx` 的中栏保持一致。
+      */}
+      <div className='min-h-0 flex-1 overflow-x-hidden overflow-y-auto'>
+        <div className='space-y-4 pe-2'>
           {isLoading &&
             [0, 1, 2].map((index) => (
               <Skeleton className='h-14 w-full' key={index} />
@@ -176,42 +212,54 @@ export function ConversationList({
                               )}
                             </span>
                           </button>
-                          <div className='flex shrink-0 items-center opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100'>
-                            <Button
-                              aria-label={
-                                conversation.pinned ? '取消置顶' : '置顶会话'
-                              }
-                              size='icon'
-                              variant='ghost'
-                              onClick={() =>
-                                rename.mutate({
-                                  id: conversation.id,
-                                  pinned: !conversation.pinned,
-                                })
-                              }
-                            >
-                              {conversation.pinned ? <PinOff /> : <Pin />}
-                            </Button>
-                            <Button
-                              aria-label='重命名会话'
-                              size='icon'
-                              variant='ghost'
-                              onClick={() => {
-                                setEditingId(conversation.id)
-                                setEditingTitle(conversation.title)
-                              }}
-                            >
-                              <Pencil />
-                            </Button>
-                            <Button
-                              aria-label='删除会话'
-                              size='icon'
-                              variant='ghost'
-                              onClick={() => setPendingDelete(conversation)}
-                            >
-                              <Trash2 />
-                            </Button>
-                          </div>
+                          {/*
+                            行操作收进常显的「⋯」菜单。
+                            改前是三个 hover 才显形的图标按钮（`opacity-0 group-hover:opacity-100`）：
+                            鼠标用户得先猜到"要悬停"，触屏设备（`hover: none`）则**永远看不到**，
+                            等于找不到删除入口。常显菜单两种设备都能用，也避免每行挂三个图标。
+                          */}
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                aria-label={`会话操作：${conversation.title}`}
+                                className='shrink-0 text-muted-foreground hover:text-foreground'
+                                size='icon'
+                                variant='ghost'
+                              >
+                                <MoreHorizontal />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align='end' className='w-40'>
+                              <DropdownMenuItem
+                                onClick={() =>
+                                  rename.mutate({
+                                    id: conversation.id,
+                                    pinned: !conversation.pinned,
+                                  })
+                                }
+                              >
+                                {conversation.pinned ? <PinOff /> : <Pin />}
+                                {conversation.pinned ? '取消置顶' : '置顶会话'}
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => {
+                                  setEditingId(conversation.id)
+                                  setEditingTitle(conversation.title)
+                                }}
+                              >
+                                <Pencil />
+                                重命名
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                variant='destructive'
+                                onClick={() => setPendingDelete(conversation)}
+                              >
+                                <Trash2 />
+                                删除
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </div>
                       )}
                     </li>
@@ -220,8 +268,31 @@ export function ConversationList({
               </ul>
             </div>
           ))}
+
+          {/*
+            会话超过一页时累积加载。这里刻意不用 TablePagination：左栏是一条按
+            "置顶 / 今天 / 昨天…"分组的滚动时间轴，嵌一个带页码与"每页条数"的
+            分页器既占高度，也和分组语义打架。
+          */}
+          {hasMore && (
+            <Button
+              className='w-full'
+              disabled={isLoadingMore}
+              size='sm'
+              type='button'
+              variant='outline'
+              onClick={onLoadMore}
+            >
+              {isLoadingMore ? (
+                <Loader2 className='animate-spin' aria-hidden='true' />
+              ) : (
+                <ChevronDown aria-hidden='true' />
+              )}
+              {isLoadingMore ? '加载中…' : '加载更早的会话'}
+            </Button>
+          )}
         </div>
-      </ScrollArea>
+      </div>
 
       <ConfirmDialog
         destructive
@@ -235,7 +306,11 @@ export function ConversationList({
         }}
         handleConfirm={() => {
           if (!pendingDelete) return
-          remove.mutate(pendingDelete.id, {
+          // 用快照而不是 state：请求在途中 pendingDelete 可能已被 onSettled 清空，
+          // 回调里再读它就会拿到 null，通知也随之丢掉。
+          const target = pendingDelete
+          remove.mutate(target.id, {
+            onSuccess: () => onDeleted?.(target.id),
             onSettled: () => setPendingDelete(null),
           })
         }}

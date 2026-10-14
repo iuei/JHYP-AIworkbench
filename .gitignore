@@ -39,6 +39,12 @@ dist-ssr
 .superpowers/
 .agents/
 
+# 本地 AI 会话分析产物（含本机会话记录、提示词原文与本机绝对路径，不入库）
+.ai-review/
+
+# 本地工具计划产物
+.omx/
+
 # Playwright 浏览器（本地工具目录，体积大且可重新下载）
 .pw-browsers/
 

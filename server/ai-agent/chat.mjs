@@ -7,7 +7,7 @@
 import express from 'express'
 import { recordAudit } from './audit.mjs'
 import * as repo from './conversations.mjs'
-import { clientIp, handleAiError, optionalString } from './http-utils.mjs'
+import { clientIp, handleAiError, optionalString, parsePageQuery } from './http-utils.mjs'
 import { loadSettings } from './knowledge.mjs'
 import { ERROR_CODE, OrchestratorError, runChat } from './orchestrator.mjs'
 import { describeProvider, resolveProvider } from './providers/index.mjs'
@@ -59,6 +59,12 @@ function serializeMessage(message) {
     citations: message.citations ?? [],
     // 结构化数据块（表格/趋势图/指标卡）：漏返回的话前端就只剩文字结论，表格与图都出不来
     blocks: message.blocks ?? [],
+    /**
+     * 拦截的细分原因（2026-09-17 新增）：`tool_unavailable`（工具没上线，与权限无关）/
+     * `forbidden`（确实没权限）/ `wording:*`（模型措辞违规被护栏替换）。
+     * 漏返回的话历史回看又会退化成"一律显示无权"。
+     */
+    blockReason: message.block_reason ?? null,
     createdAt: message.created_at,
     runs: (message.runs ?? []).map((run) => ({
       id: run.id,
@@ -99,9 +105,10 @@ export function createChatRouter() {
   router.get('/conversations', async (req, res, next) => {
     try {
       const keyword = optionalString(req.query.keyword, { max: 100 })
-      const rows = await repo.listConversations(req.user.id, { keyword })
+      const { page, pageSize } = parsePageQuery(req.query)
+      const result = await repo.listConversations(req.user.id, { keyword, page, pageSize })
       res.json({
-        conversations: rows.map((row) => ({
+        conversations: result.conversations.map((row) => ({
           id: row.id,
           title: row.title,
           messageCount: row.message_count,
@@ -111,6 +118,9 @@ export function createChatRouter() {
           updatedAt: row.updated_at,
           lastMessageAt: row.last_message_at,
         })),
+        total: result.total,
+        page: result.page,
+        pageSize: result.pageSize,
       })
     } catch (error) {
       next(error)

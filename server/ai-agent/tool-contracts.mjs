@@ -175,6 +175,85 @@ export const TOOL_CONTRACTS = [
     },
     auditFields: ['sku', 'velocityWindowDays'],
   },
+  {
+    name: 'query_my_asins',
+    description:
+      '查询当前账号「我的 ASIN」列表（员工自己在「我的 ASIN」页维护的那批商品，每条 ASIN 属于一个站点）内**全部 ASIN** 的广告与销售表现：按站点分组的整体汇总、环比/同比、各 ASIN 明细与 ACoS 排行、需要处理的异常 ASIN、以及没有报表数据的 ASIN。' +
+      '用户提到"我的 ASIN""我的清单""我负责的这批商品""我的主力款/主力 ASIN"时使用本工具。' +
+      '**站点之间不能相加**：不同站点货币不同，回答时必须按站点分别陈述，不得给出跨站点的金额或 ACoS 合计。' +
+      '不传 marketplace 就是全部站点（按站点分组给出）；传 marketplace 只看某个站点；传 asins 只看指定商品。' +
+      '**startDate / endDate 可以都不传**：不传时按默认统计窗口（以最新可用报表日期为终点的近 30 天）查询，' +
+      '用户只问"有哪些 ASIN / 列出清单"时**不要为了凑参数编造日期**，也不要因此拒绝回答。' +
+      '用户要求「列出我的 ASIN 列表 / 有哪些 ASIN」时，**必须逐条列出 ASIN 编码**（按站点分组、带上别名），不得只回答数量。' +
+      '列表为空时如实告知用户到「我的 ASIN」页添加商品。问单个 ASIN 自身的归因用 query_amazon_performance，问全站用 scan_amazon_anomalies。',
+    requiredRole: 'user',
+    paramsSchema: {
+      type: 'object',
+      properties: {
+        marketplace: {
+          type: 'string',
+          enum: ['US', 'UK', 'DE', 'FR', 'IT', 'ES', 'JP', 'CA', 'MX', 'AU'],
+          description: '只看某个站点；不传则按站点分组给出全部站点',
+        },
+        asins: {
+          type: 'array',
+          items: { type: 'string' },
+          description: '只看指定的 ASIN（最多 50 个）；不传则为列表内全部 ASIN',
+        },
+        startDate: { type: 'string', description: '开始日期 YYYY-MM-DD，最长区间 366 天', maxLength: 10 },
+        endDate: { type: 'string', description: '结束日期 YYYY-MM-DD', maxLength: 10 },
+        compareWith: {
+          type: 'string',
+          enum: ['previous_period', 'last_year', 'none'],
+          description:
+            '对比基准：previous_period 环比紧邻等长区间（默认），last_year 对比去年同期，none 不对比',
+        },
+      },
+      required: [],
+      additionalProperties: false,
+    },
+    auditFields: ['marketplace', 'asins', 'startDate', 'endDate', 'compareWith'],
+  },
+  {
+    name: 'query_competitor_analysis',
+    description:
+      '调取**已落库的竞品分析记录**（在「竞品分析 → 分析结果」页看到的那一份：结论与建议、本品 vs 竞品的广告与销售横向对比、卖家精灵公开属性、以及当时的分析参数）。' +
+      '**只读历史快照：本工具不重新分析、不调用卖家精灵、不消耗任何额度**，数字与页面上当时保存的完全一致；需要最新结果请让用户到「竞品分析」页重新分析（那会消耗额度）。' +
+      '三种用法：传 analysisId 取指定那一次；传 asin 取包含该 ASIN 的最近一次；都不传则列出最近的几次让用户挑。' +
+      '用户提到"竞品分析""上次对某 ASIN 做的对比分析""我做过哪些竞品分析""之前那个竞品分析结论"时使用本工具。' +
+      /*
+       * 工具区分说明（2026-09-18 实测）：用户问「我的 asin 列表」时模型曾误选本工具，
+       * 而它只查"分析记录"、给不出清单 —— 这类问法必须走 query_my_asins。
+       */
+      '**本工具给不出"我的 ASIN 清单"**：用户问"我的 ASIN 列表 / 我的 ASIN 有哪些 / 我维护了哪些商品"时，必须用 `query_my_asins`，不要用本工具。' +
+      '问单个 ASIN 自身的广告表现用 query_amazon_performance；问"我负责的这批商品"的表现在用 query_my_asins；问全站异常用 scan_amazon_anomalies。',
+    requiredRole: 'user',
+    paramsSchema: {
+      type: 'object',
+      properties: {
+        analysisId: {
+          type: 'integer',
+          description: '分析记录 ID（页面上显示为「分析记录 #N」）；已知记录号时使用',
+          minimum: 1,
+        },
+        asin: {
+          type: 'string',
+          description:
+            '商品 ASIN（10 位）；取"包含这个 ASIN 的最近一次分析"。不传 analysisId 时才生效',
+          maxLength: 20,
+        },
+        limit: {
+          type: 'integer',
+          description: '不传 analysisId / asin 时，列出最近几次，默认 5，范围 1-20',
+          minimum: 1,
+          maximum: 20,
+        },
+      },
+      required: [],
+      additionalProperties: false,
+    },
+    auditFields: ['analysisId', 'asin', 'limit'],
+  },
 ]
 
 export function findToolContract(name) {

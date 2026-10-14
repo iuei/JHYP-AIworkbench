@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  JHYP 智能工作台 — 后端 API 常驻配置（macOS launchd）。
+
+  为什么需要它：后端此前靠 `pnpm run dev:all` 手动 nohup 启动，进程崩溃不会自愈，
+  机器重启/休眠后也无人拉起；而 launchd 的 KeepAlive 能兜住单次崩溃，RunAtLoad 负责开机拉起。
+
+  注意 SERVE_STATIC=false：index.mjs 默认会额外在 5173 起一个静态站，
+  这里必须关掉，否则前端 Vite（com.jhyp.web）与它会互抢 5173 端口。
+
+  安装/卸载统一走 deploy/macos-service.sh，不要手工 cp。
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.jhyp.api</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/opt/homebrew/bin/node</string>
+    <string>/Users/lzg/codex/codex项目文件/JHYP-AIworkbench-main/server/index.mjs</string>
+  </array>
+  <!-- 必须设置：index.mjs 用 cwd 找 .env，数据库与密钥都从这里读 -->
+  <key>WorkingDirectory</key>
+  <string>/Users/lzg/codex/codex项目文件/JHYP-AIworkbench-main</string>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+  <!-- 崩溃后最多 10 秒重启一次，避免配置错误导致的无限重启风暴 -->
+  <key>ThrottleInterval</key>
+  <integer>10</integer>
+  <key>StandardOutPath</key>
+  <string>/Users/lzg/codex/codex项目文件/JHYP-AIworkbench-main/logs/api.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/lzg/codex/codex项目文件/JHYP-AIworkbench-main/logs/api.log</string>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    <key>TZ</key>
+    <string>Asia/Shanghai</string>
+    <!-- 前端由 com.jhyp.web 的 Vite 提供，后端只出 API -->
+    <key>SERVE_STATIC</key>
+    <string>false</string>
+  </dict>
+</dict>
+</plist>

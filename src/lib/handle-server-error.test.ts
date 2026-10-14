@@ -63,6 +63,30 @@ describe('handleServerError', () => {
     expect(toastError).toHaveBeenCalledWith('Something went wrong!')
   })
 
+  it('prefers the server message over the template title (本项目的统一错误出口返回 message)', () => {
+    const error = new AxiosError('Bad request')
+    error.response = {
+      status: 400,
+      data: { message: '没有识别出有效的 ASIN。', title: 'Validation failed' },
+    } as AxiosError['response']
+
+    handleServerError(error)
+
+    expect(toastError).toHaveBeenCalledWith('没有识别出有效的 ASIN。')
+  })
+
+  it('falls back to title when the server message is missing', () => {
+    const error = new AxiosError('Bad request')
+    error.response = {
+      status: 400,
+      data: { message: '', title: 'Validation failed' },
+    } as AxiosError['response']
+
+    handleServerError(error)
+
+    expect(toastError).toHaveBeenCalledWith('Validation failed')
+  })
+
   it('logs the error to the console in development', () => {
     const log = vi.spyOn(console, 'log').mockImplementation(() => {})
     const err = new Error('logged')

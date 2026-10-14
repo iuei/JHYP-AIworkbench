@@ -34,42 +34,41 @@ export function CommandMenu() {
       <CommandList>
         <ScrollArea type='hover' className='h-72 pe-1'>
           <CommandEmpty>未找到结果。</CommandEmpty>
-          {sidebarData.navGroups.map((group) => (
-            <CommandGroup key={group.title} heading={group.title}>
-              {group.items.map((navItem, i) => {
-                if (navItem.url)
-                  return (
-                    <CommandItem
-                      key={`${navItem.url}-${i}`}
-                      value={navItem.title}
-                      onSelect={() => {
-                        runCommand(() => navigate({ to: navItem.url }))
-                      }}
-                    >
-                      <div className='flex size-4 items-center justify-center'>
-                        <ArrowRight className='size-2 text-muted-foreground/80' />
-                      </div>
-                      {navItem.title}
-                    </CommandItem>
-                  )
-
-                return navItem.items?.map((subItem, i) => (
+          {/* 与侧边栏一致：一级类目平铺，不再按「常用 / 其他」分组 */}
+          <CommandGroup>
+            {sidebarData.navItems.map((navItem, i) => {
+              if (navItem.url)
+                return (
                   <CommandItem
-                    key={`${navItem.title}-${subItem.url}-${i}`}
-                    value={`${navItem.title}-${subItem.url}`}
+                    key={`${navItem.url}-${i}`}
+                    value={navItem.title}
                     onSelect={() => {
-                      runCommand(() => navigate({ to: subItem.url }))
+                      runCommand(() => navigate({ to: navItem.url }))
                     }}
                   >
                     <div className='flex size-4 items-center justify-center'>
                       <ArrowRight className='size-2 text-muted-foreground/80' />
                     </div>
-                    {navItem.title} <ChevronRight /> {subItem.title}
+                    {navItem.title}
                   </CommandItem>
-                ))
-              })}
-            </CommandGroup>
-          ))}
+                )
+
+              return navItem.items?.map((subItem, i) => (
+                <CommandItem
+                  key={`${navItem.title}-${subItem.url}-${i}`}
+                  value={`${navItem.title}-${subItem.url}`}
+                  onSelect={() => {
+                    runCommand(() => navigate({ to: subItem.url }))
+                  }}
+                >
+                  <div className='flex size-4 items-center justify-center'>
+                    <ArrowRight className='size-2 text-muted-foreground/80' />
+                  </div>
+                  {navItem.title} <ChevronRight /> {subItem.title}
+                </CommandItem>
+              ))
+            })}
+          </CommandGroup>
           <CommandSeparator />
           <CommandGroup heading='主题'>
             <CommandItem onSelect={() => runCommand(() => setTheme('light'))}>

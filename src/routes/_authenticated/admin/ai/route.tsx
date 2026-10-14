@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { AiAdminLayout } from '@/features/ai-agent/pages/ai-admin-layout'
 
-/** AI 治理子区域布局：五个治理页共享同一排内导航。 */
+/** AI 治理子区域布局：四个治理页共享同一排内导航（知识库 2026-09-18 已并入「知识库」模块）。 */
 export const Route = createFileRoute('/_authenticated/admin/ai')({
   // 标题设在模块层：子页由 Header 里的治理导航高亮表达位置，避免标题与导航项重复。
   staticData: { title: 'AI 治理' },

@@ -567,6 +567,71 @@ async function addPerformanceIndexes(client) {
   `)
 }
 
+/**
+ * 给回答加"拦截的细分原因"（2026-09-17）。
+ *
+ * 此前 `ai_messages.status = 'blocked'` 是一条没有细节的记录：工具没实现（后端没重启）、
+ * 真的没权限、模型措辞违规被护栏替换 —— 三者处置方式不同，却共用一句"当前账号无权查询该数据"。
+ * 新增一列后，实时提示与历史回看都能分辨；`IF NOT EXISTS` 可重复执行。
+ */
+async function addMessageBlockReason(client) {
+  await client.query(
+    'ALTER TABLE ai_messages ADD COLUMN IF NOT EXISTS block_reason VARCHAR(40)'
+  )
+}
+
+/**
+ * 卖家精灵 MCP 接入（2026-09-16）。
+ *
+ * 只增列、不改语义：
+ * - `ai_settings` 增 MCP 的端点 / 前缀 / 超时 / 开关 / 密钥密文与掩码（密钥复用模型密钥的 AES-256-GCM 一套）；
+ * - `ai_tools` 增 `source`（builtin / mcp）与 `remote_name`（远端工具名），并把 `name` 放宽到 120 ——
+ *   本地工具名是 `<前缀>__<远端工具名>`，80 位在长工具名上会被截断，而截断即映射失效（只能整条丢弃）。
+ * 历史的 ai_tools 行默认 `source = 'builtin'`，行为与迁移前完全一致。
+ */
+async function addMcpIntegration(client) {
+  await client.query(`
+    ALTER TABLE ai_settings
+      ADD COLUMN IF NOT EXISTS mcp_enabled BOOLEAN NOT NULL DEFAULT false,
+      ADD COLUMN IF NOT EXISTS mcp_endpoint VARCHAR(300) NOT NULL DEFAULT 'https://mcp.sellersprite.com/mcp',
+      ADD COLUMN IF NOT EXISTS mcp_prefix VARCHAR(20) NOT NULL DEFAULT 'sellersprite',
+      ADD COLUMN IF NOT EXISTS mcp_timeout_ms INTEGER NOT NULL DEFAULT 30000,
+      ADD COLUMN IF NOT EXISTS mcp_secret_cipher TEXT,
+      ADD COLUMN IF NOT EXISTS mcp_secret_hint VARCHAR(60),
+      ADD COLUMN IF NOT EXISTS mcp_secret_fingerprint VARCHAR(64),
+      ADD COLUMN IF NOT EXISTS mcp_secret_updated_at TIMESTAMPTZ,
+      ADD COLUMN IF NOT EXISTS mcp_synced_at TIMESTAMPTZ;
+  `)
+
+  await client.query(`
+    ALTER TABLE ai_tools
+      ADD COLUMN IF NOT EXISTS source VARCHAR(20) NOT NULL DEFAULT 'builtin',
+      ADD COLUMN IF NOT EXISTS remote_name VARCHAR(120);
+
+    ALTER TABLE ai_tools ALTER COLUMN name TYPE VARCHAR(120);
+
+    CREATE INDEX IF NOT EXISTS ai_tools_source_idx ON ai_tools(source);
+  `)
+
+  // 工具名会一路写进审计（ai_runs.tool_name 每次调用都写、ai_audit_logs.target_id 记拦截与开关）。
+  // 保持 80 的话，任何名字超过 80 的 MCP 工具一被调用就会 "value too long"，
+  // 表现成整轮对话直接失败 —— 所以三处列宽必须一起放宽。
+  await client.query(`
+    ALTER TABLE ai_runs ALTER COLUMN tool_name TYPE VARCHAR(120);
+    ALTER TABLE ai_audit_logs ALTER COLUMN target_id TYPE VARCHAR(120);
+  `)
+
+  await client.query(`
+    DO $$
+    BEGIN
+      IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ai_tools_source_check') THEN
+        ALTER TABLE ai_tools
+          ADD CONSTRAINT ai_tools_source_check CHECK (source IN ('builtin', 'mcp'));
+      END IF;
+    END $$;
+  `)
+}
+
 async function hardenKnowledgeDistill(client) {
   const duplicates = await client.query(
     `SELECT source_ref, COUNT(*)::int AS total, array_agg(id ORDER BY id) AS ids
@@ -596,6 +661,228 @@ async function hardenKnowledgeDistill(client) {
     CREATE UNIQUE INDEX IF NOT EXISTS ai_notes_owner_title_live_uidx
       ON ai_knowledge_notes(owner_user_id, lower(title))
       WHERE deleted_at IS NULL AND status <> 'archived';
+  `)
+}
+
+/**
+ * ASIN 清单（运营自建的 ASIN 集合）+ 清单条目。
+ *
+ * 为什么需要这两张表：`amazon_ads_daily` / `amazon_sales_daily` 里的 ASIN 只是**报表行里的字段**，
+ * 没有任何地方能让运营把"我负责的这批商品"沉淀下来 —— 每次提问都要重新粘贴 ASIN，
+ * 而全站扫描（`scan_amazon_anomalies`）只会把整个站点的 ASIN 混在一起，问不出"我这批货怎么样"。
+ *
+ * 设计取舍：
+ * 1. **清单级站点**（`marketplace`）：广告/销售数据按 (asin, marketplace) 存储，一个清单绑定一个站点
+ *    才能让取数条件精确命中现有索引（`amazon_*_daily(asin, marketplace, stat_date)`）；
+ *    跨站点混在一张清单里会让"某个 ASIN 的表现"变成两个站点的数字相加，那是错的。
+ * 2. **账号隔离**：`owner_user_id` + 软删（`deleted_at`），与 `ai_knowledge_notes` 同一套思路。
+ * 3. **唯一性只约束活跃行**：软删后允许重建同名清单（`WHERE deleted_at IS NULL`）。
+ * 4. 条目唯一约束 `(watchlist_id, asin)`：同一 ASIN 在清单里只出现一次，
+ *    批量粘贴时的重复由数据库兜底（`ON CONFLICT DO NOTHING`），不靠应用层去重。
+ */
+async function createAsinWatchlistSchema(client) {
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS asin_watchlists (
+      id SERIAL PRIMARY KEY,
+      owner_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      name VARCHAR(80) NOT NULL,
+      description VARCHAR(300),
+      marketplace VARCHAR(10) NOT NULL DEFAULT 'US',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      deleted_at TIMESTAMPTZ
+    );
+
+    CREATE UNIQUE INDEX IF NOT EXISTS asin_watchlists_owner_name_uidx
+      ON asin_watchlists(owner_user_id, lower(name))
+      WHERE deleted_at IS NULL;
+
+    CREATE INDEX IF NOT EXISTS asin_watchlists_owner_idx
+      ON asin_watchlists(owner_user_id, updated_at DESC)
+      WHERE deleted_at IS NULL;
+
+    CREATE TABLE IF NOT EXISTS asin_watchlist_items (
+      id SERIAL PRIMARY KEY,
+      watchlist_id INTEGER NOT NULL REFERENCES asin_watchlists(id) ON DELETE CASCADE,
+      asin VARCHAR(40) NOT NULL,
+      alias VARCHAR(120),
+      note VARCHAR(300),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE (watchlist_id, asin)
+    );
+
+    CREATE INDEX IF NOT EXISTS asin_watchlist_items_list_idx
+      ON asin_watchlist_items(watchlist_id, created_at ASC);
+  `)
+}
+
+/**
+ * 「我的 ASIN」单集合（2026-09-18）：一个账号一份 ASIN 列表，**站点挂在每条 ASIN 上**。
+ *
+ * 为什么不再有清单表：用户明确要求"全账号只有一份 ASIN 列表"，清单这一层对象
+ * 在界面上已不存在，留着只会让"我的 ASIN 到底是哪个清单"重新变成问题。
+ *
+ * 为什么站点从清单下沉到条目：清单消失后站点没有载体，而广告与销售日报按
+ * `(asin, marketplace)` 存储 —— 站点必须跟着 ASIN 走，否则取不到数。
+ *
+ * 旧表 `asin_watchlists` / `asin_watchlist_items` **保留不删**：它们是搬迁前的唯一副本，
+ * 删掉就没有回滚路径；新代码不再读写它们（见 `mergeWatchlistItemsIntoMyAsins` 的合并语句）。
+ *
+ * 唯一约束 `(owner_user_id, asin, marketplace)`：同一个账号同一个 ASIN 在同一站点只出现一次，
+ * 批量粘贴与多次导入的重复由数据库兜底（`ON CONFLICT DO NOTHING`），不靠应用层去重。
+ */
+async function createMyAsinSchema(client) {
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS my_asin_items (
+      id SERIAL PRIMARY KEY,
+      owner_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      asin VARCHAR(40) NOT NULL,
+      marketplace VARCHAR(10) NOT NULL DEFAULT 'US',
+      alias VARCHAR(120),
+      note VARCHAR(300),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE (owner_user_id, asin, marketplace)
+    );
+
+    CREATE INDEX IF NOT EXISTS my_asin_items_owner_idx
+      ON my_asin_items(owner_user_id, marketplace, created_at ASC);
+  `)
+}
+
+/**
+ * 把旧清单条目合并进「我的 ASIN」（2026-09-18，用户选择"合并为一份"）。
+ *
+ * 合并口径（同一个 `(owner, asin, 站点)` 撞上时）：
+ * - `alias` / `note` 取**非空的那一份**（`COALESCE(已有, 新来)`）—— 旧清单之间
+ *   常常一份写了别名、另一份只填了备注，任意丢掉一份都是数据损失；
+ * - `created_at` 取更早的、`updated_at` 取更晚的，让"加入时间"落在真实的那一天。
+ *
+ * 只搬 `deleted_at IS NULL` 的清单：软删清单在旧语义里对用户已不可见，
+ * 把它们搬进来等于让"删掉的数据"复活，属于反向惊喜。
+ *
+ * 幂等：重复执行只会命中 `ON CONFLICT` 分支，不会产生第二份。
+ */
+async function mergeWatchlistItemsIntoMyAsins(client) {
+  await client.query(`
+    INSERT INTO my_asin_items (owner_user_id, asin, marketplace, alias, note, created_at, updated_at)
+    SELECT w.owner_user_id, i.asin, w.marketplace, i.alias, i.note, i.created_at, i.updated_at
+      FROM asin_watchlist_items i
+      JOIN asin_watchlists w ON w.id = i.watchlist_id
+     WHERE w.deleted_at IS NULL
+    ON CONFLICT (owner_user_id, asin, marketplace) DO UPDATE
+       SET alias = COALESCE(my_asin_items.alias, EXCLUDED.alias),
+           note = COALESCE(my_asin_items.note, EXCLUDED.note),
+           created_at = LEAST(my_asin_items.created_at, EXCLUDED.created_at),
+           updated_at = GREATEST(my_asin_items.updated_at, EXCLUDED.updated_at)
+  `)
+}
+
+/**
+ * 工具契约换成 `query_my_asins` 后必须重播（2026-09-18）。
+ *
+ * `seedAiToolsAndSettings` 只做 upsert，**不会清理已从契约里移除的工具**，
+ * 所以这里必须先删掉 `query_asin_watchlist`：留着它，模型仍能看到一个
+ * 参数里带 `watchlistId` / `watchlistName` 的工具，然后去调用一个已经不存在的概念。
+ *
+ * 删除是安全的：`ai_runs.tool_name` 是普通列、没有外键，历史审计记录不受影响。
+ */
+async function reseedMyAsinTool(client) {
+  await client.query(`DELETE FROM ai_tools WHERE name = 'query_asin_watchlist'`)
+  await seedAiToolsAndSettings(client)
+}
+
+/**
+ * 人工录入的指标覆盖（2026-09-18）：用户在「我的 ASIN」里手填的区间指标。
+ *
+ * 为什么需要它：这些数字本来只来自 Amazon 报表，但报表是**人工导出再导入**的，
+ * 经常滞后甚至还没有；而"我知道这款这周花了多少"是真实存在的场景。
+ *
+ * 三条设计约束：
+ * 1. **按条目 + 具体起止日期**存（不是"近 30 天"这种相对区间）：区间是查询条件的一部分，
+ *    相对区间会随"报表最新日期"漂移，今天填的数字明天就换个区间显示，没人能对上账；
+ * 2. **绑 `item_id`（ON DELETE CASCADE）**：条目删掉，手工值跟着走，不留孤儿；
+ * 3. 唯一键 `(item_id, 起, 止)`：同一区间只有一条，重复录入是覆盖而不是堆积。
+ *
+ * 与报表的关系由 `data-queries.mjs` 的 `applyManualOverrides` 决定：**手工值优先，未填的字段用报表**；
+ * 页面与 AI 工具共用那一处合并，因此不会出现两套数字。
+ */
+async function createMyAsinMetricOverrideSchema(client) {
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS my_asin_metric_overrides (
+      id SERIAL PRIMARY KEY,
+      item_id INTEGER NOT NULL REFERENCES my_asin_items(id) ON DELETE CASCADE,
+      owner_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      asin VARCHAR(40) NOT NULL,
+      marketplace VARCHAR(10) NOT NULL,
+      start_date DATE NOT NULL,
+      end_date DATE NOT NULL,
+      spend NUMERIC(14,2),
+      ad_sales NUMERIC(14,2),
+      orders INTEGER,
+      acos NUMERIC(7,2),
+      units INTEGER,
+      business_sales NUMERIC(14,2),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE (item_id, start_date, end_date)
+    );
+
+    CREATE INDEX IF NOT EXISTS my_asin_metric_overrides_owner_idx
+      ON my_asin_metric_overrides(owner_user_id, start_date, end_date);
+  `)
+}
+
+/**
+ * 提示词广场：员工自建提问模板 + 提报共享 + 管理员审核。
+ *
+ * 状态机与 ai_knowledge_notes 完全对齐（private/pending/published/rejected/archived），
+ * 目的是沿用同一套审核心智，不引入第二套状态语义。
+ *
+ * 名称唯一分两层，解决两个目标互相冲突的问题：
+ * - 个人库内唯一：避免自己撞名；
+ * - 共享池内全局唯一：`@名称` 调用才不会有歧义。
+ * 若只做全局唯一，任一人私有占用某名称后其他人再也建不了同名提示词。
+ */
+async function createPromptSquareSchema(client) {
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS ai_prompts (
+      id SERIAL PRIMARY KEY,
+      owner_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      name VARCHAR(60) NOT NULL,
+      title VARCHAR(120) NOT NULL,
+      body TEXT NOT NULL,
+      summary VARCHAR(300) NOT NULL DEFAULT '',
+      tags TEXT[] NOT NULL DEFAULT '{}',
+      status VARCHAR(20) NOT NULL DEFAULT 'private'
+        CHECK (status IN ('private', 'pending', 'published', 'rejected')),
+      usage_count INTEGER NOT NULL DEFAULT 0,
+      reviewed_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      review_comment TEXT,
+      reviewed_at TIMESTAMPTZ,
+      deleted_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+
+    CREATE UNIQUE INDEX IF NOT EXISTS ai_prompts_owner_name_uidx
+      ON ai_prompts(owner_user_id, lower(name))
+      WHERE deleted_at IS NULL;
+
+    CREATE UNIQUE INDEX IF NOT EXISTS ai_prompts_published_name_uidx
+      ON ai_prompts(lower(name))
+      WHERE status = 'published' AND deleted_at IS NULL;
+
+    CREATE INDEX IF NOT EXISTS ai_prompts_owner_idx
+      ON ai_prompts(owner_user_id, status, updated_at DESC)
+      WHERE deleted_at IS NULL;
+
+    CREATE INDEX IF NOT EXISTS ai_prompts_status_idx
+      ON ai_prompts(status, created_at DESC)
+      WHERE deleted_at IS NULL;
+
+    CREATE INDEX IF NOT EXISTS ai_prompts_tags_idx ON ai_prompts USING GIN(tags);
   `)
 }
 
@@ -696,6 +983,67 @@ export const aiAgentMigrations = [
     version: AI_AGENT_MIGRATION_BASE_VERSION + 13,
     name: 'add_performance_indexes',
     up: addPerformanceIndexes,
+  },
+  {
+    // ASIN 清单：运营自建 ASIN 集合（113 已被性能索引占用，故从 114 起）
+    version: AI_AGENT_MIGRATION_BASE_VERSION + 14,
+    name: 'create_asin_watchlist_schema',
+    up: createAsinWatchlistSchema,
+  },
+  {
+    // 新增 query_asin_watchlist 工具契约后必须重播，否则它不会进入 ai_tools、模型看不到
+    version: AI_AGENT_MIGRATION_BASE_VERSION + 15,
+    name: 'reseed_asin_watchlist_tool',
+    up: seedAiToolsAndSettings,
+  },
+  {
+    // 提示词广场：与技能（ai_skills）是并列实体，不合并
+    version: AI_AGENT_MIGRATION_BASE_VERSION + 16,
+    name: 'create_prompt_square_schema',
+    up: createPromptSquareSchema,
+  },
+  {
+    // 卖家精灵 MCP 接入（116 已被提示词广场占用）
+    version: AI_AGENT_MIGRATION_BASE_VERSION + 17,
+    name: 'add_mcp_integration',
+    up: addMcpIntegration,
+  },
+  {
+    // 新增 query_competitor_analysis 工具契约后必须重播，否则它不会进入 ai_tools、模型看不到
+    // （与 115 的 reseed_asin_watchlist_tool 同一个理由）
+    version: AI_AGENT_MIGRATION_BASE_VERSION + 18,
+    name: 'reseed_competitor_analysis_tool',
+    up: seedAiToolsAndSettings,
+  },
+  {
+    // 拦截的细分原因：只有 status='blocked' 时分不清"工具没上线 / 真没权限 / 模型措辞违规"
+    version: AI_AGENT_MIGRATION_BASE_VERSION + 19,
+    name: 'add_message_block_reason',
+    up: addMessageBlockReason,
+  },
+  {
+    // 「我的 ASIN」单集合：一个账号一份 ASIN 列表，站点下沉到每条 ASIN（119 已被上面占用）
+    version: AI_AGENT_MIGRATION_BASE_VERSION + 20,
+    name: 'create_my_asin_schema',
+    up: createMyAsinSchema,
+  },
+  {
+    // 旧清单条目合并进 my_asin_items（用户选择"合并为一份"）；旧表保留不删
+    version: AI_AGENT_MIGRATION_BASE_VERSION + 21,
+    name: 'merge_watchlist_items_into_my_asins',
+    up: mergeWatchlistItemsIntoMyAsins,
+  },
+  {
+    // 工具契约换成 query_my_asins 后必须重播，并删掉 query_asin_watchlist 那一行
+    version: AI_AGENT_MIGRATION_BASE_VERSION + 22,
+    name: 'reseed_my_asin_tool',
+    up: reseedMyAsinTool,
+  },
+  {
+    // 人工录入的区间指标（我的 ASIN 的手工值，优先于报表）
+    version: AI_AGENT_MIGRATION_BASE_VERSION + 23,
+    name: 'create_my_asin_metric_override_schema',
+    up: createMyAsinMetricOverrideSchema,
   },
 ]
 

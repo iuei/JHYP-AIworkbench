@@ -127,7 +127,9 @@ export function decodeCsvBuffer(buffer) {
 export function toCsv(columns, rows, { bom = true } = {}) {
   const escape = (value) => {
     if (value === null || value === undefined) return ''
-    const text = typeof value === 'object' ? JSON.stringify(value) : String(value)
+    let text = typeof value === 'object' ? JSON.stringify(value) : String(value)
+    // Excel/Sheets 会把这些前缀解释为公式；导出数据可能来自员工可编辑内容。
+    if (/^\s*[=+\-@]/.test(text)) text = `'${text}`
     if (/[",\n\r]/.test(text)) return `"${text.replaceAll('"', '""')}"`
     return text
   }

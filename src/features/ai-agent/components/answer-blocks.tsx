@@ -19,19 +19,15 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
+import { TABLE_CELL_NUMERIC, TABLE_HEAD_NUMERIC } from '@/lib/table-styles'
 import { cn } from '@/lib/utils'
 import { useTheme } from '@/context/theme-provider'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
+import { TableCell, TableHead, TableRow } from '@/components/ui/table'
+import { DataTable } from '@/components/data-table'
 import type { AnswerBlock, AnswerMetricItem } from '../types'
+import { dedupeAnswerBlocks } from './answer-block-utils'
 
 /**
  * 回答卡片的结构化数据块渲染。
@@ -63,6 +59,48 @@ function useChartColors(count: number): string[] {
   // 依赖 resolvedTheme：深色主题下的 --chart-* 与浅色不同，切换后必须重新解析
   const { resolvedTheme } = useTheme()
   return readChartColors(count, resolvedTheme)
+}
+
+/**
+ * 列底色档位 → 类名。
+ *
+ * 取主题的**分类色**（`--chart-1..5`，深浅两套主题各自有值），透明度压得很低：
+ * 数据行 10%、字段名表头 20%、分组表头 25% —— 目的是"分得出这几列是一家的"，
+ * 而不是抢数字的注意力（用户口径：「颜色不要太鲜艳，能看出来就行，淡一点」）。
+ * 必须写成静态类名：Tailwind 不会为拼接出来的类名生成样式。
+ */
+const TONE_CELL_CLASS: Record<number, string> = {
+  1: 'bg-chart-1/10',
+  2: 'bg-chart-2/10',
+  3: 'bg-chart-3/10',
+  4: 'bg-chart-4/10',
+  5: 'bg-chart-5/10',
+}
+
+const TONE_FIELD_HEAD_CLASS: Record<number, string> = {
+  1: 'bg-chart-1/20',
+  2: 'bg-chart-2/20',
+  3: 'bg-chart-3/20',
+  4: 'bg-chart-4/20',
+  5: 'bg-chart-5/20',
+}
+
+const TONE_GROUP_HEAD_CLASS: Record<number, string> = {
+  1: 'bg-chart-1/25',
+  2: 'bg-chart-2/25',
+  3: 'bg-chart-3/25',
+  4: 'bg-chart-4/25',
+  5: 'bg-chart-5/25',
+}
+
+function toneClass(
+  map: Record<number, string>,
+  tone: number | undefined
+): string | undefined {
+  if (typeof tone !== 'number') return undefined
+  // 越界（0、负数、>5）一律不加底色，宁可无色也不要用错色
+  if (tone < 1 || tone > 5) return undefined
+  return map[tone]
 }
 
 function formatValue(value: unknown): string {
@@ -152,7 +190,7 @@ function TableBlock({ block }: { block: AnswerBlock }) {
         header: column.label,
         cell: (info: { getValue: () => unknown }) =>
           formatValue(info.getValue()),
-        meta: { align: column.align },
+        meta: { align: column.align, tone: column.tone },
       })),
     [block.columns]
   )
@@ -169,6 +207,17 @@ function TableBlock({ block }: { block: AnswerBlock }) {
     getSortedRowModel: getSortedRowModel(),
   })
 
+  /*
+   * 分组表头只在服务端给了 `groups` 且数量与列数对得上时才渲染（`span` 之和 = 列数 - 1）：
+   * 结构不对就退回单行表头，宁可少一层分组，也不要渲染出错位的表头。
+   */
+  const groups = block.groups ?? []
+  const primaryColumnLabel = (block.columns ?? [])[0]?.label ?? ''
+  const hasGroups =
+    groups.length > 0 &&
+    groups.reduce((sum, group) => sum + (group.span || 0), 0) ===
+      (block.columns ?? []).length - 1
+
   return (
     <section className='space-y-2'>
       <div className='flex flex-wrap items-center gap-2'>
@@ -183,91 +232,127 @@ function TableBlock({ block }: { block: AnswerBlock }) {
           </Badge>
         )}
       </div>
-      <div className='overflow-x-auto rounded-lg border'>
-        <Table>
-          <TableHeader>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id}>
-                {headerGroup.headers.map((header) => {
-                  const align = (
-                    header.column.columnDef.meta as
-                      | { align?: string }
-                      | undefined
-                  )?.align
-                  return (
-                    <TableHead
-                      className={cn(
-                        'whitespace-nowrap',
-                        align === 'right' && 'text-right'
-                      )}
-                      key={header.id}
-                    >
-                      {header.column.getCanSort() ? (
-                        <button
-                          className='inline-flex items-center gap-1 hover:text-foreground'
-                          type='button'
-                          onClick={header.column.getToggleSortingHandler()}
-                        >
-                          {flexRender(
-                            header.column.columnDef.header,
-                            header.getContext()
-                          )}
-                          {header.column.getIsSorted() === 'asc' && (
-                            <ArrowUp className='size-3' />
-                          )}
-                          {header.column.getIsSorted() === 'desc' && (
-                            <ArrowDown className='size-3' />
-                          )}
-                        </button>
-                      ) : (
-                        flexRender(
-                          header.column.columnDef.header,
-                          header.getContext()
-                        )
-                      )}
-                    </TableHead>
-                  )
-                })}
-              </TableRow>
-            ))}
-          </TableHeader>
-          <TableBody>
-            {table.getRowModel().rows.length === 0 && (
+      {/*
+        外壳走 DataTable，但排序仍由本组件的 TanStack Table 驱动：列定义、`getSortedRowModel`
+        与表头的 `getToggleSortingHandler()` 都不经 DataTable —— 它只负责外框、表头容器与空态。
+        明细默认只回 30 行、上限由服务端控制，因此这里刻意不加分页。
+      */}
+      <DataTable
+        columns={(block.columns ?? []).length}
+        emptyText='没有数据行。'
+        header={
+          <>
+            {/*
+              分组表头（可选）：第一行是归属（例如「本品（B0SAMPLE01）」「竞品1（B0SAMPLE02）」），
+              第二行才是各自字段名。首列自动 `rowSpan=2` —— 日期/名称那类列跨越两行更符合读表直觉，
+              因此服务端的 `groups` 只描述除首列以外的列（约定见 `AnswerTableGroup`）。
+            */}
+            {hasGroups && (
               <TableRow>
-                <TableCell
-                  className='text-muted-foreground'
-                  colSpan={(block.columns ?? []).length}
+                <TableHead
+                  className='whitespace-nowrap align-bottom'
+                  rowSpan={2}
                 >
-                  没有数据行。
-                </TableCell>
+                  {primaryColumnLabel}
+                </TableHead>
+                {block.groups?.map((group) => (
+                  <TableHead
+                    className={cn(
+                      TABLE_HEAD_NUMERIC,
+                      'whitespace-nowrap border-s text-center',
+                      toneClass(TONE_GROUP_HEAD_CLASS, group.tone)
+                    )}
+                    colSpan={group.span}
+                    key={group.label}
+                  >
+                    {group.label}
+                  </TableHead>
+                ))}
               </TableRow>
             )}
-            {table.getRowModel().rows.map((row) => (
-              <TableRow key={row.id}>
-                {row.getVisibleCells().map((cell) => {
-                  const align = (
-                    cell.column.columnDef.meta as { align?: string } | undefined
-                  )?.align
-                  return (
-                    <TableCell
-                      className={cn(
-                        'whitespace-nowrap tabular-nums',
-                        align === 'right' && 'text-right'
-                      )}
-                      key={cell.id}
+            {table.getHeaderGroups().map((headerGroup) => (
+          <TableRow key={headerGroup.id}>
+            {headerGroup.headers.map((header, headerIndex) => {
+              // 有分组表头时，首列已由上一行的 rowSpan 占住，这一行不能再渲染它
+              if (hasGroups && headerIndex === 0) return null
+              const headerMeta = header.column.columnDef.meta as
+                | { align?: string; tone?: number }
+                | undefined
+              const align = headerMeta?.align
+              return (
+                <TableHead
+                  className={cn(
+                    'whitespace-nowrap',
+                    align === 'right' && TABLE_HEAD_NUMERIC,
+                    hasGroups && headerIndex > 0 && 'border-s',
+                    toneClass(TONE_FIELD_HEAD_CLASS, headerMeta?.tone)
+                  )}
+                  key={header.id}
+                >
+                  {header.column.getCanSort() ? (
+                    <button
+                      className='inline-flex items-center gap-1 hover:text-foreground'
+                      type='button'
+                      onClick={header.column.getToggleSortingHandler()}
                     >
                       {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext()
+                        header.column.columnDef.header,
+                        header.getContext()
                       )}
-                    </TableCell>
-                  )
-                })}
-              </TableRow>
+                      {header.column.getIsSorted() === 'asc' && (
+                        <ArrowUp className='size-3' />
+                      )}
+                      {header.column.getIsSorted() === 'desc' && (
+                        <ArrowDown className='size-3' />
+                      )}
+                    </button>
+                  ) : (
+                    flexRender(
+                      header.column.columnDef.header,
+                      header.getContext()
+                    )
+                  )}
+                </TableHead>
+              )
+            })}
+          </TableRow>
             ))}
-          </TableBody>
-        </Table>
-      </div>
+          </>
+        }
+        isEmpty={table.getRowModel().rows.length === 0}
+      >
+        {table.getRowModel().rows.map((row) => {
+          /*
+           * 行级归属色（可选）：`row.original.__tone` —— 一张表里"一行属于本品、另一行属于竞品"时
+           * （竞品分析的 TOP 流量词 / 差评高频词），归属写在角色列里，只能整行铺色。
+           * 读 `row.original` 而不是索引：排序后行序会变，颜色必须跟着行走。
+           * 列自身的 `tone` 优先（列归属比行归属更具体）。
+           */
+          const rowTone = (row.original as { __tone?: number } | undefined)?.__tone
+          return (
+            <TableRow key={row.id}>
+              {row.getVisibleCells().map((cell) => {
+                const cellMeta = cell.column.columnDef.meta as
+                  | { align?: string; tone?: number }
+                  | undefined
+                const align = cellMeta?.align
+                return (
+                  <TableCell
+                    className={cn(
+                      'whitespace-nowrap',
+                      align === 'right' && TABLE_CELL_NUMERIC,
+                      toneClass(TONE_CELL_CLASS, cellMeta?.tone ?? rowTone)
+                    )}
+                    key={cell.id}
+                  >
+                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                  </TableCell>
+                )
+              })}
+            </TableRow>
+          )
+        })}
+      </DataTable>
       {block.note && (
         <p className='text-xs text-muted-foreground'>{block.note}</p>
       )}
@@ -359,12 +444,12 @@ function ChartBlock({ block }: { block: AnswerBlock }) {
   )
 }
 
-/** 按块类型渲染；未知类型忽略而不报错（服务端新增块类型时前端不至于白屏）。 */
 export function AnswerBlocks({ blocks }: { blocks: AnswerBlock[] }) {
   if (!blocks || blocks.length === 0) return null
+  const uniqueBlocks = dedupeAnswerBlocks(blocks)
   return (
     <div className='mt-4 space-y-4'>
-      {blocks.map((block, index) => {
+      {uniqueBlocks.map((block, index) => {
         const key = `${block.kind}-${block.title ?? index}`
         if (block.kind === 'metrics')
           return <MetricsBlock block={block} key={key} />

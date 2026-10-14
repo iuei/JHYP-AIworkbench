@@ -9,11 +9,21 @@ import {
   dedupeCitations,
   dedupeFreshness,
   runChat,
+  sameAnswerBlock,
+  selectTopDocumentCitations,
 } from './orchestrator.mjs'
 import { executeTool } from './tools.mjs'
 
 const operator = { id: 2, login: 'op', role: 'operator', status: 'enabled' }
 const searchRow = { name: 'search_knowledge', required_role: 'user', enabled: true }
+
+test('sameAnswerBlock 只把完全相同的结构化块视为重复', () => {
+  const first = { kind: 'table', title: '日报', rows: [{ day: '2026-09-17', value: 1 }] }
+  const same = { kind: 'table', title: '日报', rows: [{ day: '2026-09-17', value: 1 }] }
+  const changed = { kind: 'table', title: '日报', rows: [{ day: '2026-09-18', value: 1 }] }
+  assert.equal(sameAnswerBlock(first, same), true)
+  assert.equal(sameAnswerBlock(first, changed), false)
+})
 
 function createFakeRepo({ turns = 0, history = [] } = {}) {
   const messages = []
@@ -686,4 +696,64 @@ test('dedupeCitations 对缺少标识的引用回退到标题去重，且不改�
   assert.equal(result.length, 2)
   assert.equal(JSON.stringify(input), snapshot)
   assert.deepEqual(dedupeCitations(null), [])
+})
+
+test('selectTopDocumentCitations 只保留最准确的一篇文档依据', () => {
+  const result = selectTopDocumentCitations([
+    { kind: 'document', documentId: 61, chunkIndex: 0, title: '甲', score: 32 },
+    { kind: 'document', documentId: 64, chunkIndex: 0, title: '乙', score: 41 },
+    { kind: 'document', documentId: 61, chunkIndex: 1, title: '甲', score: 45 },
+    { kind: 'document', documentId: 70, chunkIndex: 0, title: '丙', score: 12 },
+  ])
+  assert.equal(result.length, 1)
+  assert.equal(result[0].documentId, 61)
+  assert.equal(result[0].chunkIndex, 1, '同一篇文档只保留得分最高的那个切片')
+})
+
+test('selectTopDocumentCitations 不收敛数据集引用，被保留项仍在原位', () => {
+  const result = selectTopDocumentCitations([
+    { kind: 'document', documentId: 61, title: '甲', score: 32 },
+    { kind: 'dataset', dataset: 'amazon_ads_daily', title: 'Amazon 广告日报' },
+    { kind: 'document', documentId: 64, title: '乙', score: 41 },
+    { kind: 'dataset', dataset: 'inventory_snapshot', title: '库存快照' },
+  ])
+  assert.deepEqual(
+    result.map((item) => item.title),
+    ['Amazon 广告日报', '乙', '库存快照']
+  )
+})
+
+test('selectTopDocumentCitations 得分缺失时回退为首次出现优先', () => {
+  const sameScores = selectTopDocumentCitations([
+    { kind: 'document', documentId: 1, title: '先出现的' },
+    { kind: 'document', documentId: 2, title: '后出现的' },
+  ])
+  assert.equal(sameScores.length, 1)
+  assert.equal(sameScores[0].documentId, 1)
+
+  const mixed = selectTopDocumentCitations([
+    { kind: 'document', documentId: 1, title: '得分缺失' },
+    { kind: 'document', documentId: 3, title: '得分明确更高', score: 9 },
+  ])
+  assert.equal(mixed[0].documentId, 3, '有得分的一篇应当胜过得分缺失的一篇')
+
+  assert.deepEqual(selectTopDocumentCitations(null), [])
+  assert.deepEqual(selectTopDocumentCitations([{ kind: 'document', documentId: 7 }]), [
+    { kind: 'document', documentId: 7 },
+  ])
+})
+
+test('selectTopDocumentCitations 与 dedupeCitations 串联后多轮检索只留一篇，且不改动入参', () => {
+  const input = [
+    { kind: 'document', documentId: 61, chunkIndex: 0, title: '甲', score: 30 },
+    { kind: 'document', documentId: 64, chunkIndex: 0, title: '乙', score: 55 },
+    { kind: 'document', documentId: 61, chunkIndex: 0, title: '甲', score: 30 },
+    { kind: 'document', documentId: 64, chunkIndex: 1, title: '乙', score: 18 },
+  ]
+  const snapshot = JSON.stringify(input)
+  const result = selectTopDocumentCitations(dedupeCitations(input))
+  assert.equal(result.length, 1)
+  assert.equal(result[0].documentId, 64)
+  assert.equal(result[0].chunkIndex, 0)
+  assert.equal(JSON.stringify(input), snapshot)
 })

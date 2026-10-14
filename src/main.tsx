@@ -53,6 +53,7 @@ const queryClient = new QueryClient({
       if (error instanceof AxiosError) {
         if (error.response?.status === 401) {
           toast.error('Session expired!')
+          queryClient.clear()
           useAuthStore.getState().auth.reset()
           const redirect = `${router.history.location.href}`
           router.navigate({ to: '/sign-in', search: { redirect } })
@@ -66,6 +67,7 @@ const queryClient = new QueryClient({
         }
         if (error.response?.status === 403) {
           toast.error('无权限访问')
+          queryClient.clear()
           router.navigate({ to: '/403' })
         }
       }
@@ -80,6 +82,17 @@ const router = createRouter({
   defaultPreload: 'intent',
   defaultPreloadStaleTime: 0,
 })
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('auth:unauthorized', () => {
+    queryClient.clear()
+    void router.navigate({
+      to: '/sign-in',
+      search: { redirect: router.history.location.href },
+      replace: true,
+    })
+  })
+}
 
 // Register the router instance for type safety
 declare module '@tanstack/react-router' {

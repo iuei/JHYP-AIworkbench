@@ -30,7 +30,7 @@
 - 页面风格定位为管理后台：信息密度适中、标题清晰、操作区靠右、内容区以表格、卡片、表单为主。
 - 说明文字统一使用 `text-muted-foreground`。
 - 页面主标题常用 `text-2xl font-bold tracking-tight`。
-- 控件优先使用现有公共组件：`Button`、`Input`、`SelectDropdown`、`ConfirmDialog`、`DataTableToolbar`、`DataTablePagination`。
+- 控件优先使用现有公共组件：`Button`、`Input`、`Select`、`ConfirmDialog`、`DataTableToolbar`、`DataTablePagination`。
 - 不允许为了单个页面重新设计布局、样式或组件体系。
 
 ## 4. Layout 规范
@@ -95,7 +95,7 @@
 - 弹窗确认使用 `ConfirmDialog`。
 - 表格工具栏使用 `DataTableToolbar`。
 - 表格分页使用 `DataTablePagination`。
-- 下拉选择优先使用 `SelectDropdown`。
+- 下拉选择使用基础受控 `Select`；不要封装依赖 `FormField` 上下文的下拉组件（脱离 `<Form>` 会抛错白屏）。
 - 密码输入使用 `PasswordInput`。
 - 日期选择使用 `DatePicker`。
 - 空页面可使用 `ComingSoon`。

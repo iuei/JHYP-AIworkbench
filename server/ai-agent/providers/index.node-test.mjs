@@ -143,7 +143,7 @@ test('演示 provider 不把普通提问误判成管理操作', () => {
   assert.equal(planDemoToolCall('库存还剩多少？').name, 'search_knowledge')
 })
 
-test('演示 provider 第二轮依据工具结果生成带出处与声明条的回答', async () => {
+test('演示 provider 第二轮依据工具结果生成要点与声明条的回答', async () => {
   const provider = createDemoProvider()
   const toolPayload = JSON.stringify({
     toolName: 'search_knowledge',
@@ -169,9 +169,11 @@ test('演示 provider 第二轮依据工具结果生成带出处与声明条的�
     onDelta: (piece) => deltas.push(piece),
   })
 
-  assert.ok(result.content.includes('亚马逊断货补货流程'))
-  assert.ok(result.content.includes('人工上传文档'))
-  assert.ok(result.content.includes('2026-09-01'))
+  // 正文只含要点与声明条：文档标题、来源类型、更新时间已移到右栏引用面板（citations）
+  assert.ok(result.content.includes('第一步：确认断货天数'))
+  assert.ok(!result.content.includes('亚马逊断货补货流程'), '正文不应重复文档标题')
+  assert.ok(!result.content.includes('人工上传文档'), '正文不应标注来源类型')
+  assert.ok(!result.content.includes('引用来源'), '正文不应列出引用清单')
   assert.ok(result.content.includes('📊 数据来源'))
   assert.ok(result.content.includes('🕐 数据截至'))
   assert.ok(result.content.includes('🔒 检索范围'), '声明条措辞不能构成权限泄露模式')
@@ -240,7 +242,7 @@ test('演示 provider 对失败结果明确说明失败且不含推测数据', (
   assert.ok(answer.includes('不包含任何推测数据'))
 })
 
-test('演示 provider 员工经验标注提报人，与制度文档区分', async () => {
+test('演示 provider 正文不列引用清单与文档出处（依据由界面侧栏展示）', async () => {
   const provider = createDemoProvider()
   const result = await provider.complete({
     messages: [
@@ -263,8 +265,12 @@ test('演示 provider 员工经验标注提报人，与制度文档区分', asyn
       },
     ],
   })
-  assert.ok(result.content.includes('员工经验'))
-  assert.ok(result.content.includes('提报人 张三'))
+  // 正文只给要点 + 声明条：文档标题、来源类型、更新时间、提报人都由右栏引用面板（citations）承载
+  assert.ok(result.content.includes('提前 45 天锁仓'))
+  assert.ok(!result.content.includes('引用来源'), '正文不应出现引用清单')
+  assert.ok(!result.content.includes('《'), '正文不应出现书名号形式的文档标题')
+  assert.ok(!result.content.includes('提报人'), '正文不应出现提报人姓名')
+  assert.ok(result.content.includes('📊 数据来源'), '数据来源与时效声明仍必须保留')
 })
 
 test('openai-compatible 解析流式内容与 tool_calls 分片', async () => {

@@ -8,14 +8,17 @@ import {
   shiftShortcut,
 } from './shortcuts'
 
-/** 历史版本保存过的占位入口，已无对应路由。 */
-const retiredIds = ['project', 'listing', 'reviews']
+/**
+ * 历史版本保存过的入口：前三个是模板遗留的占位 ID，
+ * `quick-navigation` 是 2026-09-15 随快捷导航模块一起删除的真实入口 ——
+ * 两者都无对应路由，必须被 `normalizeShortcutIds` 丢弃。
+ */
+const retiredIds = ['project', 'listing', 'reviews', 'quick-navigation']
 
 describe('dashboardShortcuts', () => {
-  it('只保留四个有真实路由的常用入口', () => {
+  it('只保留有真实路由的常用入口', () => {
     expect(dashboardShortcuts.map((item) => item.id)).toEqual([
       'ai-chat',
-      'quick-navigation',
       'competitor',
       'my-notes',
     ])
@@ -26,7 +29,7 @@ describe('dashboardShortcuts', () => {
     }
   })
 
-  it('不再包含已下线的占位入口', () => {
+  it('不再包含已下线的入口', () => {
     const ids = dashboardShortcuts.map((item) => item.id)
     for (const retired of retiredIds) {
       expect(ids).not.toContain(retired)
@@ -53,7 +56,6 @@ describe('normalizeShortcutIds', () => {
     expect(normalizeShortcutIds(['competitor', 'unknown', 'ai-chat'])).toEqual([
       'competitor',
       'ai-chat',
-      'quick-navigation',
       'my-notes',
     ])
   })
@@ -61,19 +63,18 @@ describe('normalizeShortcutIds', () => {
   it('丢弃重复 ID，保留首次出现的位置', () => {
     expect(
       normalizeShortcutIds(['my-notes', 'my-notes', 'competitor', 'my-notes'])
-    ).toEqual(['my-notes', 'competitor', 'ai-chat', 'quick-navigation'])
+    ).toEqual(['my-notes', 'competitor', 'ai-chat'])
   })
 
   it('保留仍然有效的 ID 原有顺序，并把缺失入口按默认顺序追加', () => {
     expect(normalizeShortcutIds(['my-notes', 'ai-chat'])).toEqual([
       'my-notes',
       'ai-chat',
-      'quick-navigation',
       'competitor',
     ])
   })
 
-  it('兼容历史偏好：旧的占位 ID 不会让首页只剩一个入口', () => {
+  it('兼容历史偏好：已下线的入口 ID 不会让首页只剩一个入口', () => {
     const normalized = normalizeShortcutIds([
       'competitor',
       'project',
@@ -81,16 +82,17 @@ describe('normalizeShortcutIds', () => {
       'reviews',
     ])
 
-    expect(normalized).toEqual([
-      'competitor',
-      'ai-chat',
-      'quick-navigation',
-      'my-notes',
-    ])
-    expect(normalized).toHaveLength(4)
+    expect(normalized).toEqual(['competitor', 'ai-chat', 'my-notes'])
+    expect(normalized).toHaveLength(3)
   })
 
-  it('结果恒为四个有效入口，且顺序稳定可复现', () => {
+  it('兼容刚下线的快捷导航：保存过该 ID 的用户自动退回有效入口', () => {
+    expect(
+      normalizeShortcutIds(['quick-navigation', 'my-notes', 'ai-chat'])
+    ).toEqual(['my-notes', 'ai-chat', 'competitor'])
+  })
+
+  it('结果恒为全部有效入口，且顺序稳定可复现', () => {
     const inputs = [
       [],
       ['competitor'],
@@ -101,8 +103,8 @@ describe('normalizeShortcutIds', () => {
 
     for (const input of inputs) {
       const first = normalizeShortcutIds(input)
-      expect(first).toHaveLength(4)
-      expect(new Set(first).size).toBe(4)
+      expect(first).toHaveLength(3)
+      expect(new Set(first).size).toBe(3)
       expect(first).toEqual(normalizeShortcutIds(input))
       // 归一化是幂等的：已是有效顺序的输入不应被再次打乱。
       expect(normalizeShortcutIds(first)).toEqual(first)
@@ -116,7 +118,6 @@ describe('orderShortcuts', () => {
       'my-notes',
       'competitor',
       'ai-chat',
-      'quick-navigation',
     ])
   })
 

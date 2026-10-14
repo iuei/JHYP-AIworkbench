@@ -24,6 +24,7 @@ import {
   enforcePermissionWording,
   ensureFreshnessDeclaration,
   toolFailureAnswer,
+  toolRejectionOutcome,
   wrapReferenceData,
 } from './prompt.mjs'
 import {
@@ -183,9 +184,11 @@ export async function runChat(
   }
 
   // ── 步骤 4：组装上下文；★ 工具注册裁剪（层①）
-  const registeredTools = await deps.loadRegisteredTools(user)
+  // 同一轮问答复用已启用工具列表，避免 loadRegisteredTools 再次查询 ai_tools。
+  const enabledTools = await deps.loadEnabledTools()
+  const registeredTools = await deps.loadRegisteredTools(user, enabledTools)
   // 全量工具名用于识别"模型点名了用户无权使用的工具"（权限探测防护）
-  const allToolNames = (await deps.loadEnabledTools()).map((tool) => tool.name)
+  const allToolNames = enabledTools.map((tool) => tool.name)
   const openAiTools = toolDefinitionsToOpenAi(registeredTools)
   // 当前日期 + 数据覆盖范围必须进提示词：否则模型无法把"上个月"这类相对时间换算成区间
   const datasetCoverage = await deps.loadDatasetCoverage()
@@ -195,8 +198,20 @@ export async function runChat(
   })
   const baseMessages = buildMessages({ systemPrompt, history, question })
 
+  /*
+   * 第二条 `meta`（工具裁剪结果）。
+   *
+   * **必须带上 `conversationId`**：前端把 meta 当作"会话上下文"事件来合并，一条缺少
+   * 会话字段的 meta 会让它把已经记下的会话/用户消息 id 覆盖掉 —— 2026-09-22 实测的
+   * "发送一条消息展示出两条"就是这个（第二条 meta 只带 registeredTools，
+   * 前端把 `userMessageId` 覆盖成 undefined，乐观气泡与落库气泡同时渲染）。
+   * 前端现在也做了"字段缺失不覆盖"（`applyMetaPatch`），这里补上字段是第二道保险。
+   */
   emit(EVENT.meta, {
-    data: { registeredTools: registeredTools.map((tool) => tool.name) },
+    data: {
+      conversationId: conversation.id,
+      registeredTools: registeredTools.map((tool) => tool.name),
+    },
   })
 
   const toolRuns = []
@@ -207,6 +222,15 @@ export async function runChat(
   let status = CHAT_STATUS.ok
   let injectionSignals = []
   let blockedTool = null
+  /**
+   * 被拦截的**细分原因**，下发给前端并落库（2026-09-17 新增）。
+   *
+   * 三类原因此前共用一句"当前账号无权查询该数据"，用户无法分辨：
+   * - `tool_unavailable`：工具没实现（后端没重启 / 契约播了库没上线）—— **与权限无关**；
+   * - `forbidden`：确实没权限（账号停用 / 需要管理员）；
+   * - `wording:*`：模型自己描述了工具范围或拒绝了回答，被权限护栏替换成统一文案 —— 也不是权限问题。
+   */
+  let blockReason = null
   let failedTool = null
   let tokensIn = 0
   let tokensOut = 0
@@ -303,6 +327,12 @@ export async function runChat(
         status: result.status,
         summary: result.summary ?? '',
         error: result.error ?? null,
+        /*
+         * 细分的拒绝原因（`forbidden` / `not_implemented` / `not_registered` / `invalid_params` …）。
+         * 下面的拦截分支按它决定给"无权"还是"工具不可用"文案 —— 只靠 error 文案匹配太脆
+         * （改一个字就静默失效）。
+         */
+        reason: result.reason ?? null,
         rowCount: result.rowCount ?? 0,
         latencyMs: result.latencyMs ?? null,
       }
@@ -351,7 +381,11 @@ export async function runChat(
       citations = dedupeCitations([...citations, ...(result.citations ?? [])])
       if (result.dataFreshness) freshnessList.push(result.dataFreshness)
       if (Array.isArray(result.blocks) && result.blocks.length > 0) {
-        answerBlocks.push(...result.blocks)
+        for (const block of result.blocks) {
+          if (!answerBlocks.some((existing) => sameAnswerBlock(existing, block))) {
+            answerBlocks.push(block)
+          }
+        }
       }
       roundResults.push({
         toolName,
@@ -428,9 +462,20 @@ export async function runChat(
   // ── 失败路径：拦截优先，其次工具失败；都不编造数据
   if (blockedTool) {
     status = CHAT_STATUS.blocked
-    answer = BLOCKED_ANSWER
+    /*
+     * 按**真实原因**给文案（2026-09-17 修 not_implemented；2026-09-18 补 invalid_params）：
+     * `not_implemented` 是"工具没上线"、`invalid_params` 是"参数不完整/不合法"，两者都与权限无关，
+     * 只有 `forbidden` / `not_registered` 才是权限口径。用户报障「发送我的 asin 列表时提示权限不足」
+     * 就是参数问题（缺统计区间）被错误归到权限口径造成的 —— 分层逻辑在 `toolRejectionOutcome()`。
+     */
+    const rejectionRun = toolRuns.find(
+      (run) => run.toolName === blockedTool.toolName && run.status === 'blocked'
+    )
+    const outcome = toolRejectionOutcome(rejectionRun?.reason)
+    blockReason = outcome.blockReason
+    answer = outcome.answer
     // 前端可能已经收到模型的半成品文本，先让它清空再显示统一文案
-    emit(EVENT.reset, { data: { reason: 'blocked' } })
+    emit(EVENT.reset, { data: { reason: blockReason } })
     streamDelta(answer)
   } else if (failedTool) {
     status = CHAT_STATUS.error
@@ -462,10 +507,16 @@ export async function runChat(
     })
     if (wording.replaced || wording.canonical) {
       status = CHAT_STATUS.blocked
+      /*
+       * 措辞护栏的拦截**不是权限问题**：模型自己描述了工具/权限范围或直接拒绝回答，
+       * 才被替换成统一文案。答案正文必须保持统一（需求 §5.1），但细分原因要透出去，
+       * 否则用户会以为是自己没权限（2026-09-17 实测踩到）。
+       */
+      blockReason = `wording:${wording.reason ?? 'unknown'}`
       if (wording.replaced) {
         // 模型用自己的话描述工具/权限范围或直接拒绝：统一替换为固定文案
         answer = wording.answer
-        emit(EVENT.reset, { data: { reason: 'permission_wording' } })
+        emit(EVENT.reset, { data: { reason: blockReason } })
         streamDelta(answer)
       }
       // 无论文案是否被替换，越权请求都必须写「被拦截」审计（需求文档 §3.2）
@@ -517,6 +568,10 @@ export async function runChat(
     })
   }
 
+  // 引用收敛：一份回答只保留**最准确的一篇**文档依据（数据集引用不收敛，见函数注释）。
+  // 放在这里而不是累计处：累计阶段仍按「文档-切片」去重，跨轮比较得分由本步统一裁决。
+  citations = selectTopDocumentCitations(citations)
+
   const latencyMs = Date.now() - startedAt
 
   // ── 步骤 10：[审计④] 回答全文 + 引用 + 耗时 + token + 终态
@@ -533,6 +588,8 @@ export async function runChat(
     citations,
     // 被拦截 / 失败的回答不带数据块，避免展示与结论不符的表格
     blocks: status === CHAT_STATUS.ok ? answerBlocks : [],
+    // 拦截的细分原因（tool_unavailable / forbidden / wording:*），历史回看时也能分辨
+    blockReason,
   })
 
   const dataFreshness = dedupeFreshness(freshnessList)
@@ -550,6 +607,8 @@ export async function runChat(
     tokensOut,
     dataFreshness,
     blocked: status === CHAT_STATUS.blocked,
+    /** 拦截的细分原因（前端据此给不同提示，见 `chat-workbench.tsx`）。 */
+    blockReason,
   }
   emit(EVENT.status, { data: { step: 'answer', state: 'done', label: '✓ 已完成' } })
   emit(EVENT.done, { data: payload })
@@ -632,6 +691,15 @@ export function dedupeFreshness(list) {
   return [...seen.values()]
 }
 
+/** 多轮工具调用可能返回同一个结构化块；只去掉完全相同的块，避免误合并不同周期结果。 */
+export function sameAnswerBlock(left, right) {
+  try {
+    return JSON.stringify(left) === JSON.stringify(right)
+  } catch {
+    return false
+  }
+}
+
 /**
  * 合并多轮工具调用产生的引用，按「文档 + 切片」/「数据集 + 周期」去重。
  *
@@ -656,4 +724,42 @@ export function dedupeCitations(list) {
     result.push(item)
   }
   return result
+}
+
+/** 判定引用是否为业务数据集（数据来源声明），而非知识文档。 */
+function isDatasetCitation(item) {
+  return Boolean(item) && (item.kind === 'dataset' || Boolean(item.dataset))
+}
+
+/** 引用排序依据：片段得分缺失时退化为「首次出现优先」（-1 不会被后面的条目顶掉）。 */
+function citationScore(item) {
+  const value = Number(item?.score)
+  return Number.isFinite(value) ? value : -1
+}
+
+/**
+ * 引用收敛：一份回答只保留**最准确的一篇**文档依据。
+ *
+ * 为什么在出口层做、而不是把检索条数调成 1：检索片段同时要喂给模型（`wrapReferenceData`），
+ * 「某流程分几步」这类问题往往需要多个片段拼合才能答全；把上下文砍到 1 篇会直接损害答案完整性。
+ * 所以只收敛**依据清单**——模型看到的片段数不变（管理员在「模型与配置」配的检索条数照旧生效），
+ * 而落库 citations、SSE 返回、右栏「本次回答的依据」、纠错反馈列表统一只展示一篇文档。
+ *
+ * 挑选规则：得分 = 覆盖率与命中数主导、trgm 相似度次之（排序见 `knowledge.mjs` 的关键词检索），
+ * 由 `tools.search_knowledge` 透传到 `citation.score`。同一篇文档的多个命中切片只有最高分那条能进来；
+ * 多轮工具调用之间同样按得分取最高（得分缺失时保留首次出现的那条）。
+ *
+ * **数据集引用不参与收敛**：它是业务数据的来源与时效声明（需求文档 §5.1，验收要求声明率 100%），
+ * 一次问答常同时用到广告、库存、订单多张报表，砍掉任一条都会让声明失真。
+ * 返回顺序保持原引用顺序，被保留项仍在原位。
+ */
+export function selectTopDocumentCitations(list) {
+  const items = (Array.isArray(list) ? list : []).filter((item) => item && typeof item === 'object')
+  const documents = items.filter((item) => !isDatasetCitation(item))
+  if (documents.length <= 1) return items
+  let best = documents[0]
+  for (const item of documents) {
+    if (citationScore(item) > citationScore(best)) best = item
+  }
+  return items.filter((item) => isDatasetCitation(item) || item === best)
 }

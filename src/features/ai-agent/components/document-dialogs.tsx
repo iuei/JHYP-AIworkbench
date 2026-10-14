@@ -71,17 +71,26 @@ export function DocumentExpiryDialog({
   )
 }
 
-/** 文档切片预览（管理员核对引用来源）。 */
+/**
+ * 文档切片预览。
+ *
+ * 两处共用同一个弹窗：管理员在治理页核对引用来源（`scope='admin'`），
+ * 员工在「知识库 → 团队知识库」查看正文（`scope='public'`，只读且由服务端校验文档生效中）。
+ * UI 完全一致，只有取数接口不同 —— 复制一份出来必然会出现"一处改了另一处没改"。
+ */
 export function DocumentChunksDialog({
   documentId,
   title,
+  scope = 'admin',
   onOpenChange,
 }: {
   documentId: number | null
   title: string
+  /** 员工面传 `'public'`：打只读接口，已下线的文档会返回 404 */
+  scope?: 'admin' | 'public'
   onOpenChange: (open: boolean) => void
 }) {
-  const chunks = useDocumentChunks(documentId)
+  const chunks = useDocumentChunks(documentId, scope)
 
   return (
     <Dialog open={documentId !== null} onOpenChange={onOpenChange}>

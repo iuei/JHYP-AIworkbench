@@ -11,32 +11,51 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
-import { Route as AuthenticatedCompetitorAnalysisRouteImport } from './routes/_authenticated/competitor-analysis'
 import { Route as errors503RouteImport } from './routes/(errors)/503'
 import { Route as errors500RouteImport } from './routes/(errors)/500'
 import { Route as errors404RouteImport } from './routes/(errors)/404'
 import { Route as errors403RouteImport } from './routes/(errors)/403'
 import { Route as errors401RouteImport } from './routes/(errors)/401'
+import { Route as authSignUpRouteImport } from './routes/(auth)/sign-up'
 import { Route as authSignInRouteImport } from './routes/(auth)/sign-in'
 import { Route as authOtpRouteImport } from './routes/(auth)/otp'
 import { Route as authForgotPasswordRouteImport } from './routes/(auth)/forgot-password'
 import { Route as AuthenticatedSettingsRouteRouteImport } from './routes/_authenticated/settings/route'
+import { Route as AuthenticatedPromptsRouteRouteImport } from './routes/_authenticated/prompts/route'
+import { Route as AuthenticatedProductDevRouteRouteImport } from './routes/_authenticated/product-dev/route'
+import { Route as AuthenticatedMarketInsightsRouteRouteImport } from './routes/_authenticated/market-insights/route'
+import { Route as AuthenticatedKnowledgeRouteRouteImport } from './routes/_authenticated/knowledge/route'
+import { Route as AuthenticatedCompetitorAnalysisRouteRouteImport } from './routes/_authenticated/competitor-analysis/route'
+import { Route as AuthenticatedAsinWatchlistsRouteRouteImport } from './routes/_authenticated/asin-watchlists/route'
 import { Route as AuthenticatedAiAgentRouteRouteImport } from './routes/_authenticated/ai-agent/route'
 import { Route as AuthenticatedAdminRouteRouteImport } from './routes/_authenticated/admin/route'
 import { Route as AuthenticatedSettingsIndexRouteImport } from './routes/_authenticated/settings/index'
-import { Route as AuthenticatedQuickNavigationIndexRouteImport } from './routes/_authenticated/quick-navigation/index'
+import { Route as AuthenticatedPromptsIndexRouteImport } from './routes/_authenticated/prompts/index'
+import { Route as AuthenticatedProductDevIndexRouteImport } from './routes/_authenticated/product-dev/index'
+import { Route as AuthenticatedMarketInsightsIndexRouteImport } from './routes/_authenticated/market-insights/index'
+import { Route as AuthenticatedKnowledgeIndexRouteImport } from './routes/_authenticated/knowledge/index'
+import { Route as AuthenticatedCompetitorAnalysisIndexRouteImport } from './routes/_authenticated/competitor-analysis/index'
+import { Route as AuthenticatedAsinWatchlistsIndexRouteImport } from './routes/_authenticated/asin-watchlists/index'
 import { Route as AuthenticatedAiAgentIndexRouteImport } from './routes/_authenticated/ai-agent/index'
 import { Route as AuthenticatedSettingsUsersRouteImport } from './routes/_authenticated/settings/users'
-import { Route as AuthenticatedSettingsNotificationsRouteImport } from './routes/_authenticated/settings/notifications'
-import { Route as AuthenticatedSettingsDisplayRouteImport } from './routes/_authenticated/settings/display'
-import { Route as AuthenticatedSettingsAppearanceRouteImport } from './routes/_authenticated/settings/appearance'
+import { Route as AuthenticatedSettingsAnnouncementsRouteImport } from './routes/_authenticated/settings/announcements'
 import { Route as AuthenticatedSettingsAccountRouteImport } from './routes/_authenticated/settings/account'
-import { Route as AuthenticatedQuickNavigationManageRouteImport } from './routes/_authenticated/quick-navigation/manage'
+import { Route as AuthenticatedProductDevMarketRouteImport } from './routes/_authenticated/product-dev/market'
+import { Route as AuthenticatedProductDevCompareRouteImport } from './routes/_authenticated/product-dev/compare'
+import { Route as AuthenticatedMarketInsightsReportsRouteImport } from './routes/_authenticated/market-insights/reports'
+import { Route as AuthenticatedCompetitorAnalysisResultsRouteImport } from './routes/_authenticated/competitor-analysis/results'
+import { Route as AuthenticatedCompetitorAnalysisDetailsRouteImport } from './routes/_authenticated/competitor-analysis/details'
+import { Route as AuthenticatedCompetitorAnalysisAsinRouteImport } from './routes/_authenticated/competitor-analysis/$asin'
+import { Route as AuthenticatedAsinWatchlistsItemsRouteImport } from './routes/_authenticated/asin-watchlists/items'
+import { Route as AuthenticatedAiAgentPromptsRouteImport } from './routes/_authenticated/ai-agent/prompts'
 import { Route as AuthenticatedAiAgentNotesRouteImport } from './routes/_authenticated/ai-agent/notes'
 import { Route as AuthenticatedAiAgentKnowledgeRouteImport } from './routes/_authenticated/ai-agent/knowledge'
 import { Route as AuthenticatedAiAgentDistillRouteImport } from './routes/_authenticated/ai-agent/distill'
 import { Route as AuthenticatedAiAgentDatasourcesRouteImport } from './routes/_authenticated/ai-agent/datasources'
 import { Route as AuthenticatedAiAgentAuditRouteImport } from './routes/_authenticated/ai-agent/audit'
+import { Route as AuthenticatedAiAgentAsinWatchlistsRouteImport } from './routes/_authenticated/ai-agent/asin-watchlists'
+import { Route as AuthenticatedAdminUsersRouteImport } from './routes/_authenticated/admin/users'
+import { Route as AuthenticatedAdminAnnouncementsRouteImport } from './routes/_authenticated/admin/announcements'
 import { Route as AuthenticatedAdminAiRouteRouteImport } from './routes/_authenticated/admin/ai/route'
 import { Route as AuthenticatedAdminAiIndexRouteImport } from './routes/_authenticated/admin/ai/index'
 import { Route as AuthenticatedAdminAiSettingsRouteImport } from './routes/_authenticated/admin/ai/settings'
@@ -54,12 +73,6 @@ const AuthenticatedIndexRoute = AuthenticatedIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const AuthenticatedCompetitorAnalysisRoute =
-  AuthenticatedCompetitorAnalysisRouteImport.update({
-    id: '/competitor-analysis',
-    path: '/competitor-analysis',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
 const errors503Route = errors503RouteImport.update({
   id: '/(errors)/503',
   path: '/503',
@@ -85,6 +98,11 @@ const errors401Route = errors401RouteImport.update({
   path: '/401',
   getParentRoute: () => rootRouteImport,
 } as any)
+const authSignUpRoute = authSignUpRouteImport.update({
+  id: '/(auth)/sign-up',
+  path: '/sign-up',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const authSignInRoute = authSignInRouteImport.update({
   id: '/(auth)/sign-in',
   path: '/sign-in',
@@ -106,6 +124,42 @@ const AuthenticatedSettingsRouteRoute =
     path: '/settings',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedPromptsRouteRoute =
+  AuthenticatedPromptsRouteRouteImport.update({
+    id: '/prompts',
+    path: '/prompts',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedProductDevRouteRoute =
+  AuthenticatedProductDevRouteRouteImport.update({
+    id: '/product-dev',
+    path: '/product-dev',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedMarketInsightsRouteRoute =
+  AuthenticatedMarketInsightsRouteRouteImport.update({
+    id: '/market-insights',
+    path: '/market-insights',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedKnowledgeRouteRoute =
+  AuthenticatedKnowledgeRouteRouteImport.update({
+    id: '/knowledge',
+    path: '/knowledge',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedCompetitorAnalysisRouteRoute =
+  AuthenticatedCompetitorAnalysisRouteRouteImport.update({
+    id: '/competitor-analysis',
+    path: '/competitor-analysis',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAsinWatchlistsRouteRoute =
+  AuthenticatedAsinWatchlistsRouteRouteImport.update({
+    id: '/asin-watchlists',
+    path: '/asin-watchlists',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedAiAgentRouteRoute =
   AuthenticatedAiAgentRouteRouteImport.update({
     id: '/ai-agent',
@@ -123,11 +177,41 @@ const AuthenticatedSettingsIndexRoute =
     path: '/',
     getParentRoute: () => AuthenticatedSettingsRouteRoute,
   } as any)
-const AuthenticatedQuickNavigationIndexRoute =
-  AuthenticatedQuickNavigationIndexRouteImport.update({
-    id: '/quick-navigation/',
-    path: '/quick-navigation/',
-    getParentRoute: () => AuthenticatedRouteRoute,
+const AuthenticatedPromptsIndexRoute =
+  AuthenticatedPromptsIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedPromptsRouteRoute,
+  } as any)
+const AuthenticatedProductDevIndexRoute =
+  AuthenticatedProductDevIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedProductDevRouteRoute,
+  } as any)
+const AuthenticatedMarketInsightsIndexRoute =
+  AuthenticatedMarketInsightsIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedMarketInsightsRouteRoute,
+  } as any)
+const AuthenticatedKnowledgeIndexRoute =
+  AuthenticatedKnowledgeIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedKnowledgeRouteRoute,
+  } as any)
+const AuthenticatedCompetitorAnalysisIndexRoute =
+  AuthenticatedCompetitorAnalysisIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedCompetitorAnalysisRouteRoute,
+  } as any)
+const AuthenticatedAsinWatchlistsIndexRoute =
+  AuthenticatedAsinWatchlistsIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedAsinWatchlistsRouteRoute,
   } as any)
 const AuthenticatedAiAgentIndexRoute =
   AuthenticatedAiAgentIndexRouteImport.update({
@@ -141,22 +225,10 @@ const AuthenticatedSettingsUsersRoute =
     path: '/users',
     getParentRoute: () => AuthenticatedSettingsRouteRoute,
   } as any)
-const AuthenticatedSettingsNotificationsRoute =
-  AuthenticatedSettingsNotificationsRouteImport.update({
-    id: '/notifications',
-    path: '/notifications',
-    getParentRoute: () => AuthenticatedSettingsRouteRoute,
-  } as any)
-const AuthenticatedSettingsDisplayRoute =
-  AuthenticatedSettingsDisplayRouteImport.update({
-    id: '/display',
-    path: '/display',
-    getParentRoute: () => AuthenticatedSettingsRouteRoute,
-  } as any)
-const AuthenticatedSettingsAppearanceRoute =
-  AuthenticatedSettingsAppearanceRouteImport.update({
-    id: '/appearance',
-    path: '/appearance',
+const AuthenticatedSettingsAnnouncementsRoute =
+  AuthenticatedSettingsAnnouncementsRouteImport.update({
+    id: '/announcements',
+    path: '/announcements',
     getParentRoute: () => AuthenticatedSettingsRouteRoute,
   } as any)
 const AuthenticatedSettingsAccountRoute =
@@ -165,11 +237,53 @@ const AuthenticatedSettingsAccountRoute =
     path: '/account',
     getParentRoute: () => AuthenticatedSettingsRouteRoute,
   } as any)
-const AuthenticatedQuickNavigationManageRoute =
-  AuthenticatedQuickNavigationManageRouteImport.update({
-    id: '/quick-navigation/manage',
-    path: '/quick-navigation/manage',
-    getParentRoute: () => AuthenticatedRouteRoute,
+const AuthenticatedProductDevMarketRoute =
+  AuthenticatedProductDevMarketRouteImport.update({
+    id: '/market',
+    path: '/market',
+    getParentRoute: () => AuthenticatedProductDevRouteRoute,
+  } as any)
+const AuthenticatedProductDevCompareRoute =
+  AuthenticatedProductDevCompareRouteImport.update({
+    id: '/compare',
+    path: '/compare',
+    getParentRoute: () => AuthenticatedProductDevRouteRoute,
+  } as any)
+const AuthenticatedMarketInsightsReportsRoute =
+  AuthenticatedMarketInsightsReportsRouteImport.update({
+    id: '/reports',
+    path: '/reports',
+    getParentRoute: () => AuthenticatedMarketInsightsRouteRoute,
+  } as any)
+const AuthenticatedCompetitorAnalysisResultsRoute =
+  AuthenticatedCompetitorAnalysisResultsRouteImport.update({
+    id: '/results',
+    path: '/results',
+    getParentRoute: () => AuthenticatedCompetitorAnalysisRouteRoute,
+  } as any)
+const AuthenticatedCompetitorAnalysisDetailsRoute =
+  AuthenticatedCompetitorAnalysisDetailsRouteImport.update({
+    id: '/details',
+    path: '/details',
+    getParentRoute: () => AuthenticatedCompetitorAnalysisRouteRoute,
+  } as any)
+const AuthenticatedCompetitorAnalysisAsinRoute =
+  AuthenticatedCompetitorAnalysisAsinRouteImport.update({
+    id: '/$asin',
+    path: '/$asin',
+    getParentRoute: () => AuthenticatedCompetitorAnalysisRouteRoute,
+  } as any)
+const AuthenticatedAsinWatchlistsItemsRoute =
+  AuthenticatedAsinWatchlistsItemsRouteImport.update({
+    id: '/items',
+    path: '/items',
+    getParentRoute: () => AuthenticatedAsinWatchlistsRouteRoute,
+  } as any)
+const AuthenticatedAiAgentPromptsRoute =
+  AuthenticatedAiAgentPromptsRouteImport.update({
+    id: '/prompts',
+    path: '/prompts',
+    getParentRoute: () => AuthenticatedAiAgentRouteRoute,
   } as any)
 const AuthenticatedAiAgentNotesRoute =
   AuthenticatedAiAgentNotesRouteImport.update({
@@ -200,6 +314,23 @@ const AuthenticatedAiAgentAuditRoute =
     id: '/audit',
     path: '/audit',
     getParentRoute: () => AuthenticatedAiAgentRouteRoute,
+  } as any)
+const AuthenticatedAiAgentAsinWatchlistsRoute =
+  AuthenticatedAiAgentAsinWatchlistsRouteImport.update({
+    id: '/asin-watchlists',
+    path: '/asin-watchlists',
+    getParentRoute: () => AuthenticatedAiAgentRouteRoute,
+  } as any)
+const AuthenticatedAdminUsersRoute = AuthenticatedAdminUsersRouteImport.update({
+  id: '/users',
+  path: '/users',
+  getParentRoute: () => AuthenticatedAdminRouteRoute,
+} as any)
+const AuthenticatedAdminAnnouncementsRoute =
+  AuthenticatedAdminAnnouncementsRouteImport.update({
+    id: '/announcements',
+    path: '/announcements',
+    getParentRoute: () => AuthenticatedAdminRouteRoute,
   } as any)
 const AuthenticatedAdminAiRouteRoute =
   AuthenticatedAdminAiRouteRouteImport.update({
@@ -248,30 +379,49 @@ export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
   '/admin': typeof AuthenticatedAdminRouteRouteWithChildren
   '/ai-agent': typeof AuthenticatedAiAgentRouteRouteWithChildren
+  '/asin-watchlists': typeof AuthenticatedAsinWatchlistsRouteRouteWithChildren
+  '/competitor-analysis': typeof AuthenticatedCompetitorAnalysisRouteRouteWithChildren
+  '/knowledge': typeof AuthenticatedKnowledgeRouteRouteWithChildren
+  '/market-insights': typeof AuthenticatedMarketInsightsRouteRouteWithChildren
+  '/product-dev': typeof AuthenticatedProductDevRouteRouteWithChildren
+  '/prompts': typeof AuthenticatedPromptsRouteRouteWithChildren
   '/settings': typeof AuthenticatedSettingsRouteRouteWithChildren
   '/forgot-password': typeof authForgotPasswordRoute
   '/otp': typeof authOtpRoute
   '/sign-in': typeof authSignInRoute
+  '/sign-up': typeof authSignUpRoute
   '/401': typeof errors401Route
   '/403': typeof errors403Route
   '/404': typeof errors404Route
   '/500': typeof errors500Route
   '/503': typeof errors503Route
-  '/competitor-analysis': typeof AuthenticatedCompetitorAnalysisRoute
   '/admin/ai': typeof AuthenticatedAdminAiRouteRouteWithChildren
+  '/admin/announcements': typeof AuthenticatedAdminAnnouncementsRoute
+  '/admin/users': typeof AuthenticatedAdminUsersRoute
+  '/ai-agent/asin-watchlists': typeof AuthenticatedAiAgentAsinWatchlistsRoute
   '/ai-agent/audit': typeof AuthenticatedAiAgentAuditRoute
   '/ai-agent/datasources': typeof AuthenticatedAiAgentDatasourcesRoute
   '/ai-agent/distill': typeof AuthenticatedAiAgentDistillRoute
   '/ai-agent/knowledge': typeof AuthenticatedAiAgentKnowledgeRoute
   '/ai-agent/notes': typeof AuthenticatedAiAgentNotesRoute
-  '/quick-navigation/manage': typeof AuthenticatedQuickNavigationManageRoute
+  '/ai-agent/prompts': typeof AuthenticatedAiAgentPromptsRoute
+  '/asin-watchlists/items': typeof AuthenticatedAsinWatchlistsItemsRoute
+  '/competitor-analysis/$asin': typeof AuthenticatedCompetitorAnalysisAsinRoute
+  '/competitor-analysis/details': typeof AuthenticatedCompetitorAnalysisDetailsRoute
+  '/competitor-analysis/results': typeof AuthenticatedCompetitorAnalysisResultsRoute
+  '/market-insights/reports': typeof AuthenticatedMarketInsightsReportsRoute
+  '/product-dev/compare': typeof AuthenticatedProductDevCompareRoute
+  '/product-dev/market': typeof AuthenticatedProductDevMarketRoute
   '/settings/account': typeof AuthenticatedSettingsAccountRoute
-  '/settings/appearance': typeof AuthenticatedSettingsAppearanceRoute
-  '/settings/display': typeof AuthenticatedSettingsDisplayRoute
-  '/settings/notifications': typeof AuthenticatedSettingsNotificationsRoute
+  '/settings/announcements': typeof AuthenticatedSettingsAnnouncementsRoute
   '/settings/users': typeof AuthenticatedSettingsUsersRoute
   '/ai-agent/': typeof AuthenticatedAiAgentIndexRoute
-  '/quick-navigation/': typeof AuthenticatedQuickNavigationIndexRoute
+  '/asin-watchlists/': typeof AuthenticatedAsinWatchlistsIndexRoute
+  '/competitor-analysis/': typeof AuthenticatedCompetitorAnalysisIndexRoute
+  '/knowledge/': typeof AuthenticatedKnowledgeIndexRoute
+  '/market-insights/': typeof AuthenticatedMarketInsightsIndexRoute
+  '/product-dev/': typeof AuthenticatedProductDevIndexRoute
+  '/prompts/': typeof AuthenticatedPromptsIndexRoute
   '/settings/': typeof AuthenticatedSettingsIndexRoute
   '/admin/ai/audit': typeof AuthenticatedAdminAiAuditRoute
   '/admin/ai/datasources': typeof AuthenticatedAdminAiDatasourcesRoute
@@ -285,26 +435,39 @@ export interface FileRoutesByTo {
   '/forgot-password': typeof authForgotPasswordRoute
   '/otp': typeof authOtpRoute
   '/sign-in': typeof authSignInRoute
+  '/sign-up': typeof authSignUpRoute
   '/401': typeof errors401Route
   '/403': typeof errors403Route
   '/404': typeof errors404Route
   '/500': typeof errors500Route
   '/503': typeof errors503Route
-  '/competitor-analysis': typeof AuthenticatedCompetitorAnalysisRoute
   '/': typeof AuthenticatedIndexRoute
+  '/admin/announcements': typeof AuthenticatedAdminAnnouncementsRoute
+  '/admin/users': typeof AuthenticatedAdminUsersRoute
+  '/ai-agent/asin-watchlists': typeof AuthenticatedAiAgentAsinWatchlistsRoute
   '/ai-agent/audit': typeof AuthenticatedAiAgentAuditRoute
   '/ai-agent/datasources': typeof AuthenticatedAiAgentDatasourcesRoute
   '/ai-agent/distill': typeof AuthenticatedAiAgentDistillRoute
   '/ai-agent/knowledge': typeof AuthenticatedAiAgentKnowledgeRoute
   '/ai-agent/notes': typeof AuthenticatedAiAgentNotesRoute
-  '/quick-navigation/manage': typeof AuthenticatedQuickNavigationManageRoute
+  '/ai-agent/prompts': typeof AuthenticatedAiAgentPromptsRoute
+  '/asin-watchlists/items': typeof AuthenticatedAsinWatchlistsItemsRoute
+  '/competitor-analysis/$asin': typeof AuthenticatedCompetitorAnalysisAsinRoute
+  '/competitor-analysis/details': typeof AuthenticatedCompetitorAnalysisDetailsRoute
+  '/competitor-analysis/results': typeof AuthenticatedCompetitorAnalysisResultsRoute
+  '/market-insights/reports': typeof AuthenticatedMarketInsightsReportsRoute
+  '/product-dev/compare': typeof AuthenticatedProductDevCompareRoute
+  '/product-dev/market': typeof AuthenticatedProductDevMarketRoute
   '/settings/account': typeof AuthenticatedSettingsAccountRoute
-  '/settings/appearance': typeof AuthenticatedSettingsAppearanceRoute
-  '/settings/display': typeof AuthenticatedSettingsDisplayRoute
-  '/settings/notifications': typeof AuthenticatedSettingsNotificationsRoute
+  '/settings/announcements': typeof AuthenticatedSettingsAnnouncementsRoute
   '/settings/users': typeof AuthenticatedSettingsUsersRoute
   '/ai-agent': typeof AuthenticatedAiAgentIndexRoute
-  '/quick-navigation': typeof AuthenticatedQuickNavigationIndexRoute
+  '/asin-watchlists': typeof AuthenticatedAsinWatchlistsIndexRoute
+  '/competitor-analysis': typeof AuthenticatedCompetitorAnalysisIndexRoute
+  '/knowledge': typeof AuthenticatedKnowledgeIndexRoute
+  '/market-insights': typeof AuthenticatedMarketInsightsIndexRoute
+  '/product-dev': typeof AuthenticatedProductDevIndexRoute
+  '/prompts': typeof AuthenticatedPromptsIndexRoute
   '/settings': typeof AuthenticatedSettingsIndexRoute
   '/admin/ai/audit': typeof AuthenticatedAdminAiAuditRoute
   '/admin/ai/datasources': typeof AuthenticatedAdminAiDatasourcesRoute
@@ -318,31 +481,50 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/_authenticated/admin': typeof AuthenticatedAdminRouteRouteWithChildren
   '/_authenticated/ai-agent': typeof AuthenticatedAiAgentRouteRouteWithChildren
+  '/_authenticated/asin-watchlists': typeof AuthenticatedAsinWatchlistsRouteRouteWithChildren
+  '/_authenticated/competitor-analysis': typeof AuthenticatedCompetitorAnalysisRouteRouteWithChildren
+  '/_authenticated/knowledge': typeof AuthenticatedKnowledgeRouteRouteWithChildren
+  '/_authenticated/market-insights': typeof AuthenticatedMarketInsightsRouteRouteWithChildren
+  '/_authenticated/product-dev': typeof AuthenticatedProductDevRouteRouteWithChildren
+  '/_authenticated/prompts': typeof AuthenticatedPromptsRouteRouteWithChildren
   '/_authenticated/settings': typeof AuthenticatedSettingsRouteRouteWithChildren
   '/(auth)/forgot-password': typeof authForgotPasswordRoute
   '/(auth)/otp': typeof authOtpRoute
   '/(auth)/sign-in': typeof authSignInRoute
+  '/(auth)/sign-up': typeof authSignUpRoute
   '/(errors)/401': typeof errors401Route
   '/(errors)/403': typeof errors403Route
   '/(errors)/404': typeof errors404Route
   '/(errors)/500': typeof errors500Route
   '/(errors)/503': typeof errors503Route
-  '/_authenticated/competitor-analysis': typeof AuthenticatedCompetitorAnalysisRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/_authenticated/admin/ai': typeof AuthenticatedAdminAiRouteRouteWithChildren
+  '/_authenticated/admin/announcements': typeof AuthenticatedAdminAnnouncementsRoute
+  '/_authenticated/admin/users': typeof AuthenticatedAdminUsersRoute
+  '/_authenticated/ai-agent/asin-watchlists': typeof AuthenticatedAiAgentAsinWatchlistsRoute
   '/_authenticated/ai-agent/audit': typeof AuthenticatedAiAgentAuditRoute
   '/_authenticated/ai-agent/datasources': typeof AuthenticatedAiAgentDatasourcesRoute
   '/_authenticated/ai-agent/distill': typeof AuthenticatedAiAgentDistillRoute
   '/_authenticated/ai-agent/knowledge': typeof AuthenticatedAiAgentKnowledgeRoute
   '/_authenticated/ai-agent/notes': typeof AuthenticatedAiAgentNotesRoute
-  '/_authenticated/quick-navigation/manage': typeof AuthenticatedQuickNavigationManageRoute
+  '/_authenticated/ai-agent/prompts': typeof AuthenticatedAiAgentPromptsRoute
+  '/_authenticated/asin-watchlists/items': typeof AuthenticatedAsinWatchlistsItemsRoute
+  '/_authenticated/competitor-analysis/$asin': typeof AuthenticatedCompetitorAnalysisAsinRoute
+  '/_authenticated/competitor-analysis/details': typeof AuthenticatedCompetitorAnalysisDetailsRoute
+  '/_authenticated/competitor-analysis/results': typeof AuthenticatedCompetitorAnalysisResultsRoute
+  '/_authenticated/market-insights/reports': typeof AuthenticatedMarketInsightsReportsRoute
+  '/_authenticated/product-dev/compare': typeof AuthenticatedProductDevCompareRoute
+  '/_authenticated/product-dev/market': typeof AuthenticatedProductDevMarketRoute
   '/_authenticated/settings/account': typeof AuthenticatedSettingsAccountRoute
-  '/_authenticated/settings/appearance': typeof AuthenticatedSettingsAppearanceRoute
-  '/_authenticated/settings/display': typeof AuthenticatedSettingsDisplayRoute
-  '/_authenticated/settings/notifications': typeof AuthenticatedSettingsNotificationsRoute
+  '/_authenticated/settings/announcements': typeof AuthenticatedSettingsAnnouncementsRoute
   '/_authenticated/settings/users': typeof AuthenticatedSettingsUsersRoute
   '/_authenticated/ai-agent/': typeof AuthenticatedAiAgentIndexRoute
-  '/_authenticated/quick-navigation/': typeof AuthenticatedQuickNavigationIndexRoute
+  '/_authenticated/asin-watchlists/': typeof AuthenticatedAsinWatchlistsIndexRoute
+  '/_authenticated/competitor-analysis/': typeof AuthenticatedCompetitorAnalysisIndexRoute
+  '/_authenticated/knowledge/': typeof AuthenticatedKnowledgeIndexRoute
+  '/_authenticated/market-insights/': typeof AuthenticatedMarketInsightsIndexRoute
+  '/_authenticated/product-dev/': typeof AuthenticatedProductDevIndexRoute
+  '/_authenticated/prompts/': typeof AuthenticatedPromptsIndexRoute
   '/_authenticated/settings/': typeof AuthenticatedSettingsIndexRoute
   '/_authenticated/admin/ai/audit': typeof AuthenticatedAdminAiAuditRoute
   '/_authenticated/admin/ai/datasources': typeof AuthenticatedAdminAiDatasourcesRoute
@@ -357,30 +539,49 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/ai-agent'
+    | '/asin-watchlists'
+    | '/competitor-analysis'
+    | '/knowledge'
+    | '/market-insights'
+    | '/product-dev'
+    | '/prompts'
     | '/settings'
     | '/forgot-password'
     | '/otp'
     | '/sign-in'
+    | '/sign-up'
     | '/401'
     | '/403'
     | '/404'
     | '/500'
     | '/503'
-    | '/competitor-analysis'
     | '/admin/ai'
+    | '/admin/announcements'
+    | '/admin/users'
+    | '/ai-agent/asin-watchlists'
     | '/ai-agent/audit'
     | '/ai-agent/datasources'
     | '/ai-agent/distill'
     | '/ai-agent/knowledge'
     | '/ai-agent/notes'
-    | '/quick-navigation/manage'
+    | '/ai-agent/prompts'
+    | '/asin-watchlists/items'
+    | '/competitor-analysis/$asin'
+    | '/competitor-analysis/details'
+    | '/competitor-analysis/results'
+    | '/market-insights/reports'
+    | '/product-dev/compare'
+    | '/product-dev/market'
     | '/settings/account'
-    | '/settings/appearance'
-    | '/settings/display'
-    | '/settings/notifications'
+    | '/settings/announcements'
     | '/settings/users'
     | '/ai-agent/'
-    | '/quick-navigation/'
+    | '/asin-watchlists/'
+    | '/competitor-analysis/'
+    | '/knowledge/'
+    | '/market-insights/'
+    | '/product-dev/'
+    | '/prompts/'
     | '/settings/'
     | '/admin/ai/audit'
     | '/admin/ai/datasources'
@@ -394,26 +595,39 @@ export interface FileRouteTypes {
     | '/forgot-password'
     | '/otp'
     | '/sign-in'
+    | '/sign-up'
     | '/401'
     | '/403'
     | '/404'
     | '/500'
     | '/503'
-    | '/competitor-analysis'
     | '/'
+    | '/admin/announcements'
+    | '/admin/users'
+    | '/ai-agent/asin-watchlists'
     | '/ai-agent/audit'
     | '/ai-agent/datasources'
     | '/ai-agent/distill'
     | '/ai-agent/knowledge'
     | '/ai-agent/notes'
-    | '/quick-navigation/manage'
+    | '/ai-agent/prompts'
+    | '/asin-watchlists/items'
+    | '/competitor-analysis/$asin'
+    | '/competitor-analysis/details'
+    | '/competitor-analysis/results'
+    | '/market-insights/reports'
+    | '/product-dev/compare'
+    | '/product-dev/market'
     | '/settings/account'
-    | '/settings/appearance'
-    | '/settings/display'
-    | '/settings/notifications'
+    | '/settings/announcements'
     | '/settings/users'
     | '/ai-agent'
-    | '/quick-navigation'
+    | '/asin-watchlists'
+    | '/competitor-analysis'
+    | '/knowledge'
+    | '/market-insights'
+    | '/product-dev'
+    | '/prompts'
     | '/settings'
     | '/admin/ai/audit'
     | '/admin/ai/datasources'
@@ -426,31 +640,50 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/_authenticated/admin'
     | '/_authenticated/ai-agent'
+    | '/_authenticated/asin-watchlists'
+    | '/_authenticated/competitor-analysis'
+    | '/_authenticated/knowledge'
+    | '/_authenticated/market-insights'
+    | '/_authenticated/product-dev'
+    | '/_authenticated/prompts'
     | '/_authenticated/settings'
     | '/(auth)/forgot-password'
     | '/(auth)/otp'
     | '/(auth)/sign-in'
+    | '/(auth)/sign-up'
     | '/(errors)/401'
     | '/(errors)/403'
     | '/(errors)/404'
     | '/(errors)/500'
     | '/(errors)/503'
-    | '/_authenticated/competitor-analysis'
     | '/_authenticated/'
     | '/_authenticated/admin/ai'
+    | '/_authenticated/admin/announcements'
+    | '/_authenticated/admin/users'
+    | '/_authenticated/ai-agent/asin-watchlists'
     | '/_authenticated/ai-agent/audit'
     | '/_authenticated/ai-agent/datasources'
     | '/_authenticated/ai-agent/distill'
     | '/_authenticated/ai-agent/knowledge'
     | '/_authenticated/ai-agent/notes'
-    | '/_authenticated/quick-navigation/manage'
+    | '/_authenticated/ai-agent/prompts'
+    | '/_authenticated/asin-watchlists/items'
+    | '/_authenticated/competitor-analysis/$asin'
+    | '/_authenticated/competitor-analysis/details'
+    | '/_authenticated/competitor-analysis/results'
+    | '/_authenticated/market-insights/reports'
+    | '/_authenticated/product-dev/compare'
+    | '/_authenticated/product-dev/market'
     | '/_authenticated/settings/account'
-    | '/_authenticated/settings/appearance'
-    | '/_authenticated/settings/display'
-    | '/_authenticated/settings/notifications'
+    | '/_authenticated/settings/announcements'
     | '/_authenticated/settings/users'
     | '/_authenticated/ai-agent/'
-    | '/_authenticated/quick-navigation/'
+    | '/_authenticated/asin-watchlists/'
+    | '/_authenticated/competitor-analysis/'
+    | '/_authenticated/knowledge/'
+    | '/_authenticated/market-insights/'
+    | '/_authenticated/product-dev/'
+    | '/_authenticated/prompts/'
     | '/_authenticated/settings/'
     | '/_authenticated/admin/ai/audit'
     | '/_authenticated/admin/ai/datasources'
@@ -465,6 +698,7 @@ export interface RootRouteChildren {
   authForgotPasswordRoute: typeof authForgotPasswordRoute
   authOtpRoute: typeof authOtpRoute
   authSignInRoute: typeof authSignInRoute
+  authSignUpRoute: typeof authSignUpRoute
   errors401Route: typeof errors401Route
   errors403Route: typeof errors403Route
   errors404Route: typeof errors404Route
@@ -486,13 +720,6 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof AuthenticatedIndexRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/competitor-analysis': {
-      id: '/_authenticated/competitor-analysis'
-      path: '/competitor-analysis'
-      fullPath: '/competitor-analysis'
-      preLoaderRoute: typeof AuthenticatedCompetitorAnalysisRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/(errors)/503': {
@@ -530,6 +757,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof errors401RouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/(auth)/sign-up': {
+      id: '/(auth)/sign-up'
+      path: '/sign-up'
+      fullPath: '/sign-up'
+      preLoaderRoute: typeof authSignUpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/(auth)/sign-in': {
       id: '/(auth)/sign-in'
       path: '/sign-in'
@@ -558,6 +792,48 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSettingsRouteRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/prompts': {
+      id: '/_authenticated/prompts'
+      path: '/prompts'
+      fullPath: '/prompts'
+      preLoaderRoute: typeof AuthenticatedPromptsRouteRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/product-dev': {
+      id: '/_authenticated/product-dev'
+      path: '/product-dev'
+      fullPath: '/product-dev'
+      preLoaderRoute: typeof AuthenticatedProductDevRouteRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/market-insights': {
+      id: '/_authenticated/market-insights'
+      path: '/market-insights'
+      fullPath: '/market-insights'
+      preLoaderRoute: typeof AuthenticatedMarketInsightsRouteRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/knowledge': {
+      id: '/_authenticated/knowledge'
+      path: '/knowledge'
+      fullPath: '/knowledge'
+      preLoaderRoute: typeof AuthenticatedKnowledgeRouteRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/competitor-analysis': {
+      id: '/_authenticated/competitor-analysis'
+      path: '/competitor-analysis'
+      fullPath: '/competitor-analysis'
+      preLoaderRoute: typeof AuthenticatedCompetitorAnalysisRouteRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/asin-watchlists': {
+      id: '/_authenticated/asin-watchlists'
+      path: '/asin-watchlists'
+      fullPath: '/asin-watchlists'
+      preLoaderRoute: typeof AuthenticatedAsinWatchlistsRouteRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/ai-agent': {
       id: '/_authenticated/ai-agent'
       path: '/ai-agent'
@@ -579,12 +855,47 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSettingsIndexRouteImport
       parentRoute: typeof AuthenticatedSettingsRouteRoute
     }
-    '/_authenticated/quick-navigation/': {
-      id: '/_authenticated/quick-navigation/'
-      path: '/quick-navigation'
-      fullPath: '/quick-navigation/'
-      preLoaderRoute: typeof AuthenticatedQuickNavigationIndexRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
+    '/_authenticated/prompts/': {
+      id: '/_authenticated/prompts/'
+      path: '/'
+      fullPath: '/prompts/'
+      preLoaderRoute: typeof AuthenticatedPromptsIndexRouteImport
+      parentRoute: typeof AuthenticatedPromptsRouteRoute
+    }
+    '/_authenticated/product-dev/': {
+      id: '/_authenticated/product-dev/'
+      path: '/'
+      fullPath: '/product-dev/'
+      preLoaderRoute: typeof AuthenticatedProductDevIndexRouteImport
+      parentRoute: typeof AuthenticatedProductDevRouteRoute
+    }
+    '/_authenticated/market-insights/': {
+      id: '/_authenticated/market-insights/'
+      path: '/'
+      fullPath: '/market-insights/'
+      preLoaderRoute: typeof AuthenticatedMarketInsightsIndexRouteImport
+      parentRoute: typeof AuthenticatedMarketInsightsRouteRoute
+    }
+    '/_authenticated/knowledge/': {
+      id: '/_authenticated/knowledge/'
+      path: '/'
+      fullPath: '/knowledge/'
+      preLoaderRoute: typeof AuthenticatedKnowledgeIndexRouteImport
+      parentRoute: typeof AuthenticatedKnowledgeRouteRoute
+    }
+    '/_authenticated/competitor-analysis/': {
+      id: '/_authenticated/competitor-analysis/'
+      path: '/'
+      fullPath: '/competitor-analysis/'
+      preLoaderRoute: typeof AuthenticatedCompetitorAnalysisIndexRouteImport
+      parentRoute: typeof AuthenticatedCompetitorAnalysisRouteRoute
+    }
+    '/_authenticated/asin-watchlists/': {
+      id: '/_authenticated/asin-watchlists/'
+      path: '/'
+      fullPath: '/asin-watchlists/'
+      preLoaderRoute: typeof AuthenticatedAsinWatchlistsIndexRouteImport
+      parentRoute: typeof AuthenticatedAsinWatchlistsRouteRoute
     }
     '/_authenticated/ai-agent/': {
       id: '/_authenticated/ai-agent/'
@@ -600,25 +911,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSettingsUsersRouteImport
       parentRoute: typeof AuthenticatedSettingsRouteRoute
     }
-    '/_authenticated/settings/notifications': {
-      id: '/_authenticated/settings/notifications'
-      path: '/notifications'
-      fullPath: '/settings/notifications'
-      preLoaderRoute: typeof AuthenticatedSettingsNotificationsRouteImport
-      parentRoute: typeof AuthenticatedSettingsRouteRoute
-    }
-    '/_authenticated/settings/display': {
-      id: '/_authenticated/settings/display'
-      path: '/display'
-      fullPath: '/settings/display'
-      preLoaderRoute: typeof AuthenticatedSettingsDisplayRouteImport
-      parentRoute: typeof AuthenticatedSettingsRouteRoute
-    }
-    '/_authenticated/settings/appearance': {
-      id: '/_authenticated/settings/appearance'
-      path: '/appearance'
-      fullPath: '/settings/appearance'
-      preLoaderRoute: typeof AuthenticatedSettingsAppearanceRouteImport
+    '/_authenticated/settings/announcements': {
+      id: '/_authenticated/settings/announcements'
+      path: '/announcements'
+      fullPath: '/settings/announcements'
+      preLoaderRoute: typeof AuthenticatedSettingsAnnouncementsRouteImport
       parentRoute: typeof AuthenticatedSettingsRouteRoute
     }
     '/_authenticated/settings/account': {
@@ -628,12 +925,61 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSettingsAccountRouteImport
       parentRoute: typeof AuthenticatedSettingsRouteRoute
     }
-    '/_authenticated/quick-navigation/manage': {
-      id: '/_authenticated/quick-navigation/manage'
-      path: '/quick-navigation/manage'
-      fullPath: '/quick-navigation/manage'
-      preLoaderRoute: typeof AuthenticatedQuickNavigationManageRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
+    '/_authenticated/product-dev/market': {
+      id: '/_authenticated/product-dev/market'
+      path: '/market'
+      fullPath: '/product-dev/market'
+      preLoaderRoute: typeof AuthenticatedProductDevMarketRouteImport
+      parentRoute: typeof AuthenticatedProductDevRouteRoute
+    }
+    '/_authenticated/product-dev/compare': {
+      id: '/_authenticated/product-dev/compare'
+      path: '/compare'
+      fullPath: '/product-dev/compare'
+      preLoaderRoute: typeof AuthenticatedProductDevCompareRouteImport
+      parentRoute: typeof AuthenticatedProductDevRouteRoute
+    }
+    '/_authenticated/market-insights/reports': {
+      id: '/_authenticated/market-insights/reports'
+      path: '/reports'
+      fullPath: '/market-insights/reports'
+      preLoaderRoute: typeof AuthenticatedMarketInsightsReportsRouteImport
+      parentRoute: typeof AuthenticatedMarketInsightsRouteRoute
+    }
+    '/_authenticated/competitor-analysis/results': {
+      id: '/_authenticated/competitor-analysis/results'
+      path: '/results'
+      fullPath: '/competitor-analysis/results'
+      preLoaderRoute: typeof AuthenticatedCompetitorAnalysisResultsRouteImport
+      parentRoute: typeof AuthenticatedCompetitorAnalysisRouteRoute
+    }
+    '/_authenticated/competitor-analysis/details': {
+      id: '/_authenticated/competitor-analysis/details'
+      path: '/details'
+      fullPath: '/competitor-analysis/details'
+      preLoaderRoute: typeof AuthenticatedCompetitorAnalysisDetailsRouteImport
+      parentRoute: typeof AuthenticatedCompetitorAnalysisRouteRoute
+    }
+    '/_authenticated/competitor-analysis/$asin': {
+      id: '/_authenticated/competitor-analysis/$asin'
+      path: '/$asin'
+      fullPath: '/competitor-analysis/$asin'
+      preLoaderRoute: typeof AuthenticatedCompetitorAnalysisAsinRouteImport
+      parentRoute: typeof AuthenticatedCompetitorAnalysisRouteRoute
+    }
+    '/_authenticated/asin-watchlists/items': {
+      id: '/_authenticated/asin-watchlists/items'
+      path: '/items'
+      fullPath: '/asin-watchlists/items'
+      preLoaderRoute: typeof AuthenticatedAsinWatchlistsItemsRouteImport
+      parentRoute: typeof AuthenticatedAsinWatchlistsRouteRoute
+    }
+    '/_authenticated/ai-agent/prompts': {
+      id: '/_authenticated/ai-agent/prompts'
+      path: '/prompts'
+      fullPath: '/ai-agent/prompts'
+      preLoaderRoute: typeof AuthenticatedAiAgentPromptsRouteImport
+      parentRoute: typeof AuthenticatedAiAgentRouteRoute
     }
     '/_authenticated/ai-agent/notes': {
       id: '/_authenticated/ai-agent/notes'
@@ -669,6 +1015,27 @@ declare module '@tanstack/react-router' {
       fullPath: '/ai-agent/audit'
       preLoaderRoute: typeof AuthenticatedAiAgentAuditRouteImport
       parentRoute: typeof AuthenticatedAiAgentRouteRoute
+    }
+    '/_authenticated/ai-agent/asin-watchlists': {
+      id: '/_authenticated/ai-agent/asin-watchlists'
+      path: '/asin-watchlists'
+      fullPath: '/ai-agent/asin-watchlists'
+      preLoaderRoute: typeof AuthenticatedAiAgentAsinWatchlistsRouteImport
+      parentRoute: typeof AuthenticatedAiAgentRouteRoute
+    }
+    '/_authenticated/admin/users': {
+      id: '/_authenticated/admin/users'
+      path: '/users'
+      fullPath: '/admin/users'
+      preLoaderRoute: typeof AuthenticatedAdminUsersRouteImport
+      parentRoute: typeof AuthenticatedAdminRouteRoute
+    }
+    '/_authenticated/admin/announcements': {
+      id: '/_authenticated/admin/announcements'
+      path: '/announcements'
+      fullPath: '/admin/announcements'
+      preLoaderRoute: typeof AuthenticatedAdminAnnouncementsRouteImport
+      parentRoute: typeof AuthenticatedAdminRouteRoute
     }
     '/_authenticated/admin/ai': {
       id: '/_authenticated/admin/ai'
@@ -748,11 +1115,15 @@ const AuthenticatedAdminAiRouteRouteWithChildren =
 
 interface AuthenticatedAdminRouteRouteChildren {
   AuthenticatedAdminAiRouteRoute: typeof AuthenticatedAdminAiRouteRouteWithChildren
+  AuthenticatedAdminAnnouncementsRoute: typeof AuthenticatedAdminAnnouncementsRoute
+  AuthenticatedAdminUsersRoute: typeof AuthenticatedAdminUsersRoute
 }
 
 const AuthenticatedAdminRouteRouteChildren: AuthenticatedAdminRouteRouteChildren =
   {
     AuthenticatedAdminAiRouteRoute: AuthenticatedAdminAiRouteRouteWithChildren,
+    AuthenticatedAdminAnnouncementsRoute: AuthenticatedAdminAnnouncementsRoute,
+    AuthenticatedAdminUsersRoute: AuthenticatedAdminUsersRoute,
   }
 
 const AuthenticatedAdminRouteRouteWithChildren =
@@ -761,21 +1132,26 @@ const AuthenticatedAdminRouteRouteWithChildren =
   )
 
 interface AuthenticatedAiAgentRouteRouteChildren {
+  AuthenticatedAiAgentAsinWatchlistsRoute: typeof AuthenticatedAiAgentAsinWatchlistsRoute
   AuthenticatedAiAgentAuditRoute: typeof AuthenticatedAiAgentAuditRoute
   AuthenticatedAiAgentDatasourcesRoute: typeof AuthenticatedAiAgentDatasourcesRoute
   AuthenticatedAiAgentDistillRoute: typeof AuthenticatedAiAgentDistillRoute
   AuthenticatedAiAgentKnowledgeRoute: typeof AuthenticatedAiAgentKnowledgeRoute
   AuthenticatedAiAgentNotesRoute: typeof AuthenticatedAiAgentNotesRoute
+  AuthenticatedAiAgentPromptsRoute: typeof AuthenticatedAiAgentPromptsRoute
   AuthenticatedAiAgentIndexRoute: typeof AuthenticatedAiAgentIndexRoute
 }
 
 const AuthenticatedAiAgentRouteRouteChildren: AuthenticatedAiAgentRouteRouteChildren =
   {
+    AuthenticatedAiAgentAsinWatchlistsRoute:
+      AuthenticatedAiAgentAsinWatchlistsRoute,
     AuthenticatedAiAgentAuditRoute: AuthenticatedAiAgentAuditRoute,
     AuthenticatedAiAgentDatasourcesRoute: AuthenticatedAiAgentDatasourcesRoute,
     AuthenticatedAiAgentDistillRoute: AuthenticatedAiAgentDistillRoute,
     AuthenticatedAiAgentKnowledgeRoute: AuthenticatedAiAgentKnowledgeRoute,
     AuthenticatedAiAgentNotesRoute: AuthenticatedAiAgentNotesRoute,
+    AuthenticatedAiAgentPromptsRoute: AuthenticatedAiAgentPromptsRoute,
     AuthenticatedAiAgentIndexRoute: AuthenticatedAiAgentIndexRoute,
   }
 
@@ -784,11 +1160,115 @@ const AuthenticatedAiAgentRouteRouteWithChildren =
     AuthenticatedAiAgentRouteRouteChildren,
   )
 
+interface AuthenticatedAsinWatchlistsRouteRouteChildren {
+  AuthenticatedAsinWatchlistsItemsRoute: typeof AuthenticatedAsinWatchlistsItemsRoute
+  AuthenticatedAsinWatchlistsIndexRoute: typeof AuthenticatedAsinWatchlistsIndexRoute
+}
+
+const AuthenticatedAsinWatchlistsRouteRouteChildren: AuthenticatedAsinWatchlistsRouteRouteChildren =
+  {
+    AuthenticatedAsinWatchlistsItemsRoute:
+      AuthenticatedAsinWatchlistsItemsRoute,
+    AuthenticatedAsinWatchlistsIndexRoute:
+      AuthenticatedAsinWatchlistsIndexRoute,
+  }
+
+const AuthenticatedAsinWatchlistsRouteRouteWithChildren =
+  AuthenticatedAsinWatchlistsRouteRoute._addFileChildren(
+    AuthenticatedAsinWatchlistsRouteRouteChildren,
+  )
+
+interface AuthenticatedCompetitorAnalysisRouteRouteChildren {
+  AuthenticatedCompetitorAnalysisAsinRoute: typeof AuthenticatedCompetitorAnalysisAsinRoute
+  AuthenticatedCompetitorAnalysisDetailsRoute: typeof AuthenticatedCompetitorAnalysisDetailsRoute
+  AuthenticatedCompetitorAnalysisResultsRoute: typeof AuthenticatedCompetitorAnalysisResultsRoute
+  AuthenticatedCompetitorAnalysisIndexRoute: typeof AuthenticatedCompetitorAnalysisIndexRoute
+}
+
+const AuthenticatedCompetitorAnalysisRouteRouteChildren: AuthenticatedCompetitorAnalysisRouteRouteChildren =
+  {
+    AuthenticatedCompetitorAnalysisAsinRoute:
+      AuthenticatedCompetitorAnalysisAsinRoute,
+    AuthenticatedCompetitorAnalysisDetailsRoute:
+      AuthenticatedCompetitorAnalysisDetailsRoute,
+    AuthenticatedCompetitorAnalysisResultsRoute:
+      AuthenticatedCompetitorAnalysisResultsRoute,
+    AuthenticatedCompetitorAnalysisIndexRoute:
+      AuthenticatedCompetitorAnalysisIndexRoute,
+  }
+
+const AuthenticatedCompetitorAnalysisRouteRouteWithChildren =
+  AuthenticatedCompetitorAnalysisRouteRoute._addFileChildren(
+    AuthenticatedCompetitorAnalysisRouteRouteChildren,
+  )
+
+interface AuthenticatedKnowledgeRouteRouteChildren {
+  AuthenticatedKnowledgeIndexRoute: typeof AuthenticatedKnowledgeIndexRoute
+}
+
+const AuthenticatedKnowledgeRouteRouteChildren: AuthenticatedKnowledgeRouteRouteChildren =
+  {
+    AuthenticatedKnowledgeIndexRoute: AuthenticatedKnowledgeIndexRoute,
+  }
+
+const AuthenticatedKnowledgeRouteRouteWithChildren =
+  AuthenticatedKnowledgeRouteRoute._addFileChildren(
+    AuthenticatedKnowledgeRouteRouteChildren,
+  )
+
+interface AuthenticatedMarketInsightsRouteRouteChildren {
+  AuthenticatedMarketInsightsReportsRoute: typeof AuthenticatedMarketInsightsReportsRoute
+  AuthenticatedMarketInsightsIndexRoute: typeof AuthenticatedMarketInsightsIndexRoute
+}
+
+const AuthenticatedMarketInsightsRouteRouteChildren: AuthenticatedMarketInsightsRouteRouteChildren =
+  {
+    AuthenticatedMarketInsightsReportsRoute:
+      AuthenticatedMarketInsightsReportsRoute,
+    AuthenticatedMarketInsightsIndexRoute:
+      AuthenticatedMarketInsightsIndexRoute,
+  }
+
+const AuthenticatedMarketInsightsRouteRouteWithChildren =
+  AuthenticatedMarketInsightsRouteRoute._addFileChildren(
+    AuthenticatedMarketInsightsRouteRouteChildren,
+  )
+
+interface AuthenticatedProductDevRouteRouteChildren {
+  AuthenticatedProductDevCompareRoute: typeof AuthenticatedProductDevCompareRoute
+  AuthenticatedProductDevMarketRoute: typeof AuthenticatedProductDevMarketRoute
+  AuthenticatedProductDevIndexRoute: typeof AuthenticatedProductDevIndexRoute
+}
+
+const AuthenticatedProductDevRouteRouteChildren: AuthenticatedProductDevRouteRouteChildren =
+  {
+    AuthenticatedProductDevCompareRoute: AuthenticatedProductDevCompareRoute,
+    AuthenticatedProductDevMarketRoute: AuthenticatedProductDevMarketRoute,
+    AuthenticatedProductDevIndexRoute: AuthenticatedProductDevIndexRoute,
+  }
+
+const AuthenticatedProductDevRouteRouteWithChildren =
+  AuthenticatedProductDevRouteRoute._addFileChildren(
+    AuthenticatedProductDevRouteRouteChildren,
+  )
+
+interface AuthenticatedPromptsRouteRouteChildren {
+  AuthenticatedPromptsIndexRoute: typeof AuthenticatedPromptsIndexRoute
+}
+
+const AuthenticatedPromptsRouteRouteChildren: AuthenticatedPromptsRouteRouteChildren =
+  {
+    AuthenticatedPromptsIndexRoute: AuthenticatedPromptsIndexRoute,
+  }
+
+const AuthenticatedPromptsRouteRouteWithChildren =
+  AuthenticatedPromptsRouteRoute._addFileChildren(
+    AuthenticatedPromptsRouteRouteChildren,
+  )
+
 interface AuthenticatedSettingsRouteRouteChildren {
   AuthenticatedSettingsAccountRoute: typeof AuthenticatedSettingsAccountRoute
-  AuthenticatedSettingsAppearanceRoute: typeof AuthenticatedSettingsAppearanceRoute
-  AuthenticatedSettingsDisplayRoute: typeof AuthenticatedSettingsDisplayRoute
-  AuthenticatedSettingsNotificationsRoute: typeof AuthenticatedSettingsNotificationsRoute
+  AuthenticatedSettingsAnnouncementsRoute: typeof AuthenticatedSettingsAnnouncementsRoute
   AuthenticatedSettingsUsersRoute: typeof AuthenticatedSettingsUsersRoute
   AuthenticatedSettingsIndexRoute: typeof AuthenticatedSettingsIndexRoute
 }
@@ -796,10 +1276,8 @@ interface AuthenticatedSettingsRouteRouteChildren {
 const AuthenticatedSettingsRouteRouteChildren: AuthenticatedSettingsRouteRouteChildren =
   {
     AuthenticatedSettingsAccountRoute: AuthenticatedSettingsAccountRoute,
-    AuthenticatedSettingsAppearanceRoute: AuthenticatedSettingsAppearanceRoute,
-    AuthenticatedSettingsDisplayRoute: AuthenticatedSettingsDisplayRoute,
-    AuthenticatedSettingsNotificationsRoute:
-      AuthenticatedSettingsNotificationsRoute,
+    AuthenticatedSettingsAnnouncementsRoute:
+      AuthenticatedSettingsAnnouncementsRoute,
     AuthenticatedSettingsUsersRoute: AuthenticatedSettingsUsersRoute,
     AuthenticatedSettingsIndexRoute: AuthenticatedSettingsIndexRoute,
   }
@@ -812,23 +1290,32 @@ const AuthenticatedSettingsRouteRouteWithChildren =
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminRouteRoute: typeof AuthenticatedAdminRouteRouteWithChildren
   AuthenticatedAiAgentRouteRoute: typeof AuthenticatedAiAgentRouteRouteWithChildren
+  AuthenticatedAsinWatchlistsRouteRoute: typeof AuthenticatedAsinWatchlistsRouteRouteWithChildren
+  AuthenticatedCompetitorAnalysisRouteRoute: typeof AuthenticatedCompetitorAnalysisRouteRouteWithChildren
+  AuthenticatedKnowledgeRouteRoute: typeof AuthenticatedKnowledgeRouteRouteWithChildren
+  AuthenticatedMarketInsightsRouteRoute: typeof AuthenticatedMarketInsightsRouteRouteWithChildren
+  AuthenticatedProductDevRouteRoute: typeof AuthenticatedProductDevRouteRouteWithChildren
+  AuthenticatedPromptsRouteRoute: typeof AuthenticatedPromptsRouteRouteWithChildren
   AuthenticatedSettingsRouteRoute: typeof AuthenticatedSettingsRouteRouteWithChildren
-  AuthenticatedCompetitorAnalysisRoute: typeof AuthenticatedCompetitorAnalysisRoute
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
-  AuthenticatedQuickNavigationManageRoute: typeof AuthenticatedQuickNavigationManageRoute
-  AuthenticatedQuickNavigationIndexRoute: typeof AuthenticatedQuickNavigationIndexRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminRouteRoute: AuthenticatedAdminRouteRouteWithChildren,
   AuthenticatedAiAgentRouteRoute: AuthenticatedAiAgentRouteRouteWithChildren,
+  AuthenticatedAsinWatchlistsRouteRoute:
+    AuthenticatedAsinWatchlistsRouteRouteWithChildren,
+  AuthenticatedCompetitorAnalysisRouteRoute:
+    AuthenticatedCompetitorAnalysisRouteRouteWithChildren,
+  AuthenticatedKnowledgeRouteRoute:
+    AuthenticatedKnowledgeRouteRouteWithChildren,
+  AuthenticatedMarketInsightsRouteRoute:
+    AuthenticatedMarketInsightsRouteRouteWithChildren,
+  AuthenticatedProductDevRouteRoute:
+    AuthenticatedProductDevRouteRouteWithChildren,
+  AuthenticatedPromptsRouteRoute: AuthenticatedPromptsRouteRouteWithChildren,
   AuthenticatedSettingsRouteRoute: AuthenticatedSettingsRouteRouteWithChildren,
-  AuthenticatedCompetitorAnalysisRoute: AuthenticatedCompetitorAnalysisRoute,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
-  AuthenticatedQuickNavigationManageRoute:
-    AuthenticatedQuickNavigationManageRoute,
-  AuthenticatedQuickNavigationIndexRoute:
-    AuthenticatedQuickNavigationIndexRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
@@ -839,6 +1326,7 @@ const rootRouteChildren: RootRouteChildren = {
   authForgotPasswordRoute: authForgotPasswordRoute,
   authOtpRoute: authOtpRoute,
   authSignInRoute: authSignInRoute,
+  authSignUpRoute: authSignUpRoute,
   errors401Route: errors401Route,
   errors403Route: errors403Route,
   errors404Route: errors404Route,

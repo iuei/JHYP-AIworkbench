@@ -6,6 +6,7 @@ import {
   GUARDRAILS,
   REJECT_REASON,
   assertDateRange,
+  buildDocumentCitations,
   executeTool,
   hasExecutor,
   listToolDefinitions,
@@ -104,8 +105,27 @@ test('模型幻觉出的工具名被拦下并标记 not_registered', async () =>
   assert.deepEqual(result.rows, [])
 })
 
-test('普通用户调用管理员工具被拦下并写入统一拦截文案', async () => {
+test('已注册但当前进程没有实现的工具：标记 not_implemented（与权限无关）', async () => {
+  /*
+   * 2026-09-17 新增：典型场景是"代码已合并但后端没重启"——工具契约播进了 ai_tools、
+   * 用户也看得到它，但进程内存里没有执行实现。此前它与"未注册"共用原因码，
+   * 会被编排层统一成"当前账号无权查询该数据"，把用户引向权限排查（真实踩到）。
+   */
   const result = await executeTool({
+    user: operator,
+    registeredTools: [
+      { name: 'query_not_yet_deployed', required_role: 'user', enabled: true, source: 'builtin' },
+    ],
+    toolName: 'query_not_yet_deployed',
+    params: {},
+  })
+  assert.equal(result.status, 'blocked')
+  assert.equal(result.reason, REJECT_REASON.notImplemented)
+  assert.notEqual(result.reason, REJECT_REASON.notRegistered)
+  assert.match(result.error, /尚未实现/)
+})
+
+test('普通用户调用管理员工具被拦下并写入统一拦截文案', async () => {  const result = await executeTool({
     user: operator,
     registeredTools: registeredForOperator,
     toolName: 'rebuild_knowledge_index',
@@ -191,4 +211,34 @@ test('toolDefinitionsToOpenAi 输出 Function Calling 结构且字段齐全', ()
     assert.equal(tool.function.parameters.type, 'object')
   }
   assert.deepEqual(toolDefinitionsToOpenAi(null), [])
+})
+
+test('buildDocumentCitations 透传片段得分与提报人（出口收敛与引用面板的数据源）', () => {
+  const citations = buildDocumentCitations([
+    {
+      chunkId: 11,
+      chunkIndex: 2,
+      documentId: 61,
+      title: '亚马逊断货补货流程',
+      sourceType: 'experience',
+      docVersion: 3,
+      updatedAt: '2026-09-01T00:00:00.000Z',
+      submitter: '张三',
+      score: 90.03,
+      snippet: '断货后先看可售天数，再决定补货量。',
+    },
+  ])
+  assert.equal(citations.length, 1)
+  assert.equal(citations[0].kind, 'document')
+  assert.equal(citations[0].score, 90.03, 'score 缺失会让出口层无法挑出最准确的一篇')
+  assert.equal(citations[0].submitter, '张三', '提报人只在引用里出现（正文不写出处元数据）')
+  assert.equal(citations[0].chunkIndex, 2)
+  assert.equal(citations[0].snippet, '断货后先看可售天数，再决定补货量。')
+
+  // 长片段按引用面板的展示上限截断
+  const [long] = buildDocumentCitations([{ snippet: 'x'.repeat(500) }])
+  assert.ok(long.snippet.length < 500)
+
+  assert.deepEqual(buildDocumentCitations(null), [])
+  assert.deepEqual(buildDocumentCitations(undefined), [])
 })

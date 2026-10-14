@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  JHYP 智能工作台 — 日志轮转定时任务（macOS launchd）。
+
+  每天 04:00 跑一次 deploy/rotate-logs.sh：超过 10MB 的 api.log / web.log 归档，
+  保留最近 7 份。launchd 本身不会切分 StandardOutPath，没有这个任务日志会无限增长。
+
+  RunAtLoad 为 false：加载时不执行，只在每天 04:00 触发。
+  注意 deploy/macos-service.sh install 对「已加载」的服务会做 kickstart -k，
+  所以重复安装时会额外跑一次轮转 —— 轮转本身幂等（只检查大小、超阈值才动），无副作用。
+
+  安装/卸载统一走 deploy/macos-service.sh。
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.jhyp.logrotate</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>/Users/lzg/codex/codex项目文件/JHYP-AIworkbench-main/deploy/rotate-logs.sh</string>
+  </array>
+  <key>WorkingDirectory</key>
+  <string>/Users/lzg/codex/codex项目文件/JHYP-AIworkbench-main</string>
+  <key>RunAtLoad</key>
+  <false/>
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key>
+    <integer>4</integer>
+    <key>Minute</key>
+    <integer>0</integer>
+  </dict>
+  <key>StandardOutPath</key>
+  <string>/Users/lzg/codex/codex项目文件/JHYP-AIworkbench-main/logs/rotate.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/lzg/codex/codex项目文件/JHYP-AIworkbench-main/logs/rotate.log</string>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    <key>TZ</key>
+    <string>Asia/Shanghai</string>
+  </dict>
+</dict>
+</plist>

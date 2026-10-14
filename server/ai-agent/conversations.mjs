@@ -74,14 +74,21 @@ export async function appendMessage({
   latencyMs = null,
   citations = [],
   blocks = [],
+  /**
+   * 拦截的细分原因（`tool_unavailable` / `forbidden` / `wording:*`，2026-09-17 新增）。
+   *
+   * 只存 `status='blocked'` 时看不出"为什么被拦"：工具没上线、真没权限、模型措辞违规
+   * 三者的处置方式完全不同，历史回看时必须能分辨。
+   */
+  blockReason = null,
 }) {
   const client = await pool.connect()
   try {
     await client.query('BEGIN')
     const { rows } = await client.query(
       `INSERT INTO ai_messages
-         (conversation_id, role, content, status, provider, model, tokens_in, tokens_out, latency_ms, citations, blocks)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, $11::jsonb)
+         (conversation_id, role, content, status, provider, model, tokens_in, tokens_out, latency_ms, citations, blocks, block_reason)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, $11::jsonb, $12)
        RETURNING id, conversation_id, role, content, status, created_at`,
       [
         conversationId,
@@ -95,6 +102,7 @@ export async function appendMessage({
         latencyMs,
         JSON.stringify(citations ?? []),
         JSON.stringify(blocks ?? []),
+        blockReason,
       ]
     )
     await client.query(
@@ -115,8 +123,26 @@ export async function appendMessage({
   }
 }
 
-/** 会话列表：置顶优先，其余按最后活跃时间倒序。 */
-export async function listConversations(userId, { keyword = null, limit = 100 } = {}) {
+/**
+ * 会话列表：置顶优先，其余按最后活跃时间倒序。
+ *
+ * **2026-09-15 改为服务端分页**：此前是 `limit = 100` 的**固定截断**且不返回总数 ——
+ * 会话超过 100 个的用户在第 101 条起完全看不到，界面上也没有任何"还有更多"的提示
+ * （`conversation-list.tsx` 的注释自己就记着这个坑）。截断不等于分页：它会静默丢数据。
+ */
+export async function listConversations(userId, { keyword = null, page = 1, pageSize = 20 } = {}) {
+  const countResult = await query(
+    `SELECT count(*)::int AS total
+       FROM ai_conversations c
+      WHERE c.user_id = $1
+        AND ($2::text IS NULL OR c.title ILIKE '%' || $2 || '%')`,
+    [userId, keyword]
+  )
+  const total = countResult.rows[0]?.total ?? 0
+  const limit = Math.max(1, Math.min(Number(pageSize) || 20, 100))
+  const safePage = Math.max(1, Number(page) || 1)
+  const offset = (safePage - 1) * limit
+
   const { rows } = await query(
     `SELECT c.id, c.title, c.message_count, c.pinned, c.created_at, c.updated_at, c.last_message_at,
             (SELECT COUNT(*)::int FROM ai_messages m
@@ -125,10 +151,10 @@ export async function listConversations(userId, { keyword = null, limit = 100 } 
       WHERE c.user_id = $1
         AND ($2::text IS NULL OR c.title ILIKE '%' || $2 || '%')
       ORDER BY c.pinned DESC, COALESCE(c.last_message_at, c.created_at) DESC, c.id DESC
-      LIMIT $3`,
-    [userId, keyword, limit]
+      LIMIT $3 OFFSET $4`,
+    [userId, keyword, limit, offset]
   )
-  return rows
+  return { conversations: rows, total, page: safePage, pageSize: limit }
 }
 
 export async function findConversation(userId, conversationId) {
@@ -178,7 +204,7 @@ export async function listMessages({ userId, conversationId }) {
   if (!conversation) return null
   const messages = await query(
     `SELECT id, role, content, provider, model, tokens_in, tokens_out, latency_ms,
-            status, citations, blocks, created_at
+            status, citations, blocks, block_reason, created_at
        FROM ai_messages WHERE conversation_id = $1 ORDER BY id ASC`,
     [conversationId]
   )

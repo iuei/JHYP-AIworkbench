@@ -1,6 +1,8 @@
 /**
- * List of available font names (visit the url `/settings/appearance`).
- * This array is used to generate dynamic font classes (e.g., `font-inter`, `font-manrope`).
+ * List of available font names — used to generate dynamic font classes (e.g., `font-inter`, `font-manrope`).
+ *
+ * 「设置 → 外观」页已删除（2026-09-15），字体由 `FontProvider` 应用并持久化，
+ * 界面不再提供字体切换入口；这份名单保留给 Provider 的取值校验与默认字体。
  *
  * How to Add a New Font (Tailwind v4+):
  * 1. Add the font name here.

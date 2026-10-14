@@ -547,6 +547,41 @@ export async function listDocuments({
   return { rows, total: total.rows[0].total, page: safePage, pageSize: safePageSize }
 }
 
+/** 员工团队知识库列表：分页、搜索与文档可见性必须使用同一套范围规则。 */
+export async function listVisibleDocuments({
+  user,
+  page = 1,
+  pageSize = 20,
+  sourceType = null,
+  keyword = null,
+} = {}) {
+  const safePage = parsePositiveInt(page, { fallback: 1, min: 1, max: 100000 })
+  const safePageSize = parsePositiveInt(pageSize, { fallback: 20, min: 1, max: 100 })
+  const offset = (safePage - 1) * safePageSize
+  const scope = documentScopeSql(user, '$1')
+  const { rows } = await query(
+    `SELECT d.id, d.title, d.source_type, d.doc_version, d.category,
+            d.status, d.effective_at, d.expires_at, d.chunk_count,
+            u.name AS created_by_name, d.updated_at
+       FROM ai_documents d
+       LEFT JOIN users u ON u.id = d.created_by
+      WHERE ${scope.clause}
+        AND ($2::text IS NULL OR d.source_type = $2)
+        AND ($3::text IS NULL OR d.title ILIKE '%' || $3 || '%')
+      ORDER BY d.updated_at DESC, d.id DESC
+      LIMIT $4 OFFSET $5`,
+    [scope.param, sourceType, keyword, safePageSize, offset]
+  )
+  const total = await query(
+    `SELECT COUNT(*)::int AS total FROM ai_documents d
+      WHERE ${scope.clause}
+        AND ($2::text IS NULL OR d.source_type = $2)
+        AND ($3::text IS NULL OR d.title ILIKE '%' || $3 || '%')`,
+    [scope.param, sourceType, keyword]
+  )
+  return { rows, total: total.rows[0].total, page: safePage, pageSize: safePageSize }
+}
+
 /** 文档切片预览（管理员核对引用来源）。 */
 export async function listDocumentChunks(documentId, { limit = 50 } = {}) {
   const { rows } = await query(
@@ -582,14 +617,17 @@ export async function datasetFreshness() {
   }))
 }
 
-/** 获取单行配置（含模型连接参数；密钥为密文，解密只在 providers 层发生）。 */
+/** 获取单行配置（含模型连接参数与 MCP 接入参数；密钥为密文，解密只在 providers / mcp 层发生）。 */
 export async function loadSettings() {
   const { rows } = await query(
     `SELECT id, model_provider, model_name, model_base_url,
             model_api_key_cipher, model_api_key_hint, model_api_key_fingerprint,
             model_api_key_updated_at, force_demo,
             temperature, max_output_tokens, max_turns_per_conversation,
-            retrieval_top_k, request_timeout_ms, updated_at
+            retrieval_top_k, request_timeout_ms,
+            mcp_enabled, mcp_endpoint, mcp_prefix, mcp_timeout_ms,
+            mcp_secret_cipher, mcp_secret_hint, mcp_secret_fingerprint,
+            mcp_secret_updated_at, mcp_synced_at, updated_at
        FROM ai_settings WHERE id = 1`
   )
   return rows[0] ?? null

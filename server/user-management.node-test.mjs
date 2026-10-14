@@ -1,11 +1,13 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
+  describeUserDeletionBlock,
   isEnabledAdmin,
   isEnabledUser,
   isLastEnabledAdminDemotion,
   isLastEnabledAdminRemoval,
   parseUserCreate,
+  parseUserRegister,
   parseUserStatusUpdate,
   parseUserUpdate,
   UserUpdateValidationError,
@@ -130,6 +132,85 @@ test('parseUserCreate rejects unsupported roles and over-long fields', () => {
   )
 })
 
+test('parseUserRegister trims the account and name and drops role/department', () => {
+  assert.deepEqual(
+    parseUserRegister({
+      login: ' 13800000000 ',
+      name: ' 李四 ',
+      password: 'secret123',
+      // 注册者自带 role/department 必须被丢弃：请求体由客户端构造，
+      // 带上 role='admin' 就是一条自助提权路径；部门属管理信息，留给管理员审核时补。
+      role: 'admin',
+      department: '供应链部',
+    }),
+    { login: '13800000000', name: '李四', password: 'secret123' }
+  )
+})
+
+test('parseUserRegister requires account, name and password', () => {
+  assert.throws(
+    () => parseUserRegister({ login: '', name: '李四', password: 'secret123' }),
+    UserUpdateValidationError
+  )
+  assert.throws(
+    () =>
+      parseUserRegister({ login: '13800000000', name: '  ', password: 'secret123' }),
+    UserUpdateValidationError
+  )
+  assert.throws(
+    () => parseUserRegister({ login: '13800000000', name: '李四', password: '' }),
+    UserUpdateValidationError
+  )
+})
+
+test('parseUserRegister enforces the 8-128 password window', () => {
+  assert.throws(
+    () =>
+      parseUserRegister({ login: '13800000000', name: '李四', password: '1234567' }),
+    UserUpdateValidationError
+  )
+  assert.throws(
+    () =>
+      parseUserRegister({
+        login: '13800000000',
+        name: '李四',
+        password: 'a'.repeat(129),
+      }),
+    UserUpdateValidationError
+  )
+  // 边界值必须放行（8 与 128）
+  assert.equal(
+    parseUserRegister({ login: '13800000000', name: '李四', password: '12345678' })
+      .password,
+    '12345678'
+  )
+  assert.equal(
+    parseUserRegister({
+      login: '13800000000',
+      name: '李四',
+      password: 'a'.repeat(128),
+    }).password.length,
+    128
+  )
+})
+
+test('parseUserRegister rejects an over-long account or name', () => {
+  assert.throws(
+    () =>
+      parseUserRegister({ login: 'a'.repeat(121), name: '李四', password: 'secret123' }),
+    UserUpdateValidationError
+  )
+  assert.throws(
+    () =>
+      parseUserRegister({
+        login: '13800000000',
+        name: '李'.repeat(81),
+        password: 'secret123',
+      }),
+    UserUpdateValidationError
+  )
+})
+
 test('parseUserUpdate rejects empty names and unsupported roles', () => {
   assert.throws(
     () => parseUserUpdate({ name: '  ', role: 'admin' }),
@@ -189,5 +270,77 @@ test('isLastEnabledAdminRemoval also blocks disabling the final admin', () => {
       otherEnabledAdminCount: 0,
     }),
     true
+  )
+})
+
+test('describeUserDeletionBlock allows deleting another account', () => {
+  assert.equal(
+    describeUserDeletionBlock({
+      actorId: 1,
+      targetId: 2,
+      targetRole: 'operator',
+      targetStatus: 'enabled',
+      otherEnabledAdminCount: 1,
+    }),
+    null
+  )
+  // 目标管理员不是"最后一个启用管理员"时也放行
+  assert.equal(
+    describeUserDeletionBlock({
+      actorId: 1,
+      targetId: 2,
+      targetRole: 'admin',
+      targetStatus: 'enabled',
+      otherEnabledAdminCount: 1,
+    }),
+    null
+  )
+})
+
+test('describeUserDeletionBlock refuses deleting yourself', () => {
+  assert.equal(
+    describeUserDeletionBlock({
+      actorId: 7,
+      targetId: 7,
+      targetRole: 'admin',
+      targetStatus: 'enabled',
+      otherEnabledAdminCount: 3,
+    }),
+    '不能删除自己的账号。'
+  )
+})
+
+test('describeUserDeletionBlock protects the final enabled admin', () => {
+  assert.equal(
+    describeUserDeletionBlock({
+      actorId: 1,
+      targetId: 2,
+      targetRole: 'admin',
+      targetStatus: 'enabled',
+      otherEnabledAdminCount: 0,
+    }),
+    '必须至少保留一个已启用的管理员。'
+  )
+  // 已停用的管理员不占"启用管理员"名额，删除它不影响闸门
+  assert.equal(
+    describeUserDeletionBlock({
+      actorId: 1,
+      targetId: 2,
+      targetRole: 'admin',
+      targetStatus: 'disabled',
+      otherEnabledAdminCount: 0,
+    }),
+    null
+  )
+  // 普通账号永远不触发这条闸门
+  assert.equal(
+    describeUserDeletionBlock({
+      actorId: 1,
+      targetId: 2,
+      targetRole: 'operator',
+      targetStatus: 'enabled',
+      otherEnabledAdminCount: 0,
+    }),
+    null
   )
 })

@@ -2,24 +2,32 @@ import { useState } from 'react'
 import {
   Archive,
   CheckCircle2,
+  ChevronDown,
   Download,
   Eye,
   Loader2,
+  MoreHorizontal,
   Pencil,
   ShieldAlert,
   Trash2,
   XCircle,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import {
+  TABLE_CELL_ACTIONS,
+  TABLE_CELL_META,
+  TABLE_HEAD_ACTIONS,
+} from '@/lib/table-styles'
+import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible'
 import {
   Dialog,
   DialogContent,
@@ -43,20 +51,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Skeleton } from '@/components/ui/skeleton'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
+import { TableCell, TableHead, TableRow } from '@/components/ui/table'
 import { Textarea } from '@/components/ui/textarea'
 import { ConfirmDialog } from '@/components/confirm-dialog'
+import { DataTable } from '@/components/data-table'
 import { DatePicker } from '@/components/date-picker'
 import {
   useArchiveDistillNote,
+  useBatchDistillNotes,
   useDeleteNote,
   useDistillNotes,
   useDistillSkills,
@@ -64,8 +66,10 @@ import {
   useExportDistill,
   useReviewNote,
 } from '../api/queries'
+import { MetricStrip } from '../components/metric-strip'
 import { NoteDetailDialog, NoteEditorDialog } from '../components/note-dialogs'
 import { PageShell } from '../components/page-shell'
+import { PromptReviewCard } from '../components/prompt-review-card'
 import { SkillPolicyCard } from '../components/skill-policy-card'
 import {
   NOTE_DELETE_HINT,
@@ -73,6 +77,7 @@ import {
   NOTE_SOURCE_LABELS,
   NOTE_STATUS_LABELS,
   NOTE_STATUS_VARIANTS,
+  canArchiveNote,
   canDeleteNote,
   formatTime,
 } from '../format'
@@ -86,6 +91,9 @@ const STATUS_FILTERS = [
   { value: 'private', label: '私有草稿' },
   { value: 'archived', label: '已归档' },
 ]
+
+/** 空选择集常量：派生时复用同一引用，避免每次渲染都新建 Set。 */
+const EMPTY_SELECTION: ReadonlySet<number> = new Set<number>()
 
 function downloadText(filename: string, content: string, mime: string) {
   const blob = new Blob([content], { type: `${mime};charset=utf-8` })
@@ -132,6 +140,15 @@ export function DistillManagement() {
   } | null>(null)
   const [comment, setComment] = useState('')
   const [pendingDelete, setPendingDelete] = useState<KnowledgeNote | null>(null)
+  const [pageSize, setPageSize] = useState(20)
+  const [batchAction, setBatchAction] = useState<'archive' | 'delete' | null>(
+    null
+  )
+  /**
+   * 日期范围默认折叠：审核队列的日常动作是"看待审核"，按时间圈定是低频筛选，
+   * 常显时它单独占一行（两个日期框 + 说明文案），把表格又往下推了 40px。
+   */
+  const [dateFilterOpen, setDateFilterOpen] = useState(false)
 
   /**
    * 列表与导出**共用**这一组筛选参数（服务端也用同一个解析函数）。
@@ -147,15 +164,112 @@ export function DistillManagement() {
 
   const stats = useDistillStats()
   const skills = useDistillSkills()
-  const notes = useDistillNotes({ page, pageSize: 20, ...filters })
+  const notes = useDistillNotes({ page, pageSize, ...filters })
   const review = useReviewNote()
   const archive = useArchiveDistillNote()
   const remove = useDeleteNote()
+  const batch = useBatchDistillNotes()
   const exportNotes = useExportDistill()
 
   const rows = notes.data?.rows ?? []
   const fields = skills.data?.skill.fieldSchema ?? []
   const hasDateFilter = Boolean(fromDate || toDate)
+
+  /**
+   * 多选状态绑定在"当前筛选 + 页码"这个键上：键一变，选择自动视为空。
+   * 与知识库页同一套做法 —— 翻页后保留选择，批量操作会作用到已看不见的行。
+   */
+  const selectionKey = [
+    page,
+    pageSize,
+    keyword,
+    status,
+    account,
+    fromDate?.toISOString() ?? '',
+    toDate?.toISOString() ?? '',
+  ].join('|')
+  const [selection, setSelection] = useState<{
+    key: string
+    ids: ReadonlySet<number>
+  }>(() => ({ key: selectionKey, ids: EMPTY_SELECTION }))
+  const selectedIds =
+    selection.key === selectionKey ? selection.ids : EMPTY_SELECTION
+
+  const updateSelection = (
+    updater: (previous: ReadonlySet<number>) => Set<number>
+  ) => {
+    setSelection((current) => ({
+      key: selectionKey,
+      ids: updater(
+        current.key === selectionKey ? current.ids : EMPTY_SELECTION
+      ),
+    }))
+  }
+
+  const selectedNotes = rows.filter((note) => selectedIds.has(note.id))
+  const allSelected =
+    rows.length > 0 && rows.every((note) => selectedIds.has(note.id))
+  const partiallySelected = rows.some((note) => selectedIds.has(note.id))
+  const canArchiveSelected = selectedNotes.some((note) =>
+    canArchiveNote(note, 'admin')
+  )
+  const canDeleteSelected = selectedNotes.some((note) => canDeleteNote(note))
+
+  const toggleAllOnPage = (checked: boolean) => {
+    updateSelection((previous) => {
+      const next = new Set(previous)
+      for (const note of rows) {
+        if (checked) next.add(note.id)
+        else next.delete(note.id)
+      }
+      return next
+    })
+  }
+
+  const toggleOne = (id: number, checked: boolean) => {
+    updateSelection((previous) => {
+      const next = new Set(previous)
+      if (checked) next.add(id)
+      else next.delete(id)
+      return next
+    })
+  }
+
+  const clearSelection = () =>
+    setSelection({ key: selectionKey, ids: EMPTY_SELECTION })
+
+  /**
+   * 批量归档 / 批量删除。
+   *
+   * 部分失败必须逐条解释：已发布条目不能删除、已归档条目不能再归档，
+   * 只回一句"批量失败"等于让管理员自己去猜哪几条没生效。
+   */
+  const runBatch = (action: 'archive' | 'delete') => {
+    if (selectedIds.size === 0) return
+    batch.mutate(
+      { action, ids: [...selectedIds] },
+      {
+        onSuccess: (result) => {
+          const label = action === 'archive' ? '归档' : '删除'
+          const firstFailure = result.results.find((item) => !item.ok)
+          if (result.failed === 0) {
+            toast.success(`已${label} ${result.succeeded} 条沉淀`)
+          } else {
+            toast.warning(
+              `已${label} ${result.succeeded} 条，${result.failed} 条未处理：${
+                firstFailure?.message ?? '原因未知'
+              }`
+            )
+          }
+          clearSelection()
+        },
+        onError: (error) =>
+          toast.error(
+            error instanceof Error ? error.message : '批量操作失败，请稍后重试'
+          ),
+      }
+    )
+  }
 
   const runExport = (format: 'csv' | 'md' | 'json') => {
     exportNotes.mutate(
@@ -214,40 +328,35 @@ export function DistillManagement() {
   }
 
   return (
-    <PageShell
-    >
-      <div className='grid gap-3 sm:grid-cols-2 lg:grid-cols-4'>
-        {[
+    <PageShell>
+      {/*
+        统计卡改一行指标条（2026-09-15 简化）：四张卡此前占掉整个首屏，
+        而本页首屏应该先给出审核队列本身。
+      */}
+      <MetricStrip
+        items={[
           {
             label: '沉淀总数',
-            value: stats.data?.total ?? 0,
+            value: stats.isLoading ? null : (stats.data?.total ?? 0),
             hint: '全部账号',
           },
           {
             label: '待审核',
-            value: stats.data?.pending ?? 0,
+            value: stats.isLoading ? null : (stats.data?.pending ?? 0),
             hint: '需要管理员处理',
           },
           {
             label: '已发布',
-            value: stats.data?.published ?? 0,
+            value: stats.isLoading ? null : (stats.data?.published ?? 0),
             hint: '已进入公司知识库',
           },
           {
             label: '参与账号',
-            value: stats.data?.accounts ?? 0,
+            value: stats.isLoading ? null : (stats.data?.accounts ?? 0),
             hint: '有沉淀的账号数',
           },
-        ].map((item) => (
-          <Card key={item.label}>
-            <CardContent className='pt-4'>
-              <p className='text-sm text-muted-foreground'>{item.label}</p>
-              <p className='text-2xl font-bold'>{item.value}</p>
-              <p className='text-xs text-muted-foreground'>{item.hint}</p>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+        ]}
+      />
 
       {skills.data && (
         <SkillPolicyCard
@@ -265,13 +374,19 @@ export function DistillManagement() {
         />
       )}
 
+      {/* 提示词审核：与沉淀审核并列，都是"个人内容变成公司资产"的准入关口 */}
+      <PromptReviewCard />
+
       <Card>
         <CardHeader className='gap-1'>
-          <CardTitle className='text-base'>沉淀条目</CardTitle>
-          <CardDescription>
-            共 {notes.data?.total ?? 0} 条 ·
-            审核通过会生成带提报人的「员工经验」文档
-          </CardDescription>
+          {/* 条目数与口径说明并到标题行：卡片头因此少一行，表格再往上提 20px */}
+          <CardTitle className='flex flex-wrap items-center gap-2 text-base'>
+            沉淀条目
+            <span className='text-xs font-normal text-muted-foreground'>
+              共 {notes.data?.total ?? 0} 条 ·
+              通过后生成带提报人的「员工经验」文档
+            </span>
+          </CardTitle>
         </CardHeader>
         <CardContent className='space-y-3'>
           <div className='flex flex-wrap items-center gap-2'>
@@ -352,156 +467,266 @@ export function DistillManagement() {
             </DropdownMenu>
           </div>
 
-          <div className='flex flex-wrap items-center gap-2'>
-            <span className='text-sm text-muted-foreground'>创建时间</span>
-            <DatePicker
-              selected={fromDate}
-              onSelect={(date) => {
-                setFromDate(date)
-                setPage(1)
-              }}
-              placeholder='开始日期'
-            />
-            <span className='text-sm text-muted-foreground'>至</span>
-            <DatePicker
-              selected={toDate}
-              onSelect={(date) => {
-                setToDate(date)
-                setPage(1)
-              }}
-              placeholder='结束日期'
-            />
-            {hasDateFilter && (
-              <Button
-                size='sm'
-                variant='ghost'
-                onClick={() => {
-                  setFromDate(undefined)
-                  setToDate(undefined)
-                  setPage(1)
-                }}
-              >
-                清空时间
-              </Button>
-            )}
-            <span className='text-xs text-muted-foreground'>
-              含起止当天，最长可查 366 天；列表与导出使用同一组筛选条件
-            </span>
-          </div>
+          <Collapsible open={dateFilterOpen} onOpenChange={setDateFilterOpen}>
+            <div className='flex flex-wrap items-center gap-2'>
+              <CollapsibleTrigger asChild>
+                <Button
+                  className='gap-1.5 px-2 text-xs text-muted-foreground'
+                  size='sm'
+                  variant='ghost'
+                >
+                  <ChevronDown
+                    className={cn(
+                      'size-3.5 transition-transform',
+                      dateFilterOpen && 'rotate-180'
+                    )}
+                  />
+                  按创建时间筛选
+                </Button>
+              </CollapsibleTrigger>
+              {/* 折叠不隐藏状态：已生效的时间范围在折叠行里如实说明 */}
+              <span className='text-xs text-muted-foreground'>
+                {hasDateFilter
+                  ? `已筛选 ${
+                      fromDate ? dayBoundary(fromDate, 'start') : '不限'
+                    } ~ ${toDate ? dayBoundary(toDate, 'end') : '不限'}`
+                  : '未按时间筛选'}
+              </span>
+            </div>
+            <CollapsibleContent className='pt-2'>
+              <div className='flex flex-wrap items-center gap-2'>
+                <span className='text-sm text-muted-foreground'>创建时间</span>
+                <DatePicker
+                  selected={fromDate}
+                  onSelect={(date) => {
+                    setFromDate(date)
+                    setPage(1)
+                  }}
+                  placeholder='开始日期'
+                />
+                <span className='text-sm text-muted-foreground'>至</span>
+                <DatePicker
+                  selected={toDate}
+                  onSelect={(date) => {
+                    setToDate(date)
+                    setPage(1)
+                  }}
+                  placeholder='结束日期'
+                />
+                {hasDateFilter && (
+                  <Button
+                    size='sm'
+                    variant='ghost'
+                    onClick={() => {
+                      setFromDate(undefined)
+                      setToDate(undefined)
+                      setPage(1)
+                    }}
+                  >
+                    清空时间
+                  </Button>
+                )}
+                <span className='text-xs text-muted-foreground'>
+                  含起止当天，最长可查 366 天；列表与导出使用同一组筛选条件
+                </span>
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
 
-          {notes.isLoading ? (
-            <Skeleton className='h-40 w-full' />
-          ) : rows.length === 0 ? (
-            <p className='rounded-md border border-dashed px-4 py-10 text-center text-sm text-muted-foreground'>
-              当前筛选条件下没有沉淀条目。
-            </p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>标题</TableHead>
-                  <TableHead className='w-36'>账号</TableHead>
-                  <TableHead className='w-28'>状态</TableHead>
-                  <TableHead className='w-32'>来源</TableHead>
-                  <TableHead className='w-32'>更新时间</TableHead>
-                  <TableHead className='w-64'>操作</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {rows.map((note) => (
-                  <TableRow key={note.id}>
-                    <TableCell>
-                      <div className='space-y-1'>
-                        <p className='font-medium'>{note.title}</p>
-                        <div className='flex flex-wrap items-center gap-1'>
-                          {note.tags.map((tag) => (
-                            <Badge key={tag} variant='outline'>
-                              {tag}
-                            </Badge>
-                          ))}
-                          {note.publishedDocumentId && (
-                            <span className='text-xs text-muted-foreground'>
-                              文档 #{note.publishedDocumentId}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell className='text-sm'>
-                      {note.ownerName || note.ownerLogin}
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={NOTE_STATUS_VARIANTS[note.status] ?? 'outline'}
-                      >
-                        {NOTE_STATUS_LABELS[note.status] ?? note.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className='text-sm text-muted-foreground'>
-                      {NOTE_SOURCE_LABELS[note.sourceKind] ?? note.sourceKind}
-                      <span className='block text-xs'>
-                        {NOTE_PROVENANCE_LABELS[note.provenance] ??
-                          note.provenance}
-                      </span>
-                    </TableCell>
-                    <TableCell className='text-sm text-muted-foreground'>
-                      {formatTime(note.updatedAt)}
-                    </TableCell>
-                    <TableCell>
-                      <div className='flex flex-wrap gap-1'>
+          <DataTable
+            columns={7}
+            emptyText='当前筛选条件下没有沉淀条目。'
+            header={
+              <TableRow>
+                <TableHead className='w-10'>
+                  <Checkbox
+                    aria-label='全选本页沉淀'
+                    checked={
+                      allSelected
+                        ? true
+                        : partiallySelected
+                          ? 'indeterminate'
+                          : false
+                    }
+                    onCheckedChange={(checked) =>
+                      toggleAllOnPage(checked === true)
+                    }
+                  />
+                </TableHead>
+                <TableHead>标题</TableHead>
+                <TableHead className='w-36'>账号</TableHead>
+                <TableHead className='w-28'>状态</TableHead>
+                <TableHead className='w-32'>来源</TableHead>
+                <TableHead className='w-32'>更新时间</TableHead>
+                <TableHead className={cn('w-48', TABLE_HEAD_ACTIONS)}>
+                  操作
+                </TableHead>
+              </TableRow>
+            }
+            isEmpty={rows.length === 0}
+            isError={notes.isError}
+            isLoading={notes.isLoading}
+            pagination={
+              notes.data
+                ? {
+                    disabled: notes.isFetching,
+                    page: notes.data.page,
+                    pageSize: notes.data.pageSize,
+                    total: notes.data.total,
+                    onPageChange: setPage,
+                    onPageSizeChange: (size) => {
+                      setPageSize(size)
+                      setPage(1)
+                    },
+                  }
+                : undefined
+            }
+            toolbar={
+              selectedIds.size > 0 ? (
+                <div className='flex flex-wrap items-center justify-between gap-2 rounded-md border border-primary/40 bg-primary/5 px-3 py-2'>
+                  <span className='text-sm'>
+                    已选 <strong>{selectedIds.size}</strong> 条沉淀
+                  </span>
+                  <div className='flex flex-wrap items-center gap-2'>
+                    <Button
+                      className='gap-1.5'
+                      disabled={batch.isPending || !canArchiveSelected}
+                      size='sm'
+                      variant='outline'
+                      onClick={() => setBatchAction('archive')}
+                    >
+                      <Archive className='size-3.5' />
+                      批量归档
+                    </Button>
+                    <Button
+                      className='gap-1.5 text-destructive'
+                      disabled={batch.isPending || !canDeleteSelected}
+                      size='sm'
+                      variant='outline'
+                      onClick={() => setBatchAction('delete')}
+                    >
+                      <Trash2 className='size-3.5' />
+                      批量删除
+                    </Button>
+                    <Button size='sm' variant='ghost' onClick={clearSelection}>
+                      取消选择
+                    </Button>
+                  </div>
+                </div>
+              ) : undefined
+            }
+          >
+            {rows.map((note) => (
+              <TableRow
+                data-state={selectedIds.has(note.id) ? 'selected' : undefined}
+                key={note.id}
+              >
+                <TableCell>
+                  <Checkbox
+                    aria-label={`选择沉淀 ${note.title}`}
+                    checked={selectedIds.has(note.id)}
+                    onCheckedChange={(checked) =>
+                      toggleOne(note.id, checked === true)
+                    }
+                  />
+                </TableCell>
+                <TableCell>
+                  <div className='space-y-1'>
+                    <p className='font-medium'>{note.title}</p>
+                    <div className='flex flex-wrap items-center gap-1'>
+                      {note.tags.map((tag) => (
+                        <Badge key={tag} variant='outline'>
+                          {tag}
+                        </Badge>
+                      ))}
+                      {note.publishedDocumentId && (
+                        <span className='text-xs text-muted-foreground'>
+                          文档 #{note.publishedDocumentId}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </TableCell>
+                <TableCell className='text-sm'>
+                  {note.ownerName || note.ownerLogin}
+                </TableCell>
+                <TableCell>
+                  <Badge
+                    variant={NOTE_STATUS_VARIANTS[note.status] ?? 'outline'}
+                  >
+                    {NOTE_STATUS_LABELS[note.status] ?? note.status}
+                  </Badge>
+                </TableCell>
+                <TableCell className={TABLE_CELL_META}>
+                  {NOTE_SOURCE_LABELS[note.sourceKind] ?? note.sourceKind}
+                  <span className='block text-xs'>
+                    {NOTE_PROVENANCE_LABELS[note.provenance] ?? note.provenance}
+                  </span>
+                </TableCell>
+                <TableCell className={TABLE_CELL_META}>
+                  {formatTime(note.updatedAt)}
+                </TableCell>
+                <TableCell className={TABLE_CELL_ACTIONS}>
+                  {/*
+                        操作列此前 6 个按钮（查看/通过/驳回/编辑/归档/删除）在 w-64 里折成两行。
+                        现在只把"审核结论"留在明面 —— 通过 / 驳回是本页唯一的高频动作，
+                        且它们的可用性取决于当前状态；其余四个动作收进「更多」菜单，
+                        权限与服务端校验完全不变（禁用条件逐项保留）。
+                      */}
+                  <div className='flex items-center justify-end gap-0.5'>
+                    <Button
+                      className='h-8 gap-1 px-2 text-xs'
+                      disabled={note.status !== 'pending' || review.isPending}
+                      size='sm'
+                      variant='ghost'
+                      onClick={() => {
+                        setReviewing({ note, decision: 'approve' })
+                        setComment('')
+                      }}
+                    >
+                      <CheckCircle2 className='size-3.5' />
+                      通过
+                    </Button>
+                    <Button
+                      className='h-8 gap-1 px-2 text-xs'
+                      disabled={note.status !== 'pending' || review.isPending}
+                      size='sm'
+                      variant='ghost'
+                      onClick={() => {
+                        setReviewing({ note, decision: 'reject' })
+                        setComment('')
+                      }}
+                    >
+                      <XCircle className='size-3.5' />
+                      驳回
+                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
                         <Button
-                          aria-label='查看沉淀详情'
-                          size='sm'
+                          aria-label='更多沉淀操作'
+                          className='size-8'
+                          size='icon'
+                          title='更多操作（查看 / 编辑 / 归档 / 删除）'
                           variant='ghost'
-                          onClick={() => setDetail(note)}
                         >
-                          <Eye className='size-4' />
+                          <MoreHorizontal className='size-4' />
                         </Button>
-                        <Button
-                          className='gap-1'
-                          disabled={
-                            note.status !== 'pending' || review.isPending
-                          }
-                          size='sm'
-                          variant='ghost'
-                          onClick={() => {
-                            setReviewing({ note, decision: 'approve' })
-                            setComment('')
-                          }}
-                        >
-                          <CheckCircle2 className='size-4' />
-                          通过
-                        </Button>
-                        <Button
-                          className='gap-1'
-                          disabled={
-                            note.status !== 'pending' || review.isPending
-                          }
-                          size='sm'
-                          variant='ghost'
-                          onClick={() => {
-                            setReviewing({ note, decision: 'reject' })
-                            setComment('')
-                          }}
-                        >
-                          <XCircle className='size-4' />
-                          驳回
-                        </Button>
-                        <Button
-                          aria-label='编辑沉淀'
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align='end'>
+                        <DropdownMenuItem onSelect={() => setDetail(note)}>
+                          <Eye />
+                          查看详情
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
                           disabled={note.status === 'published'}
-                          size='sm'
-                          variant='ghost'
-                          onClick={() => setEditing(note)}
+                          onSelect={() => setEditing(note)}
                         >
-                          <Pencil className='size-4' />
-                        </Button>
-                        <Button
-                          aria-label='归档沉淀'
+                          <Pencil />
+                          编辑
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
                           disabled={note.status === 'archived'}
-                          size='sm'
-                          variant='ghost'
-                          onClick={() =>
+                          onSelect={() =>
                             archive.mutate(note.id, {
                               onSuccess: () => toast.success('已归档'),
                               onError: (error) =>
@@ -513,51 +738,27 @@ export function DistillManagement() {
                             })
                           }
                         >
-                          <Archive className='size-4' />
-                        </Button>
-                        <Button
-                          aria-label='删除沉淀'
-                          title={canDeleteNote(note) ? undefined : NOTE_DELETE_HINT}
+                          <Archive />
+                          归档
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          className='text-destructive'
                           disabled={!canDeleteNote(note)}
-                          size='sm'
-                          variant='ghost'
-                          onClick={() => setPendingDelete(note)}
+                          title={
+                            canDeleteNote(note) ? undefined : NOTE_DELETE_HINT
+                          }
+                          onSelect={() => setPendingDelete(note)}
                         >
-                          <Trash2 className='size-4' />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-
-          {(notes.data?.total ?? 0) > 20 && (
-            <div className='flex items-center justify-between'>
-              <span className='text-xs text-muted-foreground'>
-                第 {notes.data?.page ?? 1} 页 · 共 {notes.data?.total ?? 0} 条
-              </span>
-              <div className='flex gap-2'>
-                <Button
-                  disabled={(notes.data?.page ?? 1) <= 1}
-                  size='sm'
-                  variant='outline'
-                  onClick={() => setPage((current) => Math.max(1, current - 1))}
-                >
-                  上一页
-                </Button>
-                <Button
-                  disabled={rows.length < (notes.data?.pageSize ?? 20)}
-                  size='sm'
-                  variant='outline'
-                  onClick={() => setPage((current) => current + 1)}
-                >
-                  下一页
-                </Button>
-              </div>
-            </div>
-          )}
+                          <Trash2 />
+                          删除
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </DataTable>
         </CardContent>
       </Card>
 
@@ -658,6 +859,29 @@ export function DistillManagement() {
         </DialogContent>
       </Dialog>
 
+      {/*
+        批量确认：归档已发布条目会同时下线它生成的公共知识库文档，
+        删除则是软删且不可恢复，两者都需要在动手前把影响说清楚。
+      */}
+      <ConfirmDialog
+        confirmText={batchAction === 'delete' ? '删除' : '归档'}
+        desc={
+          batchAction === 'delete'
+            ? `删除后这 ${selectedIds.size} 条沉淀不再出现在列表与导出中（保留审计记录）。已发布条目不能删除，会逐条提示原因。`
+            : `归档后这 ${selectedIds.size} 条沉淀退出审核队列；其中已发布条目会同时下线它生成的公共知识库文档，不再被问答引用。`
+        }
+        destructive={batchAction === 'delete'}
+        isLoading={batch.isPending}
+        open={batchAction !== null}
+        title={batchAction === 'delete' ? '批量删除沉淀' : '批量归档沉淀'}
+        onOpenChange={(open) => {
+          if (!open) setBatchAction(null)
+        }}
+        handleConfirm={() => {
+          if (batchAction) runBatch(batchAction)
+          setBatchAction(null)
+        }}
+      />
       <ConfirmDialog
         desc={`删除后该沉淀不再出现在列表与导出中（保留审计记录）。已发布条目不能删除，需先归档以下线对应的公共文档：${pendingDelete?.title ?? ''}`}
         destructive

@@ -13,6 +13,21 @@ export const API_BASE_URL =
 
 export const api = axios.create({ baseURL: API_BASE_URL })
 
+export class ApiRequestError extends Error {
+  status: number
+
+  constructor(message: string, status: number) {
+    super(message)
+    this.name = 'ApiRequestError'
+    this.status = status
+  }
+}
+
+export function handleUnauthorized() {
+  useAuthStore.getState().auth.reset()
+  if (typeof window !== 'undefined') window.dispatchEvent(new Event('auth:unauthorized'))
+}
+
 api.interceptors.request.use((config) => {
   const token = useAuthStore.getState().auth.accessToken
   if (token) config.headers.Authorization = `Bearer ${token}`
@@ -52,7 +67,8 @@ export async function rawRequest(path: string, init: RequestInit = {}) {
       .json()
       .then((body) => (body as { message?: string } | null)?.message)
       .catch(() => null)
-    throw new Error(message ?? `请求失败（HTTP ${response.status}）`)
+    if (response.status === 401) handleUnauthorized()
+    throw new ApiRequestError(message ?? `请求失败（HTTP ${response.status}）`, response.status)
   }
 
   return response

@@ -32,6 +32,15 @@ import { datasetFreshnessOf } from './datasets.mjs'
 
 export const MAX_MODEL_ROWS = 120
 export const MAX_TABLE_ROWS = 30
+/**
+ * 表格块在"给人看"的路径上允许的行数上限（2026-09-15）。
+ *
+ * 与 `MAX_TABLE_ROWS` 分开的理由：`MAX_TABLE_ROWS = 30` 是**给模型看**的预算，
+ * 页面「一键分析」的明细表却需要完整清单（分页展示 + 导出），
+ * 两者用同一个常量时，清单一旦超过 30 个 ASIN，页面就只能看到前 30 行且没有任何补救入口。
+ * 取值与单清单上限一致，避免再多一个需要同步的数字。
+ */
+export const MAX_DETAIL_ROWS = 5000
 
 const round = (value, digits = 2) => {
   if (value === null || value === undefined || !Number.isFinite(Number(value))) return null
@@ -212,15 +221,37 @@ function dateOnly(value) {
 
 /* ---------- 结构化块 ---------- */
 
-export function buildTableBlock({ title, columns, rows, note = null, dataset = null }) {
+export function buildTableBlock({
+  title,
+  columns,
+  rows,
+  note = null,
+  dataset = null,
+  /**
+   * 可选的分组表头（`[{ label, span }]`，只描述除首列以外的列）。
+   * 用途：一张表里并列两套同构字段时（「按日对比」里本品与竞品各 7 个指标），
+   * 把归属提到第一行，而不是在每列标签里重复。
+   * 不传时为 `null` —— 渲染层按"没有分组"处理，行为与改动前完全一致。
+   */
+  groups = null,
+  maxRows = MAX_TABLE_ROWS,
+  /**
+   * 原始总行数。默认取 `rows.length`；当调用方**在构造块之前已经截断过行**时
+   * 必须显式传入，否则界面会显示「共 100 条、未截断」，把真实总量（例如 500 条）说小。
+   */
+  totalRows = null,
+}) {
+  const visible = rows.slice(0, maxRows)
+  const total = Number.isInteger(totalRows) ? totalRows : rows.length
   return {
     kind: 'table',
     title,
     dataset,
     columns,
-    rows: rows.slice(0, MAX_TABLE_ROWS),
-    totalRows: rows.length,
-    truncated: rows.length > MAX_TABLE_ROWS,
+    groups,
+    rows: visible,
+    totalRows: total,
+    truncated: total > visible.length,
     note,
   }
 }
@@ -306,7 +337,7 @@ export function mergeDailyRows(adsRows, salesRows) {
   return [...byDate.values()].sort((a, b) => (a.date < b.date ? -1 : 1))
 }
 
-export async function amazonPerformancePayload({ asin, marketplace = 'US', startDate, endDate, compareWith = 'previous_period' }) {
+export async function amazonPerformancePayload({ asin, marketplace = 'US', startDate, endDate, compareWith = 'previous_period', detailLimit = MAX_TABLE_ROWS }) {
   const [adsRows, salesRows] = await Promise.all([
     queryAdsDaily({ asin, marketplace, startDate, endDate }),
     querySalesDaily({ asin, marketplace, startDate, endDate }),
@@ -402,6 +433,8 @@ export async function amazonPerformancePayload({ asin, marketplace = 'US', start
         { key: 'units', label: '销量', align: 'right' },
       ],
       rows: dailyRows,
+      maxRows: detailLimit === null ? MAX_DETAIL_ROWS : detailLimit,
+      totalRows: dailyRows.length,
       note:
         dailyRows.some((row) => row.units === null)
           ? '销量列缺失的日期说明业务报告未覆盖该日期，不代表销量为 0。'
@@ -1215,5 +1248,616 @@ export async function inventoryRiskPayload({
     citations: [datasetCitation(inventoryFreshness), datasetCitation(orderFreshness)],
     dataFreshness,
     blocks,
+  }
+}
+
+/* ---------- 工具载荷：指定 ASIN 集合（ASIN 清单） ---------- */
+
+/**
+ * 某站点广告/销售数据的最新日期（清单分析的窗口锚点）。
+ *
+ * 用数据最新日期而非"今天"做锚点：报表是人工导出的，可能滞后数天，
+ * 以今天为终点会取到一个大半为空的区间，看起来像"清单里没有数据"。
+ */
+export async function queryLatestAmazonDate({ marketplace = 'US' } = {}) {
+  const { rows } = await query(
+    `SELECT GREATEST(
+              (SELECT MAX(stat_date) FROM amazon_ads_daily WHERE marketplace = $1),
+              (SELECT MAX(stat_date) FROM amazon_sales_daily WHERE marketplace = $1)
+            ) AS latest`,
+    [marketplace]
+  )
+  return dateOnly(rows[0]?.latest) ?? null
+}
+
+/**
+ * 全站点的最新报表日期（2026-09-18 新增，「我的 ASIN」多站点区间锚点）。
+ *
+ * 一个账号的 ASIN 列表可以横跨多个站点，而"近 30 天"对一个列表只能有一个区间 ——
+ * 若按各站点自己的最新日期分别取，每行数字的区间都不同，页面上的日期文案就没法写，
+ * 用户也无法横向比较。统一用所有站点里最新的那一天做终点，某个站点报表滞后时
+ * 表现为"该站点覆盖少"（页面上会如实给出有数据 / 无数据的条数），而不是悄悄换个区间。
+ */
+export async function queryLatestAmazonDateAcrossMarketplaces() {
+  const { rows } = await query(
+    `SELECT GREATEST(
+              (SELECT MAX(stat_date) FROM amazon_ads_daily),
+              (SELECT MAX(stat_date) FROM amazon_sales_daily)
+            ) AS latest`
+  )
+  return dateOnly(rows[0]?.latest) ?? null
+}
+
+/** 按 ASIN 集合 + 站点取广告日报（清单分析的取数入口，命中 (asin, marketplace, stat_date) 索引）。 */
+export async function queryAdsDailyByAsins({ asins, marketplace, startDate, endDate, limit = 20000 }) {
+  if (!Array.isArray(asins) || asins.length === 0) return []
+  const { rows } = await query(
+    // 同 queryAdsDailyByMarketplace：触顶时优先保最近的数据
+    `SELECT stat_date, asin, marketplace, campaign, impressions, clicks, spend, orders, sales, acos
+       FROM amazon_ads_daily
+      WHERE asin = ANY($1::text[]) AND marketplace = $2 AND stat_date BETWEEN $3 AND $4
+      ORDER BY stat_date DESC
+      LIMIT $5`,
+    [asins, marketplace, startDate, endDate, limit]
+  )
+  return rows.reverse().map((row) => ({
+    ...row,
+    stat_date: dateOnly(row.stat_date),
+    spend: Number(row.spend),
+    sales: Number(row.sales),
+    acos: row.acos === null ? null : Number(row.acos),
+  }))
+}
+
+/** 按 ASIN 集合 + 站点取业务报告（销量口径）。 */
+export async function querySalesDailyByAsins({ asins, marketplace, startDate, endDate, limit = 20000 }) {
+  if (!Array.isArray(asins) || asins.length === 0) return []
+  const { rows } = await query(
+    `SELECT stat_date, asin, marketplace, units, sales, returns
+       FROM amazon_sales_daily
+      WHERE asin = ANY($1::text[]) AND marketplace = $2 AND stat_date BETWEEN $3 AND $4
+      ORDER BY stat_date DESC
+      LIMIT $5`,
+    [asins, marketplace, startDate, endDate, limit]
+  )
+  return rows.reverse().map((row) => ({ ...row, stat_date: dateOnly(row.stat_date), sales: Number(row.sales) }))
+}
+
+const RISK_LABELS = { high: '高风险', medium: '需关注', normal: '正常' }
+
+/**
+ * ASIN 清单分析载荷：对**用户指定的这一批 ASIN**做汇总、排行与异常扫描。
+ *
+ * 与 `marketplacePerformancePayload`（全站）的区别：范围由用户给的 ASIN 集合决定，
+ * 回答的是"我这批货怎么样"，而不是"整个站点怎么样"。
+ *
+ * 三条硬规则：
+ * 1. **清单里的每个 ASIN 都要出现在结果里**——没有数据的那些以「无数据」行出现，
+ *    不能因为 join 不上就悄悄消失（运营会以为清单漏了 ASIN）。
+ * 2. **不把"报表没覆盖"说成"没卖出去"**：无广告/无销售记录一律标注为"无数据"，
+ *    并在摘要里明确列出，绝不折算成 0 参与结论。
+ * 3. 所有判定与数字来自 `analytics.mjs`（与全站扫描同一套阈值与算法），模型只负责表达。
+ */
+/**
+ * 覆盖情况由"合并后的字段里有没有广告 / 销售数字"推导（2026-09-18）。
+ *
+ * 人工录入时不要求用户自己选"广告+销售 / 仅广告 / …"：他填了哪几项，
+ * 事实就是哪几项 —— 让人手选一个由数字本身决定的东西，只会多一个填错的机会。
+ */
+export function deriveCoverageFromRow(row) {
+  const hasAds = row.spend !== null || row.adSales !== null || row.orders !== null
+  const hasSales = row.units !== null || row.businessSales !== null
+  if (hasAds && hasSales) return '广告+销售'
+  if (hasAds) return '仅广告'
+  if (hasSales) return '仅销售'
+  return '无数据'
+}
+
+/**
+ * 把人工录入的指标合并进报表行（**手工值优先，未填的字段沿用报表**）。
+ *
+ * 页面（`myAsinMetricsPayload`）与 AI 工具都走这一处合并，因此"页面一个说法、
+ * AI 一个说法"在这条链路上不可能发生。
+ *
+ * `manual` 标记会跟着行一起回传：页面据此在单元格上标「手工」，
+ * 工具据此在回答里说明哪些数字不是报表来的。
+ */
+export function applyManualOverrides(rows, overridesByAsin) {
+  if (!overridesByAsin || overridesByAsin.size === 0) return rows
+  return rows.map((row) => {
+    const manual = overridesByAsin.get(row.asin)
+    if (!manual) return row
+    const pick = (key, fallback) => {
+      const value = manual[key]
+      return value === null || value === undefined ? fallback : value
+    }
+    const next = {
+      ...row,
+      spend: pick('spend', row.spend),
+      adSales: pick('adSales', row.adSales),
+      orders: pick('orders', row.orders),
+      acos: pick('acos', row.acos),
+      units: pick('units', row.units),
+      businessSales: pick('businessSales', row.businessSales),
+      manual: true,
+    }
+    next.coverage = deriveCoverageFromRow(next)
+    return next
+  })
+}
+
+/** 合计口径：有人工值时必须**从合并后的行重算**，否则会出现"明细 800、合计 300"的自相矛盾。 */
+function totalsFromRows(rows, kind) {
+  const sum = (key) =>
+    rows.reduce((total, row) => total + (typeof row[key] === 'number' ? row[key] : 0), 0)
+  if (kind === 'ads') {
+    const spend = sum('spend')
+    const sales = sum('adSales')
+    return {
+      spend,
+      sales,
+      orders: sum('orders'),
+      acos: sales > 0 ? Math.round((spend / sales) * 10000) / 100 : null,
+    }
+  }
+  return { units: sum('units'), sales: sum('businessSales') }
+}
+
+export async function asinSetPerformancePayload({
+  asins = [],
+  marketplace = 'US',
+  startDate,
+  endDate,
+  compareWith = 'previous_period',
+  aliasByAsin = {},
+  /*
+   * 明细行数上限（2026-09-15 新增）。
+   *
+   * 默认 `MAX_TABLE_ROWS`（30）= 给模型看的预算，**工具路径零改动即保持现状**。
+   * 页面「一键分析」显式传 `null` 表示"要全量" —— 清单上限提到 5000 后，
+   * 明细分页与导出都必须拿到完整的行，否则用户永远看不到第 31 行之后的东西。
+   */
+  detailLimit = MAX_TABLE_ROWS,
+  /*
+   * 人工录入的指标（2026-09-18 新增）：`Map<asin, { spend, adSales, orders, acos, units, businessSales }>`，
+   * 只作用于本站点（调用方按站点分组时已把站内 ASIN 归好）。
+   */
+  overridesByAsin = null,
+}) {
+  const detailMax = detailLimit === null ? MAX_DETAIL_ROWS : detailLimit
+  const requested = [...new Set((asins ?? []).map((asin) => String(asin ?? '').trim().toUpperCase()))].filter(
+    Boolean
+  )
+
+  const [adsRows, salesRows] = await Promise.all([
+    queryAdsDailyByAsins({ asins: requested, marketplace, startDate, endDate }),
+    querySalesDailyByAsins({ asins: requested, marketplace, startDate, endDate }),
+  ])
+  const [adsFreshness, salesFreshness] = await Promise.all([
+    datasetFreshnessOf('amazon_ads_daily'),
+    datasetFreshnessOf('amazon_sales_daily'),
+  ])
+  const dataFreshness = combineFreshness([adsFreshness, salesFreshness])
+  const citations = [datasetCitation(adsFreshness), datasetCitation(salesFreshness)]
+
+  const periodLabel = `站点 ${marketplace} · 区间 ${startDate} ~ ${endDate}（${periodDays(startDate, endDate)} 天）`
+
+  // 只有人工录入值时也不能走"没有数据"分支：那会让页面在"报表未导入、全靠手填"时显示空表
+  const hasManualOverrides = Boolean(overridesByAsin && overridesByAsin.size > 0)
+  if (adsRows.length === 0 && salesRows.length === 0 && !hasManualOverrides) {
+    const hint =
+      requested.length === 0
+        ? '清单里还没有 ASIN。'
+        : `清单里的 ${requested.length} 个 ASIN 在 ${startDate} 至 ${endDate} 没有任何广告或销售记录。`
+    return {
+      ok: true,
+      empty: true,
+      rows: [],
+      rowCount: 0,
+      summary: `${periodLabel}\n${hint}\n可能原因：该区间没有投放/没有销售、站点选错，或这些 ASIN 的报表尚未导入。请确认后重试。`,
+      citations,
+      dataFreshness,
+      blocks: [],
+      analysis: { period: { startDate, endDate }, asinCount: requested.length, covered: 0, uncovered: requested },
+    }
+  }
+
+  const groupByAsin = (rows) => {
+    const map = new Map()
+    for (const row of rows) {
+      const list = map.get(row.asin) ?? []
+      list.push(row)
+      map.set(row.asin, list)
+    }
+    return map
+  }
+
+  const adsByAsin = groupByAsin(adsRows)
+  const salesByAsin = groupByAsin(salesRows)
+  const currentByAsin = new Map([...adsByAsin.entries()].map(([asin, list]) => [asin, summarizeAds(list)]))
+
+  const compareMode = ['previous_period', 'last_year', 'none'].includes(compareWith)
+    ? compareWith
+    : 'previous_period'
+  const comparisonLabel =
+    compareMode === 'last_year' ? '同比（去年同期）' : compareMode === 'none' ? null : '环比（上一等长区间）'
+
+  let previousByAsin = new Map()
+  let previousSummary = null
+  if (compareMode !== 'none') {
+    const range = compareMode === 'last_year' ? samePeriodLastYear(startDate, endDate) : previousPeriod(startDate, endDate)
+    const previousAdsRows = range
+      ? await queryAdsDailyByAsins({
+          asins: requested,
+          marketplace,
+          startDate: range.startDate,
+          endDate: range.endDate,
+        })
+      : []
+    previousByAsin = new Map(
+      [...groupByAsin(previousAdsRows).entries()].map(([asin, list]) => [asin, summarizeAds(list)])
+    )
+    if (previousAdsRows.length > 0) previousSummary = summarizeAds(previousAdsRows)
+  }
+
+  const scan = scanAsinAnomalies({ currentByAsin, previousByAsin })
+
+  // 覆盖率：清单请求的 ASIN 里，哪些在报表中完全找不到（**人工录入过的算"有数据"**）
+  const adsCovered = new Set(adsRows.map((row) => row.asin))
+  const salesCovered = new Set(salesRows.map((row) => row.asin))
+  const manualCovered = new Set(overridesByAsin ? [...overridesByAsin.keys()] : [])
+  const uncovered = requested.filter(
+    (asin) => !adsCovered.has(asin) && !salesCovered.has(asin) && !manualCovered.has(asin)
+  )
+
+  const riskOf = new Map(scan.items.map((item) => [item.asin, item]))
+  const hasAlias = Object.values(aliasByAsin ?? {}).some((value) => Boolean(value))
+
+  const reportRows = requested.map((asin) => {
+    const ads = currentByAsin.get(asin) ?? null
+    const sales = salesByAsin.has(asin) ? summarizeSales(salesByAsin.get(asin)) : null
+    const risk = riskOf.get(asin)
+    const hasAds = adsCovered.has(asin)
+    const hasSales = salesCovered.has(asin)
+    return {
+      asin,
+      ...(hasAlias ? { alias: aliasByAsin?.[asin] ?? null } : {}),
+      coverage: hasAds && hasSales ? '广告+销售' : hasAds ? '仅广告' : hasSales ? '仅销售' : '无数据',
+      risk: hasAds ? RISK_LABELS[risk?.risk ?? 'normal'] : '无数据',
+      severity: risk?.severity ?? null,
+      spend: ads?.spend ?? null,
+      adSales: ads?.sales ?? null,
+      acos: ads?.acos ?? null,
+      acosDelta: risk?.comparison?.acos?.delta ?? null,
+      orders: ads?.orders ?? null,
+      cvr: ads?.cvr ?? null,
+      ctr: ads?.ctr ?? null,
+      units: sales?.units ?? null,
+      businessSales: sales?.sales ?? null,
+      signals: (risk?.signals ?? []).map((signal) => signal.label).join('、'),
+    }
+  })
+
+  /*
+   * 人工录入的指标优先（2026-09-18）：合并只在这一处做，页面与 AI 工具因此共用同一套口径。
+   * 合并后的合计必须一并重算 —— 明细是人工数字、汇总还是报表数字的话，两处对不上就会被当成数据错误。
+   * `clicks` / `impressions` / `ctr` / `cvr` 没有人工入口，仍取报表值。
+   */
+  const rows = applyManualOverrides(reportRows, overridesByAsin)
+  const manualPresent = rows.some((row) => row.manual)
+  const current = manualPresent
+    ? { ...summarizeAds(adsRows), ...totalsFromRows(rows, 'ads') }
+    : summarizeAds(adsRows)
+  const currentSales = manualPresent
+    ? { ...summarizeSales(salesRows), ...totalsFromRows(rows, 'sales') }
+    : summarizeSales(salesRows)
+
+  const flagged = rows.filter((row) => row.risk === '高风险' || row.risk === '需关注')
+  const withAcos = rows.filter((row) => row.acos !== null)
+  const worstByAcos = rankAsins(currentByAsin, 'acos', { ascending: false, limit: 5 })
+
+  const metricsItems = [
+    { key: 'asinCount', label: '清单 ASIN 数', value: requested.length, unit: '' },
+    { key: 'covered', label: '有数据', value: requested.length - uncovered.length, unit: '' },
+    { key: 'uncovered', label: '无数据', value: uncovered.length, unit: '' },
+    ...summaryItems(mergeAdAndBusinessSummary(current, currentSales)).filter((item) =>
+      ['spend', 'sales', 'acos', 'orders', 'cvr'].includes(item.key)
+    ),
+  ]
+
+  const blocks = [
+    buildMetricsBlock({ title: '清单整体汇总', items: metricsItems, note: periodLabel }),
+  ]
+
+  const comparison = previousSummary
+    ? comparePeriods(mergeAdAndBusinessSummary(current, currentSales), previousSummary)
+    : null
+  if (comparison && comparisonLabel) {
+    blocks.push(buildComparisonBlock(comparison, { title: comparisonLabel }))
+  }
+
+  blocks.push(
+    buildTableBlock({
+      title: '清单内各 ASIN 表现（按花费降序）',
+      dataset: 'amazon_ads_daily',
+      columns: [
+        ...(hasAlias ? [{ key: 'alias', label: '备注' }] : []),
+        { key: 'asin', label: 'ASIN' },
+        { key: 'coverage', label: '数据覆盖' },
+        { key: 'risk', label: '判定' },
+        { key: 'spend', label: '花费', align: 'right' },
+        { key: 'adSales', label: '广告销售额', align: 'right' },
+        { key: 'acos', label: 'ACoS(%)', align: 'right' },
+        { key: 'orders', label: '广告订单', align: 'right' },
+        { key: 'cvr', label: '转化率(%)', align: 'right' },
+        { key: 'units', label: '销量', align: 'right' },
+      ],
+      rows: [...rows].sort((a, b) => (b.spend ?? -1) - (a.spend ?? -1)),
+      maxRows: detailMax,
+      note: [
+        uncovered.length > 0
+          ? `「无数据」表示这些 ASIN 在该区间与站点没有任何报表记录，不代表销量为 0。`
+          : null,
+        rows.length > detailMax
+          ? `清单共 ${rows.length} 个 ASIN，此处只列出花费最高的 ${detailMax} 个（完整清单请在「我的 ASIN」页查看）。`
+          : null,
+      ]
+        .filter(Boolean)
+        .join(' '),
+    })
+  )
+
+  if (withAcos.length > 1) {
+    blocks.push(
+      buildChartBlock({
+        title: '清单内各 ASIN ACoS 对比',
+        chartType: 'bar',
+        xKey: 'asin',
+        series: [{ key: 'acos', label: 'ACoS(%)', kind: 'bar' }],
+        data: [...withAcos].sort((a, b) => b.acos - a.acos).slice(0, 15),
+        note: '红色区间对应 ACoS 预警线 35%。',
+      })
+    )
+  }
+
+  if (flagged.length > 0) {
+    blocks.push(
+      buildTableBlock({
+        title: '需要处理的 ASIN（按严重度排序）',
+        dataset: 'amazon_ads_daily',
+        columns: [
+          { key: 'asin', label: 'ASIN' },
+          { key: 'risk', label: '判定' },
+          { key: 'severity', label: '严重度', align: 'right' },
+          { key: 'acos', label: 'ACoS(%)', align: 'right' },
+          { key: 'acosDelta', label: 'ACoS 环比', align: 'right' },
+          { key: 'spend', label: '花费', align: 'right' },
+          { key: 'signals', label: '命中信号' },
+        ],
+        rows: [...flagged].sort((a, b) => (b.severity ?? 0) - (a.severity ?? 0)),
+        maxRows: detailMax,
+        note:
+          flagged.length > detailMax
+            ? `共 ${flagged.length} 个需要处理，此处按严重度列出前 ${detailMax} 个。`
+            : null,
+      })
+    )
+  }
+
+  const summaryLines = [
+    `${periodLabel} · 清单 ${requested.length} 个 ASIN（有数据 ${requested.length - uncovered.length} 个，无数据 ${uncovered.length} 个）`,
+    `整体：广告花费 ${current.spend}，广告销售额 ${current.sales}，ACoS ${current.acos ?? '无'}%，点击 ${current.clicks}，曝光 ${current.impressions}，广告订单 ${current.orders}，点击率 ${current.ctr ?? '无'}%，转化率 ${current.cvr ?? '无'}%`,
+  ]
+  if (currentSales) {
+    summaryLines.push(
+      `业务报告：总销量 ${currentSales.units}，销售额 ${currentSales.sales}，退货 ${currentSales.returns}，退货率 ${currentSales.returnRate ?? '无'}%`
+    )
+  }
+  if (comparison && comparisonLabel && comparison.notes.length === 0) {
+    const m = comparison.metrics
+    const change = (key, label) => {
+      const item = m[key]
+      if (!item || item.delta === null) return null
+      const pct = item.deltaPct === null ? '上期为 0' : `${item.deltaPct > 0 ? '+' : ''}${item.deltaPct}%`
+      return `${label} ${item.previous} → ${item.current}（${pct}）`
+    }
+    summaryLines.push(
+      `${comparisonLabel}：${[change('acos', 'ACoS'), change('spend', '花费'), change('sales', '广告销售额'), change('cvr', '转化率')]
+        .filter(Boolean)
+        .join('；')}`
+    )
+  }
+  summaryLines.push(
+    `判定结果：高风险 ${scan.summary.highCount} 个，需关注 ${scan.summary.mediumCount} 个，正常 ${scan.summary.normalCount} 个`
+  )
+  if (worstByAcos.length > 0) {
+    summaryLines.push(`清单内 ACoS 最高：${worstByAcos.map((item) => `${item.asin}(${item.value}%)`).join('、')}`)
+  }
+  if (flagged.length > 0) {
+    summaryLines.push(
+      `需要处理（最多列 10 个）：${flagged
+        .slice(0, 10)
+        .map(
+          (row) =>
+            `${row.asin}[${row.risk}] ACoS ${row.acos ?? '无'}%（环比 ${
+              row.acosDelta === null || row.acosDelta === undefined ? '无对比' : `${row.acosDelta > 0 ? '+' : ''}${row.acosDelta} 个百分点`
+            }）；信号：${row.signals || '无'}`
+        )
+        .join(' | ')}`
+    )
+  } else {
+    summaryLines.push('清单内未发现需要关注的异常项。')
+  }
+  if (rows.length > detailMax) {
+    summaryLines.push(
+      `明细表只列出前 ${detailMax} 个 ASIN（清单共 ${rows.length} 个）；需要完整清单时提示用户到「AI 助手 → 我的 ASIN」页查看或导出。`
+    )
+  }
+  summaryLines.push(
+    uncovered.length > 0
+      ? `无数据的 ASIN（${uncovered.length} 个）：${uncovered.slice(0, 20).join('、')}${uncovered.length > 20 ? ' 等' : ''}。这些 ASIN 在区间内没有任何报表记录，不代表销量为 0，回答时必须如实说明。`
+      : '清单内所有 ASIN 都有报表记录。'
+  )
+  summaryLines.push(
+    '预警线：ACoS > 35%、转化率 < 7%、点击率 < 0.25%；趋势信号：ACoS 环比涨幅 > 20%、转化率跌幅 > 20%、花费上涨 > 30% 且销售额下滑'
+  )
+  summaryLines.push(`数据时效：${freshnessSentence(dataFreshness)}`)
+  const manualAsins = rows.filter((row) => row.manual).map((row) => row.asin)
+  if (manualAsins.length > 0) {
+    summaryLines.push(
+      `其中 ${manualAsins.length} 个 ASIN 的指标是**人工录入**（优先于报表，通常是报表未导入或需要修正）：${manualAsins
+        .slice(0, 20)
+        .join('、')}${manualAsins.length > 20 ? ' 等' : ''}。回答时必须说明这些数字来自人工录入，不得描述成报表统计结果。`
+    )
+  }
+  summaryLines.push('以上判定与数字均由系统计算得出，回答时必须直接引用，不得自行估算或改动。')
+
+  return {
+    ok: true,
+    empty: false,
+    rows: rows.slice(0, MAX_MODEL_ROWS),
+    /*
+     * 全量明细行（2026-09-18 新增）。
+     *
+     * 「我的 ASIN」数据表要按区间展示每个 ASIN 的指标，而 `rows` 这一份是**给模型看的
+     * 预算**（`MAX_MODEL_ROWS = 120`）——拿它当页面数据源，第 121 个之后的 ASIN 永远没有数字。
+     * 因此只在调用方显式要求全量（`detailLimit === null`，即页面路径）时回传这一份；
+     * 工具路径拿不到该字段，AI 上下文的开销零变化。
+     */
+    ...(detailLimit === null ? { detailRows: rows } : {}),
+    rowCount: rows.length,
+    truncated: rows.length > MAX_MODEL_ROWS,
+    summary: summaryLines.join('\n'),
+    analysis: {
+      period: { startDate, endDate, days: periodDays(startDate, endDate) },
+      previousPeriod: compareMode === 'none' ? null : (compareMode === 'last_year' ? samePeriodLastYear(startDate, endDate) : previousPeriod(startDate, endDate)),
+      asinCount: requested.length,
+      covered: requested.length - uncovered.length,
+      uncovered,
+      current: mergeAdAndBusinessSummary(current, currentSales),
+      comparison,
+      scan: scan.summary,
+      flagged: flagged.slice(0, 20),
+      manualAsins,
+    },
+    citations,
+    dataFreshness,
+    blocks,
+  }
+}
+
+/**
+ * 「我的 ASIN」多站点指标载荷（2026-09-18 新增）。
+ *
+ * 站点从清单下沉到每条 ASIN 之后，一个账号的列表里可能同时有 US 与 DE 的商品，
+ * 而 `asinSetPerformancePayload` 一次只认一个站点（日报按 `(asin, marketplace)` 存储）。
+ * 这里按站点分组、复用**同一个** payload 逐组取数，再合并成页面能直接消费的形状。
+ *
+ * **为什么不出跨站点的合计**：不同站点的货币不同（USD / EUR / JPY…），
+ * 把 US 的花费与 DE 的销售额相加得到的数字没有含义；一旦界面给了一个"总花费"，
+ * 就一定会有人拿它做决策。因此顶层 `summary` 只保留"条数 / 覆盖数"这类与货币无关的计数，
+ * 金额与 ACoS 一律留在 `groups` 里按站点分开放。
+ *
+ * 行里补上 `marketplace`：页面要按 `(asin, 站点)` 与清单条目连接，
+ * 单靠 ASIN 无法区分同一款商品在两个站点的两行。
+ */
+export async function myAsinMetricsPayload({
+  items = [],
+  startDate,
+  endDate,
+  /**
+   * 人工录入的指标：`Map<itemId, { spend, adSales, orders, acos, units, businessSales }>`。
+   *
+   * 按**条目 id** 索引（不是 ASIN）：用户改了 ASIN 或站点后，这条记录的手工值仍然跟着它
+   * —— 那通常是"编码写错了纠正一下"，不该把手填的数字一起丢掉。
+   */
+  overridesByItemId = null,
+}) {
+  const byMarketplace = new Map()
+  for (const item of items ?? []) {
+    const site = String(item?.marketplace ?? 'US').toUpperCase()
+    const list = byMarketplace.get(site) ?? []
+    list.push(item)
+    byMarketplace.set(site, list)
+  }
+
+  const groups = await Promise.all(
+    [...byMarketplace.entries()].map(async ([marketplace, list]) => {
+      const aliasByAsin = {}
+      for (const item of list) {
+        if (item?.alias) aliasByAsin[item.asin] = item.alias
+      }
+      // 人工录入值按 ASIN 归到本站点这一组（同站内 ASIN 唯一，不会串行）
+      const overridesByAsin = new Map()
+      if (overridesByItemId) {
+        for (const item of list) {
+          const manual = overridesByItemId.get(item.id)
+          if (manual) overridesByAsin.set(item.asin, manual)
+        }
+      }
+      const payload = await asinSetPerformancePayload({
+        asins: list.map((item) => item.asin),
+        marketplace,
+        startDate,
+        endDate,
+        // 表格回答的是"这个区间现在什么样"；趋势与对比交给 AI 对话
+        compareWith: 'none',
+        aliasByAsin,
+        // 页面要全量行（表格分页与导出都基于它），不能沿用给模型看的预算
+        detailLimit: null,
+        overridesByAsin,
+      })
+      const analysis = payload.analysis ?? {}
+      return {
+        marketplace,
+        asinCount: analysis.asinCount ?? list.length,
+        covered: analysis.covered ?? 0,
+        uncovered: (analysis.uncovered ?? []).length,
+        summary: { ...(analysis.current ?? {}) },
+        rows: (payload.detailRows ?? []).map((row) => ({ ...row, marketplace })),
+        dataFreshness: payload.dataFreshness ?? null,
+      }
+    })
+  )
+
+  /*
+   * 按调用方给的 items 顺序还原行序：页面按"加入时间"或用户点的排序消费这份数据，
+   * 而分组取数天然会打乱顺序（站点之间并行返回）。
+   */
+  const byKey = new Map()
+  for (const group of groups) {
+    for (const row of group.rows) byKey.set(`${row.asin}::${group.marketplace}`, row)
+  }
+  const rows = (items ?? [])
+    .map((item) =>
+      byKey.get(
+        `${String(item?.asin ?? '').toUpperCase()}::${String(item?.marketplace ?? 'US').toUpperCase()}`
+      )
+    )
+    .filter(Boolean)
+
+  // 数据时效取最晚的一份：多站点下"报表最新到哪一天"由最靠前的那个站点决定
+  const freshness =
+    groups
+      .map((group) => group.dataFreshness)
+      .filter(Boolean)
+      .sort((a, b) => String(b.periodEnd ?? '').localeCompare(String(a.periodEnd ?? '')))[0] ??
+    null
+
+  return {
+    period: {
+      startDate,
+      endDate,
+      days: periodDays(startDate, endDate),
+    },
+    groups: groups.map(({ dataFreshness: _dataFreshness, ...rest }) => rest),
+    rows,
+    summary: {
+      asinCount: (items ?? []).length,
+      covered: groups.reduce((sum, group) => sum + group.covered, 0),
+      uncovered: groups.reduce((sum, group) => sum + group.uncovered, 0),
+      marketplaces: groups.map((group) => group.marketplace),
+    },
+    dataFreshness: freshness,
   }
 }

@@ -18,6 +18,8 @@ import { createDatasourceRouter } from './datasource-routes.mjs'
 import { clientIp } from './http-utils.mjs'
 import { createKnowledgeRouter } from './knowledge-routes.mjs'
 import { createNotesRouter } from './notes-routes.mjs'
+import { createPromptLibraryRouter } from './prompt-library-routes.mjs'
+import { createMyAsinRouter } from './my-asin-routes.mjs'
 import { isEnabledAdmin } from './permissions.mjs'
 import { query } from '../db.mjs'
 
@@ -76,6 +78,8 @@ export function createAiAgentRouter({ requireUser }) {
   router.use(createKnowledgeRouter({ adminGuard }))
   router.use(createDatasourceRouter({ adminGuard }))
   router.use(createNotesRouter({ adminGuard }))
+  router.use(createPromptLibraryRouter({ adminGuard }))
+  router.use(createMyAsinRouter())
   router.use(createAuditRouter({ adminGuard }))
 
   return router
