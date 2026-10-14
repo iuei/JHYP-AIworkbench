@@ -82,8 +82,8 @@ import { AddItemDialog } from './add-item-dialog'
 import { EditableCell } from './editable-cell'
 import { EditableSelectCell } from './editable-select-cell'
 import { ItemCards } from './item-cards'
-import { MetricOverrideDialog } from './metric-override-dialog'
 import { ItemToolbar } from './item-toolbar'
+import { MetricOverrideDialog } from './metric-override-dialog'
 import { WatchlistImportDialog } from './watchlist-import-dialog'
 
 /** 默认每页条数。 */
@@ -158,7 +158,10 @@ export function ItemManager() {
   const [windowKey, setWindowKey] = useState(readStoredWindowKey)
   const [startDate, setStartDate] = useState<Date | undefined>(undefined)
   const [endDate, setEndDate] = useState<Date | undefined>(undefined)
-  const [sort, setSort] = useState<{ key: ItemSortKey; direction: SortDirection }>({
+  const [sort, setSort] = useState<{
+    key: ItemSortKey
+    direction: SortDirection
+  }>({
     key: 'createdAt',
     direction: 'desc',
   })
@@ -169,7 +172,9 @@ export function ItemManager() {
   const [editing, setEditing] = useState<MyAsinItem | null>(null)
   /** 正在录入指标的条目（含它在当前区间的指标，用于预填已有人工值） */
   const [metricItem, setMetricItem] = useState<MyAsinTableRow | null>(null)
-  const [pendingDelete, setPendingDelete] = useState<MyAsinTableRow | null>(null)
+  const [pendingDelete, setPendingDelete] = useState<MyAsinTableRow | null>(
+    null
+  )
   const [bulkRemoveOpen, setBulkRemoveOpen] = useState(false)
   const [addOpen, setAddOpen] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
@@ -510,322 +515,340 @@ export function ItemManager() {
             <div className='min-w-0 space-y-0.5'>
               <h2 className='text-base font-semibold'>ASIN 列表</h2>
               <p className='text-xs text-muted-foreground'>
-                共 {items.length} / {maxItems} 条；每个 ASIN 在所选区间内的广告与销售表现，
+                共 {items.length} / {maxItems} 条；每个 ASIN
+                在所选区间内的广告与销售表现，
                 可筛选、排序、就地改别名与备注，也能用模板批量导入。
               </p>
             </div>
           </div>
 
-      {/*
+          {/*
         工具条渲染在视图分支**之外**：它是"看哪几条 / 看哪段时间 / 怎么导入导出"的唯一入口，
         两种读法都必须有 —— 放在 DataTable 的 toolbar 里会让卡片视图整条消失。
         DataTable 的 toolbar 本来就是渲染在表格外框之外的上方，视觉位置不变。
       */}
-      {toolbar}
+          {toolbar}
 
-      {layout === 'table' ? (
-        <DataTable
-          columns={TABLE_COLUMNS}
-          /*
+          {layout === 'table' ? (
+            <DataTable
+              columns={TABLE_COLUMNS}
+              /*
             空态分两种：列表本身为空时讲"怎么开始"，筛选没命中时讲"没匹配到"。
             混成一句会让筛完的用户以为列表被清空了。
           */
-          emptyText={
-            keyword.trim() || marketplace !== 'all'
-              ? '没有符合当前筛选条件的 ASIN，换个关键词或把站点切回「全部站点」。'
-              : '列表还没有 ASIN，点「添加 ASIN」或「从表格导入」开始。'
-          }
-          isEmpty={filtered.length === 0}
-          maxHeightClass='max-h-[70vh]'
-          pagination={{
-            // 前端切片：分页后渲染量与列表大小（上限 5000）无关。
-            page: currentPage,
-            pageSize,
-            total: filtered.length,
-            // 5000 条 / 每页 50 = 100 页，没有跳页就只能一页页点
-            jumpTo: true,
-            onPageChange: (next) => {
-              setPage(next)
-              // 只允许"当前页内选择"：跨页累积选择会把"移除所选"变成一次不可预期的批量删除
-              selection.clear()
-            },
-            onPageSizeChange: (size) => {
-              setPageSize(size)
-              resetView()
-            },
-          }}
-          stickyHeader
-          header={
-            <TableRow>
-              <TableHead className='w-10'>
-                <Checkbox
-                  aria-label='选择本页全部 ASIN'
-                  checked={
-                    allPageSelected
-                      ? true
-                      : somePageSelected
-                        ? 'indeterminate'
-                        : false
-                  }
-                  onCheckedChange={() => selection.toggleAll(pageIds)}
-                />
-              </TableHead>
-              <TableHead className='w-12 text-right'>#</TableHead>
-              <SortableHead
-                activeKey={sort.key}
-                className='w-44'
-                direction={sort.direction}
-                label='ASIN'
-                sortKey='asin'
-                onToggle={toggleSort}
-              />
-              <SortableHead
-                activeKey={sort.key}
-                className='w-20'
-                direction={sort.direction}
-                label='站点'
-                sortKey='marketplace'
-                onToggle={toggleSort}
-              />
-              <SortableHead
-                activeKey={sort.key}
-                className='w-36'
-                direction={sort.direction}
-                label='别名'
-                sortKey='alias'
-                onToggle={toggleSort}
-              />
-              <TableHead className='w-48'>备注</TableHead>
-              <TableHead className='w-24'>数据覆盖</TableHead>
-              <SortableHead
-                activeKey={sort.key}
-                className={cn(TABLE_HEAD_NUMERIC, 'w-24')}
-                direction={sort.direction}
-                label='花费'
-                sortKey='spend'
-                onToggle={toggleSort}
-              />
-              <SortableHead
-                activeKey={sort.key}
-                className={cn(TABLE_HEAD_NUMERIC, 'w-28')}
-                direction={sort.direction}
-                label='广告销售额'
-                sortKey='adSales'
-                onToggle={toggleSort}
-              />
-              <SortableHead
-                activeKey={sort.key}
-                className={cn(TABLE_HEAD_NUMERIC, 'w-20')}
-                direction={sort.direction}
-                label='广告订单'
-                sortKey='orders'
-                onToggle={toggleSort}
-              />
-              <SortableHead
-                activeKey={sort.key}
-                className={cn(TABLE_HEAD_NUMERIC, 'w-20')}
-                direction={sort.direction}
-                label='ACoS'
-                sortKey='acos'
-                onToggle={toggleSort}
-              />
-              <SortableHead
-                activeKey={sort.key}
-                className={cn(TABLE_HEAD_NUMERIC, 'w-20')}
-                direction={sort.direction}
-                label='销量'
-                sortKey='units'
-                onToggle={toggleSort}
-              />
-              <SortableHead
-                activeKey={sort.key}
-                className={cn(TABLE_HEAD_NUMERIC, 'w-28')}
-                direction={sort.direction}
-                label='销售额'
-                sortKey='businessSales'
-                onToggle={toggleSort}
-              />
-              <TableHead className={TABLE_HEAD_ACTIONS}>操作</TableHead>
-            </TableRow>
-          }
-        >
-          {pageItems.map((item, index) => {
-            const rowMetrics = item.metrics
-            const acosAlert =
-              rowMetrics?.acos !== null &&
-              rowMetrics?.acos !== undefined &&
-              rowMetrics.acos > ACOS_ALERT_THRESHOLD
-            return (
-              <TableRow
-                key={item.id}
-                className='group'
-                data-state={selection.has(item.id) ? 'selected' : undefined}
-              >
-                <TableCell>
-                  <Checkbox
-                    aria-label={`选择 ${item.asin}（${item.marketplace} 站）`}
-                    checked={selection.has(item.id)}
-                    onCheckedChange={(checked) =>
-                      selection.toggleOne(item.id, checked === true)
-                    }
-                  />
-                </TableCell>
-                <TableCell
-                  className={cn(TABLE_CELL_META, 'text-right tabular-nums')}
-                >
-                  {(currentPage - 1) * pageSize + index + 1}
-                </TableCell>
-                <TableCell className='w-44 max-w-44'>
-                  <span className='flex items-center gap-1'>
-                    <EditableCell
-                      ariaLabel={`${item.asin} 的 ASIN`}
-                      className={cn(TABLE_CELL_MONO, 'font-mono')}
-                      placeholder='商品编码'
-                      value={item.asin}
-                      onSave={(next) => saveField(item, 'asin', next)}
+              emptyText={
+                keyword.trim() || marketplace !== 'all'
+                  ? '没有符合当前筛选条件的 ASIN，换个关键词或把站点切回「全部站点」。'
+                  : '列表还没有 ASIN，点「添加 ASIN」或「从表格导入」开始。'
+              }
+              isEmpty={filtered.length === 0}
+              maxHeightClass='max-h-[70vh]'
+              pagination={{
+                // 前端切片：分页后渲染量与列表大小（上限 5000）无关。
+                page: currentPage,
+                pageSize,
+                total: filtered.length,
+                // 5000 条 / 每页 50 = 100 页，没有跳页就只能一页页点
+                jumpTo: true,
+                onPageChange: (next) => {
+                  setPage(next)
+                  // 只允许"当前页内选择"：跨页累积选择会把"移除所选"变成一次不可预期的批量删除
+                  selection.clear()
+                },
+                onPageSizeChange: (size) => {
+                  setPageSize(size)
+                  resetView()
+                },
+              }}
+              stickyHeader
+              header={
+                <TableRow>
+                  <TableHead className='w-10'>
+                    <Checkbox
+                      aria-label='选择本页全部 ASIN'
+                      checked={
+                        allPageSelected
+                          ? true
+                          : somePageSelected
+                            ? 'indeterminate'
+                            : false
+                      }
+                      onCheckedChange={() => selection.toggleAll(pageIds)}
                     />
-                    <Button
-                      aria-label={`复制 ${item.asin}`}
-                      className='size-6 opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100'
-                      size='icon'
-                      type='button'
-                      variant='ghost'
-                      onClick={() => void handleCopy(item.asin)}
-                    >
-                      <Copy className='size-3.5' aria-hidden='true' />
-                    </Button>
-                  </span>
-                </TableCell>
-                <TableCell className='w-32 max-w-32'>
-                  <EditableSelectCell
-                    ariaLabel={`${item.asin} 的站点`}
-                    options={MARKETPLACE_OPTIONS}
-                    value={item.marketplace}
-                    onSave={(next) => saveField(item, 'marketplace', next)}
+                  </TableHead>
+                  <TableHead className='w-12 text-right'>#</TableHead>
+                  <SortableHead
+                    activeKey={sort.key}
+                    className='w-44'
+                    direction={sort.direction}
+                    label='ASIN'
+                    sortKey='asin'
+                    onToggle={toggleSort}
                   />
-                </TableCell>
-                <TableCell className='w-36 max-w-36'>
-                  <EditableCell
-                    ariaLabel={`${item.asin} 的别名`}
-                    className={TABLE_CELL_META}
-                    placeholder='例如：主力款 / 新品 A'
-                    value={item.alias}
-                    onSave={(next) => saveField(item, 'alias', next)}
+                  <SortableHead
+                    activeKey={sort.key}
+                    className='w-20'
+                    direction={sort.direction}
+                    label='站点'
+                    sortKey='marketplace'
+                    onToggle={toggleSort}
                   />
-                </TableCell>
-                <TableCell className='w-48 max-w-48'>
-                  <EditableCell
-                    ariaLabel={`${item.asin} 的备注`}
-                    className={TABLE_CELL_META}
-                    placeholder='仅自己可见的说明'
-                    value={item.note}
-                    onSave={(next) => saveField(item, 'note', next)}
+                  <SortableHead
+                    activeKey={sort.key}
+                    className='w-36'
+                    direction={sort.direction}
+                    label='别名'
+                    sortKey='alias'
+                    onToggle={toggleSort}
                   />
-                </TableCell>
-                <TableCell>
-                  <span className='flex flex-wrap items-center gap-1'>
-                    <CoverageBadge coverage={rowMetrics?.coverage} />
-                    {rowMetrics?.manual && (
-                      <Badge variant='secondary' className='font-normal'>
-                        手工
-                      </Badge>
-                    )}
-                  </span>
-                </TableCell>
-                <MetricCell value={rowMetrics?.spend} format={formatMoney} />
-                <MetricCell value={rowMetrics?.adSales} format={formatMoney} />
-                <MetricCell value={rowMetrics?.orders} format={formatNumber} />
-                <MetricCell
-                  alert={acosAlert}
-                  value={rowMetrics?.acos}
-                  format={formatPercent}
-                />
-                <MetricCell value={rowMetrics?.units} format={formatNumber} />
-                <MetricCell
-                  value={rowMetrics?.businessSales}
-                  format={formatMoney}
-                />
-                <TableCell className={TABLE_CELL_ACTIONS}>
-                  <div className='flex items-center justify-end gap-1'>
-                    <Button
-                      aria-label={`录入 ${item.asin} 的指标`}
-                      size='sm'
-                      type='button'
-                      variant='ghost'
-                      onClick={() => setMetricItem(item)}
+                  <TableHead className='w-48'>备注</TableHead>
+                  <TableHead className='w-24'>数据覆盖</TableHead>
+                  <SortableHead
+                    activeKey={sort.key}
+                    className={cn(TABLE_HEAD_NUMERIC, 'w-24')}
+                    direction={sort.direction}
+                    label='花费'
+                    sortKey='spend'
+                    onToggle={toggleSort}
+                  />
+                  <SortableHead
+                    activeKey={sort.key}
+                    className={cn(TABLE_HEAD_NUMERIC, 'w-28')}
+                    direction={sort.direction}
+                    label='广告销售额'
+                    sortKey='adSales'
+                    onToggle={toggleSort}
+                  />
+                  <SortableHead
+                    activeKey={sort.key}
+                    className={cn(TABLE_HEAD_NUMERIC, 'w-20')}
+                    direction={sort.direction}
+                    label='广告订单'
+                    sortKey='orders'
+                    onToggle={toggleSort}
+                  />
+                  <SortableHead
+                    activeKey={sort.key}
+                    className={cn(TABLE_HEAD_NUMERIC, 'w-20')}
+                    direction={sort.direction}
+                    label='ACoS'
+                    sortKey='acos'
+                    onToggle={toggleSort}
+                  />
+                  <SortableHead
+                    activeKey={sort.key}
+                    className={cn(TABLE_HEAD_NUMERIC, 'w-20')}
+                    direction={sort.direction}
+                    label='销量'
+                    sortKey='units'
+                    onToggle={toggleSort}
+                  />
+                  <SortableHead
+                    activeKey={sort.key}
+                    className={cn(TABLE_HEAD_NUMERIC, 'w-28')}
+                    direction={sort.direction}
+                    label='销售额'
+                    sortKey='businessSales'
+                    onToggle={toggleSort}
+                  />
+                  <TableHead className={TABLE_HEAD_ACTIONS}>操作</TableHead>
+                </TableRow>
+              }
+            >
+              {pageItems.map((item, index) => {
+                const rowMetrics = item.metrics
+                const acosAlert =
+                  rowMetrics?.acos !== null &&
+                  rowMetrics?.acos !== undefined &&
+                  rowMetrics.acos > ACOS_ALERT_THRESHOLD
+                return (
+                  <TableRow
+                    key={item.id}
+                    className='group'
+                    data-state={selection.has(item.id) ? 'selected' : undefined}
+                  >
+                    <TableCell>
+                      <Checkbox
+                        aria-label={`选择 ${item.asin}（${item.marketplace} 站）`}
+                        checked={selection.has(item.id)}
+                        onCheckedChange={(checked) =>
+                          selection.toggleOne(item.id, checked === true)
+                        }
+                      />
+                    </TableCell>
+                    <TableCell
+                      className={cn(TABLE_CELL_META, 'text-right tabular-nums')}
                     >
-                      <BarChart3 aria-hidden='true' />
-                    </Button>
-                    <Button
-                      aria-label={`编辑 ${item.asin} 的别名与备注`}
-                      size='sm'
-                      type='button'
-                      variant='ghost'
-                      onClick={() => setEditing(item)}
-                    >
-                      <Pencil aria-hidden='true' />
-                    </Button>
-                    <Button
-                      aria-label={`从列表移除 ${item.asin}`}
-                      size='sm'
-                      type='button'
-                      variant='ghost'
-                      onClick={() => setPendingDelete(item)}
-                    >
-                      <Trash2 aria-hidden='true' />
-                    </Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            )
-          })}
-        </DataTable>
-      ) : (
-        <div className='space-y-3'>
-          {filtered.length === 0 ? (
-            <div className='rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground'>
-              {keyword.trim() || marketplace !== 'all'
-                ? '没有符合当前筛选条件的 ASIN，换个关键词或把站点切回「全部站点」。'
-                : '列表还没有 ASIN，点「添加 ASIN」或「从表格导入」开始。'}
-            </div>
+                      {(currentPage - 1) * pageSize + index + 1}
+                    </TableCell>
+                    <TableCell className='w-44 max-w-44'>
+                      <span className='flex items-center gap-1'>
+                        <EditableCell
+                          ariaLabel={`${item.asin} 的 ASIN`}
+                          className={cn(TABLE_CELL_MONO, 'font-mono')}
+                          placeholder='商品编码'
+                          value={item.asin}
+                          onSave={(next) => saveField(item, 'asin', next)}
+                        />
+                        <Button
+                          aria-label={`复制 ${item.asin}`}
+                          className='size-6 opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100'
+                          size='icon'
+                          type='button'
+                          variant='ghost'
+                          onClick={() => void handleCopy(item.asin)}
+                        >
+                          <Copy className='size-3.5' aria-hidden='true' />
+                        </Button>
+                      </span>
+                    </TableCell>
+                    <TableCell className='w-32 max-w-32'>
+                      <EditableSelectCell
+                        ariaLabel={`${item.asin} 的站点`}
+                        options={MARKETPLACE_OPTIONS}
+                        value={item.marketplace}
+                        onSave={(next) => saveField(item, 'marketplace', next)}
+                      />
+                    </TableCell>
+                    <TableCell className='w-36 max-w-36'>
+                      <EditableCell
+                        ariaLabel={`${item.asin} 的别名`}
+                        className={TABLE_CELL_META}
+                        placeholder='例如：主力款 / 新品 A'
+                        value={item.alias}
+                        onSave={(next) => saveField(item, 'alias', next)}
+                      />
+                    </TableCell>
+                    <TableCell className='w-48 max-w-48'>
+                      <EditableCell
+                        ariaLabel={`${item.asin} 的备注`}
+                        className={TABLE_CELL_META}
+                        placeholder='仅自己可见的说明'
+                        value={item.note}
+                        onSave={(next) => saveField(item, 'note', next)}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <span className='flex flex-wrap items-center gap-1'>
+                        <CoverageBadge coverage={rowMetrics?.coverage} />
+                        {rowMetrics?.manual && (
+                          <Badge variant='secondary' className='font-normal'>
+                            手工
+                          </Badge>
+                        )}
+                      </span>
+                    </TableCell>
+                    <MetricCell
+                      value={rowMetrics?.spend}
+                      format={formatMoney}
+                    />
+                    <MetricCell
+                      value={rowMetrics?.adSales}
+                      format={formatMoney}
+                    />
+                    <MetricCell
+                      value={rowMetrics?.orders}
+                      format={formatNumber}
+                    />
+                    <MetricCell
+                      alert={acosAlert}
+                      value={rowMetrics?.acos}
+                      format={formatPercent}
+                    />
+                    <MetricCell
+                      value={rowMetrics?.units}
+                      format={formatNumber}
+                    />
+                    <MetricCell
+                      value={rowMetrics?.businessSales}
+                      format={formatMoney}
+                    />
+                    <TableCell className={TABLE_CELL_ACTIONS}>
+                      <div className='flex items-center justify-end gap-1'>
+                        <Button
+                          aria-label={`录入 ${item.asin} 的指标`}
+                          size='sm'
+                          type='button'
+                          variant='ghost'
+                          onClick={() => setMetricItem(item)}
+                        >
+                          <BarChart3 aria-hidden='true' />
+                        </Button>
+                        <Button
+                          aria-label={`编辑 ${item.asin} 的别名与备注`}
+                          size='sm'
+                          type='button'
+                          variant='ghost'
+                          onClick={() => setEditing(item)}
+                        >
+                          <Pencil aria-hidden='true' />
+                        </Button>
+                        <Button
+                          aria-label={`从列表移除 ${item.asin}`}
+                          size='sm'
+                          type='button'
+                          variant='ghost'
+                          onClick={() => setPendingDelete(item)}
+                        >
+                          <Trash2 aria-hidden='true' />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                )
+              })}
+            </DataTable>
           ) : (
-            <ItemCards
-              rows={pageItems}
-              selectedIds={selection.selectedIds}
-              onCopy={(asin) => void handleCopy(asin)}
-              onEdit={setEditing}
-              onMetrics={setMetricItem}
-              onRemove={setPendingDelete}
-              onToggleSelect={(id, checked) => selection.toggleOne(id, checked)}
-            />
+            <div className='space-y-3'>
+              {filtered.length === 0 ? (
+                <div className='rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground'>
+                  {keyword.trim() || marketplace !== 'all'
+                    ? '没有符合当前筛选条件的 ASIN，换个关键词或把站点切回「全部站点」。'
+                    : '列表还没有 ASIN，点「添加 ASIN」或「从表格导入」开始。'}
+                </div>
+              ) : (
+                <ItemCards
+                  rows={pageItems}
+                  selectedIds={selection.selectedIds}
+                  onCopy={(asin) => void handleCopy(asin)}
+                  onEdit={setEditing}
+                  onMetrics={setMetricItem}
+                  onRemove={setPendingDelete}
+                  onToggleSelect={(id, checked) =>
+                    selection.toggleOne(id, checked)
+                  }
+                />
+              )}
+              {/* 表格视图的分页器由 `DataTable` 内部渲染，卡片视图在这里补一个 */}
+              <TablePagination
+                jumpTo
+                onPageChange={(next) => {
+                  setPage(next)
+                  selection.clear()
+                }}
+                onPageSizeChange={(size) => {
+                  setPageSize(size)
+                  resetView()
+                }}
+                page={currentPage}
+                pageSize={pageSize}
+                total={filtered.length}
+              />
+            </div>
           )}
-          {/* 表格视图的分页器由 `DataTable` 内部渲染，卡片视图在这里补一个 */}
-          <TablePagination
-            jumpTo
-            onPageChange={(next) => {
-              setPage(next)
-              selection.clear()
-            }}
-            onPageSizeChange={(size) => {
-              setPageSize(size)
-              resetView()
-            }}
-            page={currentPage}
-            pageSize={pageSize}
-            total={filtered.length}
-          />
-        </div>
-      )}
 
-      <p className='flex items-start gap-1.5 text-xs text-muted-foreground'>
-        <Info className='mt-0.5 size-3.5 shrink-0' aria-hidden='true' />
-        ASIN / 站点 / 别名 / 备注 四列点单元格就能改（回车保存、Esc 取消）—— 改 ASIN 或站点
-        只会换个取数口径，报表数据本身不动。花费 / 广告销售额 / 广告订单 / ACoS 来自广告日报，
-        销量 / 销售额来自业务报告，都是所选区间内**该站点**的合计（不同站点货币不同，不做跨站点
-        相加）；「—」表示该区间没有这条记录，不代表 0。标「手工」的行：你在行内「录入指标」里
-        为这个区间填过数字，填了的项以你填的为准、留空的仍用报表，AI 助手读到的也是这些数字。
-        想看趋势与对比，去 AI 助手直接问「我的 ASIN 最近 30 天怎么样」。
-      </p>
+          <p className='flex items-start gap-1.5 text-xs text-muted-foreground'>
+            <Info className='mt-0.5 size-3.5 shrink-0' aria-hidden='true' />
+            ASIN / 站点 / 别名 / 备注 四列点单元格就能改（回车保存、Esc 取消）——
+            改 ASIN 或站点 只会换个取数口径，报表数据本身不动。花费 / 广告销售额
+            / 广告订单 / ACoS 来自广告日报， 销量 /
+            销售额来自业务报告，都是所选区间内**该站点**的合计（不同站点货币不同，不做跨站点
+            相加）；「—」表示该区间没有这条记录，不代表
+            0。标「手工」的行：你在行内「录入指标」里
+            为这个区间填过数字，填了的项以你填的为准、留空的仍用报表，AI
+            助手读到的也是这些数字。 想看趋势与对比，去 AI 助手直接问「我的 ASIN
+            最近 30 天怎么样」。
+          </p>
         </>
       )}
 
@@ -901,12 +924,17 @@ function ItemsEmptyGuide({
     <Card>
       <CardContent className='space-y-4 py-6'>
         <div className='flex items-start gap-3'>
-          <Tags className='mt-0.5 size-4 shrink-0 text-muted-foreground' aria-hidden='true' />
+          <Tags
+            className='mt-0.5 size-4 shrink-0 text-muted-foreground'
+            aria-hidden='true'
+          />
           <div className='space-y-1'>
             <p className='text-sm font-medium'>还没有 ASIN</p>
             <p className='text-sm text-muted-foreground'>
-              单个填一个商品编码，或用 Excel 模板批量导入。加进来之后这里会显示每个 ASIN
-              在所选区间的花费、广告销售额、ACoS、销量与销售额（最多 {maxItems} 条）。
+              单个填一个商品编码，或用 Excel
+              模板批量导入。加进来之后这里会显示每个 ASIN
+              在所选区间的花费、广告销售额、ACoS、销量与销售额（最多 {maxItems}{' '}
+              条）。
             </p>
           </div>
         </div>
@@ -1013,7 +1041,8 @@ function ItemEditForm({
               </SelectContent>
             </Select>
             <p className='text-xs text-muted-foreground'>
-              同一个 ASIN 在另一个站点是独立的一条记录；改成已存在的组合会被拒绝。
+              同一个 ASIN
+              在另一个站点是独立的一条记录；改成已存在的组合会被拒绝。
             </p>
           </div>
           <div className='space-y-2'>
@@ -1050,7 +1079,11 @@ function ItemEditForm({
           >
             取消
           </Button>
-          <Button type='button' onClick={handleSave} disabled={update.isPending}>
+          <Button
+            type='button'
+            onClick={handleSave}
+            disabled={update.isPending}
+          >
             {update.isPending ? (
               <Loader2 className='animate-spin' aria-hidden='true' />
             ) : (

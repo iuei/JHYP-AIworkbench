@@ -15,7 +15,17 @@ describe('parseAiAgentSearch', () => {
   })
 
   it('非法 conversationId 一律忽略，不抛错', () => {
-    for (const value of ['abc', '0', '-3', '2.5', '', null, undefined, {}, []]) {
+    for (const value of [
+      'abc',
+      '0',
+      '-3',
+      '2.5',
+      '',
+      null,
+      undefined,
+      {},
+      [],
+    ]) {
       expect(parseAiAgentSearch({ conversationId: value })).toEqual({})
     }
   })

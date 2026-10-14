@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { isAxiosError } from 'axios'
 import { useQueryClient } from '@tanstack/react-query'
 import { useSearch } from '@tanstack/react-router'
-import { isAxiosError } from 'axios'
 import {
   BookOpenCheck,
   CircleStop,
@@ -31,17 +31,16 @@ import {
   useConversationMessages,
   useInfiniteConversations,
 } from '../api/queries'
+import { blockedNoticeText } from '../blocked-notice'
 import { AnswerBlocks } from '../components/answer-blocks'
-import { AnswerMarkdown } from '../components/answer-markdown'
 import { AnswerCard } from '../components/answer-card'
+import { AnswerMarkdown } from '../components/answer-markdown'
 import { ConversationList } from '../components/conversation-list'
 import { DistillButton } from '../components/distill-button'
 import { PaneResizer } from '../components/pane-resizer'
 import { PromptMentionPanel } from '../components/prompt-mention-panel'
 import { BlockedNotice, StreamSteps } from '../components/tool-trace-panel'
-import { blockedNoticeText } from '../blocked-notice'
 import { isImeComposing } from '../keyboard'
-import { streamOverlapsPersisted, applyMetaPatch } from '../stream-merge'
 import {
   clearPaneWidths,
   defaultPaneWidths,
@@ -60,6 +59,7 @@ import {
   toStreamStep,
   type ChatEvent,
 } from '../sse'
+import { streamOverlapsPersisted, applyMetaPatch } from '../stream-merge'
 import type { ChatStreamState } from '../types'
 
 const GUIDE_QUESTIONS = [
@@ -440,11 +440,17 @@ export function ChatWorkbench() {
           } catch {
             setStream((previous) =>
               previous
-                ? { ...previous, status: 'error', errorMessage: '消息同步失败，请刷新页面查看。' }
+                ? {
+                    ...previous,
+                    status: 'error',
+                    errorMessage: '消息同步失败，请刷新页面查看。',
+                  }
                 : previous
             )
           } finally {
-            setStream((previous) => (previous?.status === 'error' ? previous : null))
+            setStream((previous) =>
+              previous?.status === 'error' ? previous : null
+            )
             currentStreamRequestRef.current = null
           }
         }
@@ -629,7 +635,9 @@ export function ChatWorkbench() {
                 <UserBubble content={message.content} key={message.id} />
               ) : (
                 <AnswerCard
-                  canRegenerate={questionByAnswerId.has(message.id) && !streaming}
+                  canRegenerate={
+                    questionByAnswerId.has(message.id) && !streaming
+                  }
                   key={message.id}
                   message={message}
                   scopeLabel={scopeLabel}
@@ -673,8 +681,12 @@ export function ChatWorkbench() {
                   <AnswerBlocks blocks={stream.blocks ?? []} />
                   {stream.errorMessage && stream.status === 'error' && (
                     <div className='mt-3' role='alert'>
-                      <p className='text-sm text-destructive'>{stream.errorMessage}</p>
-                      <p className='mt-1 text-xs text-muted-foreground'>问题已保留在输入框，可检查会话后重新发送。</p>
+                      <p className='text-sm text-destructive'>
+                        {stream.errorMessage}
+                      </p>
+                      <p className='mt-1 text-xs text-muted-foreground'>
+                        问题已保留在输入框，可检查会话后重新发送。
+                      </p>
                     </div>
                   )}
                 </article>

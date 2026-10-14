@@ -1,9 +1,9 @@
 import { BarChart3, Copy, Pencil, Trash2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { CARD_GRID } from '@/features/ai-agent/components/list-layout'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
+import { CARD_GRID } from '@/features/ai-agent/components/list-layout'
 import {
   ACOS_ALERT_THRESHOLD,
   coverageTone,
@@ -83,7 +83,9 @@ export function ItemCards({
               />
               <div className='min-w-0 flex-1 space-y-1'>
                 <div className='flex flex-wrap items-center gap-1.5'>
-                  <span className='font-mono text-sm font-medium'>{row.asin}</span>
+                  <span className='font-mono text-sm font-medium'>
+                    {row.asin}
+                  </span>
                   <Button
                     aria-label={`复制 ${row.asin}`}
                     className='size-6'

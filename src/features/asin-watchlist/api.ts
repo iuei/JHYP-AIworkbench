@@ -66,7 +66,10 @@ export async function fetchMyAsins(): Promise<MyAsinListResult> {
 export async function addMyAsins(
   payload: AddMyAsinsPayload
 ): Promise<AddMyAsinsResult> {
-  const { data } = await api.post<AddMyAsinsResult>('/ai/my-asins/items', payload)
+  const { data } = await api.post<AddMyAsinsResult>(
+    '/ai/my-asins/items',
+    payload
+  )
   return data
 }
 
@@ -79,21 +82,27 @@ export async function addMyAsins(
  */
 export async function importMyAsinTable(
   file: File,
-  { dryRun = false, defaultMarketplace }: { dryRun?: boolean; defaultMarketplace?: string } = {}
+  {
+    dryRun = false,
+    defaultMarketplace,
+  }: { dryRun?: boolean; defaultMarketplace?: string } = {}
 ): Promise<MyAsinTableImportResult> {
   const params = new URLSearchParams()
   if (dryRun) params.set('dryRun', 'true')
   if (defaultMarketplace) params.set('defaultMarketplace', defaultMarketplace)
   const query = params.toString()
 
-  const response = await rawRequest(`/ai/my-asins/import${query ? `?${query}` : ''}`, {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/octet-stream',
-      'x-file-name': encodeURIComponent(file.name),
-    },
-    body: await file.arrayBuffer(),
-  })
+  const response = await rawRequest(
+    `/ai/my-asins/import${query ? `?${query}` : ''}`,
+    {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/octet-stream',
+        'x-file-name': encodeURIComponent(file.name),
+      },
+      body: await file.arrayBuffer(),
+    }
+  )
   return (await response.json()) as MyAsinTableImportResult
 }
 

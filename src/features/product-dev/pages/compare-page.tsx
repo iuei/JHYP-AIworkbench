@@ -77,7 +77,9 @@ export function ProductDevComparePage() {
       setFromHistory(false)
       setActiveComparisonId(data.comparisonId ?? null)
       // 新记录已落库，刷新历史列表（不乐观插入：id 与时间都以服务端为准）
-      void queryClient.invalidateQueries({ queryKey: ['product-dev-comparisons'] })
+      void queryClient.invalidateQueries({
+        queryKey: ['product-dev-comparisons'],
+      })
     },
     onError: (error) => {
       toast.error(apiErrorMessage(error, '对比失败，请检查选择的候选与区间。'))
@@ -109,7 +111,9 @@ export function ProductDevComparePage() {
         setActiveComparisonId(null)
         setResult(null)
       }
-      void queryClient.invalidateQueries({ queryKey: ['product-dev-comparisons'] })
+      void queryClient.invalidateQueries({
+        queryKey: ['product-dev-comparisons'],
+      })
     },
     onError: (error) => {
       toast.error(apiErrorMessage(error, '删除失败，请稍后重试。'))
@@ -119,9 +123,12 @@ export function ProductDevComparePage() {
   const isCustomWindow = windowKey === 'custom'
   const customReady = Boolean(startDate && endDate)
   const canCompare =
-    selectedList.length >= 2 && (!isCustomWindow || customReady) && !comparison.isPending
+    selectedList.length >= 2 &&
+    (!isCustomWindow || customReady) &&
+    !comparison.isPending
 
-  const mixedMarketplace = new Set(selectedList.map((item) => item.marketplace)).size > 1
+  const mixedMarketplace =
+    new Set(selectedList.map((item) => item.marketplace)).size > 1
 
   function handleCompare() {
     if (!canCompare) return
@@ -159,7 +166,9 @@ export function ProductDevComparePage() {
                   {selectedList.map((item) => (
                     <Badge key={item.id} variant='outline' className='gap-1'>
                       {item.product_name || item.asin || `候选 #${item.id}`}
-                      <span className='text-muted-foreground'>{item.marketplace}</span>
+                      <span className='text-muted-foreground'>
+                        {item.marketplace}
+                      </span>
                       <button
                         type='button'
                         aria-label={`移除 ${
@@ -253,7 +262,8 @@ export function ProductDevComparePage() {
               <CardHeader className='gap-1'>
                 <CardTitle className='text-base'>还没有对比结果</CardTitle>
                 <CardDescription>
-                  勾选 2 个以上同站点候选后开始对比，结果会自动保存到下方「历史对比」
+                  勾选 2
+                  个以上同站点候选后开始对比，结果会自动保存到下方「历史对比」
                 </CardDescription>
               </CardHeader>
               {/*
@@ -262,8 +272,9 @@ export function ProductDevComparePage() {
               */}
               <CardContent>
                 <p className='text-xs text-muted-foreground'>
-                  口径：人工录入字段与平台数据双轨展示；报表缺失一律显示「—」不用 0 代替；
-                  本模块只呈现事实，不给「建议开发 / 不建议开发」的结论。
+                  口径：人工录入字段与平台数据双轨展示；报表缺失一律显示「—」不用
+                  0 代替； 本模块只呈现事实，不给「建议开发 /
+                  不建议开发」的结论。
                 </p>
               </CardContent>
             </Card>
@@ -294,7 +305,8 @@ export function ProductDevComparePage() {
         destructive
         isLoading={removeComparison.isPending}
         handleConfirm={() =>
-          pendingComparisonDelete && removeComparison.mutate(pendingComparisonDelete.id)
+          pendingComparisonDelete &&
+          removeComparison.mutate(pendingComparisonDelete.id)
         }
       />
     </>

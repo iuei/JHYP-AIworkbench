@@ -23,16 +23,21 @@ export interface CandidateQuery {
   pageSize?: number
 }
 
-export async function fetchCandidates(query: CandidateQuery = {}): Promise<CandidateListResult> {
-  const { data } = await api.get<CandidateListResult>('/product-dev/candidates', {
-    params: {
-      ...(query.keyword ? { keyword: query.keyword } : {}),
-      ...(query.marketplace ? { marketplace: query.marketplace } : {}),
-      ...(query.stage ? { stage: query.stage } : {}),
-      page: query.page ?? 1,
-      pageSize: query.pageSize ?? 20,
-    },
-  })
+export async function fetchCandidates(
+  query: CandidateQuery = {}
+): Promise<CandidateListResult> {
+  const { data } = await api.get<CandidateListResult>(
+    '/product-dev/candidates',
+    {
+      params: {
+        ...(query.keyword ? { keyword: query.keyword } : {}),
+        ...(query.marketplace ? { marketplace: query.marketplace } : {}),
+        ...(query.stage ? { stage: query.stage } : {}),
+        page: query.page ?? 1,
+        pageSize: query.pageSize ?? 20,
+      },
+    }
+  )
   return data
 }
 
@@ -62,7 +67,9 @@ function toCandidatePayload(values: CandidateFormValues) {
   }
 }
 
-export async function createCandidate(values: CandidateFormValues): Promise<Candidate> {
+export async function createCandidate(
+  values: CandidateFormValues
+): Promise<Candidate> {
   const { data } = await api.post<{ candidate: Candidate }>(
     '/product-dev/candidates',
     toCandidatePayload(values)
@@ -146,18 +153,25 @@ export async function downloadCandidateTemplate(): Promise<void> {
  * 这里**不做任何口径计算** —— 指标、覆盖率、"无我方数据"的判定全部来自服务端。
  * 前端自己算一遍必然与服务端漂移，而用户看到的是两套数字。
  */
-export async function runComparison(params: ComparisonParams): Promise<ComparisonResult> {
-  const { data } = await api.post<{ result: ComparisonResult }>('/product-dev/comparisons', {
-    candidateIds: params.candidateIds,
-    ...(params.windowDays ? { windowDays: params.windowDays } : {}),
-    ...(params.startDate && params.endDate
-      ? { startDate: params.startDate, endDate: params.endDate }
-      : {}),
-  })
+export async function runComparison(
+  params: ComparisonParams
+): Promise<ComparisonResult> {
+  const { data } = await api.post<{ result: ComparisonResult }>(
+    '/product-dev/comparisons',
+    {
+      candidateIds: params.candidateIds,
+      ...(params.windowDays ? { windowDays: params.windowDays } : {}),
+      ...(params.startDate && params.endDate
+        ? { startDate: params.startDate, endDate: params.endDate }
+        : {}),
+    }
+  )
   return data.result
 }
 
-export async function fetchComparisonHistory(limit = 10): Promise<ComparisonHistoryItem[]> {
+export async function fetchComparisonHistory(
+  limit = 10
+): Promise<ComparisonHistoryItem[]> {
   const { data } = await api.get<{ items: ComparisonHistoryItem[] }>(
     '/product-dev/comparisons',
     { params: { limit } }
@@ -166,7 +180,9 @@ export async function fetchComparisonHistory(limit = 10): Promise<ComparisonHist
 }
 
 /** 读取历史快照；记录不存在或不属于当前账号时服务端返回 404。 */
-export async function fetchComparisonSnapshot(id: number): Promise<ComparisonResult | null> {
+export async function fetchComparisonSnapshot(
+  id: number
+): Promise<ComparisonResult | null> {
   const { data } = await api.get<{ result: ComparisonResult | null }>(
     `/product-dev/comparisons/${id}`
   )
@@ -184,9 +200,12 @@ export async function searchMarketCategories(query: {
   keyword: string
   marketplace: string
 }): Promise<MarketCategoryResult> {
-  const { data } = await api.get<MarketCategoryResult>('/product-dev/market/categories', {
-    params: { keyword: query.keyword, marketplace: query.marketplace },
-  })
+  const { data } = await api.get<MarketCategoryResult>(
+    '/product-dev/market/categories',
+    {
+      params: { keyword: query.keyword, marketplace: query.marketplace },
+    }
+  )
   return data
 }
 
@@ -209,19 +228,21 @@ export async function analyzeMarket(params: {
   return data.result
 }
 
-export async function fetchMarketInsightReports(options: {
-  marketplace?: string
-  limit?: number
-} = {}): Promise<{ items: MarketInsightReportSummary[]; total: number }> {
-  const { data } = await api.get<{ items: MarketInsightReportSummary[]; total: number }>(
-    '/market-insights/reports',
-    {
-      params: {
-        ...(options.marketplace ? { marketplace: options.marketplace } : {}),
-        limit: options.limit ?? 20,
-      },
-    }
-  )
+export async function fetchMarketInsightReports(
+  options: {
+    marketplace?: string
+    limit?: number
+  } = {}
+): Promise<{ items: MarketInsightReportSummary[]; total: number }> {
+  const { data } = await api.get<{
+    items: MarketInsightReportSummary[]
+    total: number
+  }>('/market-insights/reports', {
+    params: {
+      ...(options.marketplace ? { marketplace: options.marketplace } : {}),
+      limit: options.limit ?? 20,
+    },
+  })
   return data
 }
 
@@ -232,20 +253,31 @@ export async function saveMarketInsightReport(params: {
   filters?: Record<string, unknown>
   result: MarketAnalysisResult
 }): Promise<MarketInsightReport> {
-  const { data } = await api.post<{ report: MarketInsightReport }>('/market-insights/reports', {
-    marketplace: params.marketplace,
-    scopeType: 'category',
-    scopeKey: params.scopeKey,
-    scopeLabel: params.scopeLabel ?? params.result.nodeLabelLocale ?? params.result.nodeLabel ?? '',
-    filters: params.filters ?? {},
-    result: params.result,
-    sourceMeta: params.result.meta,
-    fetchedAt: params.result.meta.fetchedAt,
-  })
+  const { data } = await api.post<{ report: MarketInsightReport }>(
+    '/market-insights/reports',
+    {
+      marketplace: params.marketplace,
+      scopeType: 'category',
+      scopeKey: params.scopeKey,
+      scopeLabel:
+        params.scopeLabel ??
+        params.result.nodeLabelLocale ??
+        params.result.nodeLabel ??
+        '',
+      filters: params.filters ?? {},
+      result: params.result,
+      sourceMeta: params.result.meta,
+      fetchedAt: params.result.meta.fetchedAt,
+    }
+  )
   return data.report
 }
 
-export async function fetchMarketInsightReport(id: number): Promise<MarketInsightReport> {
-  const { data } = await api.get<{ report: MarketInsightReport }>(`/market-insights/reports/${id}`)
+export async function fetchMarketInsightReport(
+  id: number
+): Promise<MarketInsightReport> {
+  const { data } = await api.get<{ report: MarketInsightReport }>(
+    `/market-insights/reports/${id}`
+  )
   return data.report
 }

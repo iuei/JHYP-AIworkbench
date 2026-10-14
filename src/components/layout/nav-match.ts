@@ -30,18 +30,18 @@ export function isNavUrlActive(
 }
 
 /** 在一个折叠菜单中选择当前路径最具体的子项。 */
-export function findActiveNavChild<T extends { url?: string; matchPrefix?: boolean }>(
-  pathname: string,
-  items: T[]
-): T | undefined {
+export function findActiveNavChild<
+  T extends { url?: string; matchPrefix?: boolean },
+>(pathname: string, items: T[]): T | undefined {
   const path = pathname.split('?')[0].replace(/\/+$/, '') || '/'
-  const exact = items.find((item) => isNavUrlActive(path, item.url, item.matchPrefix))
+  const exact = items.find((item) =>
+    isNavUrlActive(path, item.url, item.matchPrefix)
+  )
   if (exact) return exact
 
   return items
-    .filter(
-      (item): item is T & { url: string } =>
-        item.url ? path.startsWith(`${item.url.replace(/\/+$/, '')}/`) : false
+    .filter((item): item is T & { url: string } =>
+      item.url ? path.startsWith(`${item.url.replace(/\/+$/, '')}/`) : false
     )
     .sort((left, right) => right.url.length - left.url.length)[0]
 }
@@ -115,10 +115,7 @@ export function findNavTrail(pathname: string, items: NavItem[]): NavTrail {
             exact && isNavUrlActive(candidate, child.url, child.matchPrefix)
           return {
             entries: precise
-              ? [
-                  { title: item.title },
-                  { title: child.title, url: child.url },
-                ]
+              ? [{ title: item.title }, { title: child.title, url: child.url }]
               : [{ title: item.title }],
             exact: precise,
           }

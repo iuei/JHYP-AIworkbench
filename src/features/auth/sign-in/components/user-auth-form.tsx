@@ -1,15 +1,14 @@
 import { useState } from 'react'
-import { isAxiosError } from 'axios'
 import { z } from 'zod'
+import { isAxiosError } from 'axios'
+import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useNavigate } from '@tanstack/react-router'
 import { Loader2, LogIn } from 'lucide-react'
-import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import { api } from '@/api/client'
 import { type AuthUser, useAuthStore } from '@/stores/auth-store'
 import { cn } from '@/lib/utils'
-import { PasswordInput } from '@/components/password-input'
 import { Button } from '@/components/ui/button'
 import {
   Form,
@@ -20,13 +19,11 @@ import {
   FormMessage,
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
+import { PasswordInput } from '@/components/password-input'
 
 const formSchema = z.object({
   login: z.string().min(1, '请输入账号或邮箱。'),
-  password: z
-    .string()
-    .min(1, '请输入密码。')
-    .min(6, '密码至少需要 6 个字符。'),
+  password: z.string().min(1, '请输入密码。').min(6, '密码至少需要 6 个字符。'),
 })
 
 const authUserSchema: z.ZodType<AuthUser> = z

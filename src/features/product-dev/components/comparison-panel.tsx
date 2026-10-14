@@ -1,13 +1,19 @@
-import { Badge } from '@/components/ui/badge'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { DataTable } from '@/components/data-table'
-import { TableCell, TableHead, TableRow } from '@/components/ui/table'
 import {
   TABLE_CELL_META,
   TABLE_CELL_NUMERIC,
   TABLE_CELL_TRUNCATE,
   TABLE_HEAD_NUMERIC,
 } from '@/lib/table-styles'
+import { Badge } from '@/components/ui/badge'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
+import { TableCell, TableHead, TableRow } from '@/components/ui/table'
+import { DataTable } from '@/components/data-table'
 import { COVERAGE_VARIANTS, formatDimensionValue } from '../format'
 import type { ComparisonResult } from '../types'
 
@@ -27,7 +33,9 @@ type ComparisonPanelProps = {
  *    因为用户填的价格和平台算出的花费是两种可信度完全不同的数据，混在一起看容易当成一回事。
  */
 export function ComparisonPanel({ result, fromHistory }: ComparisonPanelProps) {
-  const reportDimensionCount = result.dimensions.filter((d) => d.source === 'report').length
+  const reportDimensionCount = result.dimensions.filter(
+    (d) => d.source === 'report'
+  ).length
   const manualDimensionCount = result.dimensions.length - reportDimensionCount
 
   return (
@@ -40,22 +48,32 @@ export function ComparisonPanel({ result, fromHistory }: ComparisonPanelProps) {
             </CardTitle>
             {fromHistory && (
               <Badge variant='outline'>
-                历史快照 · {result.createdAt ? new Date(result.createdAt).toLocaleString('zh-CN', { hour12: false }) : '时间未知'}
+                历史快照 ·{' '}
+                {result.createdAt
+                  ? new Date(result.createdAt).toLocaleString('zh-CN', {
+                      hour12: false,
+                    })
+                  : '时间未知'}
               </Badge>
             )}
             {result.omittedDimensionCount > 0 && (
-              <Badge variant='outline'>另有 {result.omittedDimensionCount} 个维度未展示</Badge>
+              <Badge variant='outline'>
+                另有 {result.omittedDimensionCount} 个维度未展示
+              </Badge>
             )}
           </div>
           <CardDescription>
-            统计区间 {result.startDate} ~ {result.endDate}（{result.windowDays} 天）·{' '}
-            {manualDimensionCount} 个人工录入维度 · {reportDimensionCount} 个我方报表维度
+            统计区间 {result.startDate} ~ {result.endDate}（{result.windowDays}{' '}
+            天）· {manualDimensionCount} 个人工录入维度 · {reportDimensionCount}{' '}
+            个我方报表维度
           </CardDescription>
         </CardHeader>
         <CardContent className='space-y-2'>
           <p className='text-sm'>{result.coverage.note}</p>
           {result.dataFreshness?.note && (
-            <p className='text-xs text-muted-foreground'>{result.dataFreshness.note}</p>
+            <p className='text-xs text-muted-foreground'>
+              {result.dataFreshness.note}
+            </p>
           )}
         </CardContent>
       </Card>
@@ -92,12 +110,18 @@ export function ComparisonPanel({ result, fromHistory }: ComparisonPanelProps) {
       >
         {result.rows.map((row) => (
           <TableRow key={row.id}>
-            <TableCell className={TABLE_CELL_TRUNCATE} title={row.emptyReason ?? undefined}>
+            <TableCell
+              className={TABLE_CELL_TRUNCATE}
+              title={row.emptyReason ?? undefined}
+            >
               <span className='font-medium'>{row.name}</span>
               <p className={`mt-0.5 ${TABLE_CELL_META}`}>
                 {row.asin ?? '未填 ASIN'}
                 {row.coverage === 'ok' ? null : (
-                  <Badge variant={COVERAGE_VARIANTS[row.coverage]} className='ms-2'>
+                  <Badge
+                    variant={COVERAGE_VARIANTS[row.coverage]}
+                    className='ms-2'
+                  >
                     {row.coverageLabel}
                   </Badge>
                 )}
@@ -110,7 +134,10 @@ export function ComparisonPanel({ result, fromHistory }: ComparisonPanelProps) {
                   dimension.source === 'report' ? TABLE_CELL_NUMERIC : undefined
                 }
               >
-                {formatDimensionValue(row.values[dimension.key], dimension.format)}
+                {formatDimensionValue(
+                  row.values[dimension.key],
+                  dimension.format
+                )}
               </TableCell>
             ))}
           </TableRow>

@@ -1,9 +1,4 @@
 import { Pencil, Trash2 } from 'lucide-react'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Checkbox } from '@/components/ui/checkbox'
-import { DataTable, type DataTablePagination } from '@/components/data-table'
-import { TableCell, TableHead, TableRow } from '@/components/ui/table'
 import {
   TABLE_CELL_META,
   TABLE_CELL_MONO,
@@ -13,6 +8,11 @@ import {
   TABLE_HEAD_ACTIONS,
   TABLE_HEAD_NUMERIC,
 } from '@/lib/table-styles'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
+import { TableCell, TableHead, TableRow } from '@/components/ui/table'
+import { DataTable, type DataTablePagination } from '@/components/data-table'
 import { STAGE_VARIANTS, formatCurrency } from '../format'
 import type { Candidate } from '../types'
 
@@ -54,7 +54,8 @@ export function CandidateTable({
   onDelete,
   toolbar,
 }: CandidateTableProps) {
-  const allSelected = items.length > 0 && items.every((item) => selectedIds.has(item.id))
+  const allSelected =
+    items.length > 0 && items.every((item) => selectedIds.has(item.id))
 
   const pagination: DataTablePagination = {
     page,
@@ -107,10 +108,18 @@ export function CandidateTable({
               aria-label={`选择候选 ${item.product_name || item.asin || item.id}`}
             />
           </TableCell>
-          <TableCell className={TABLE_CELL_TRUNCATE} title={item.product_name || undefined}>
-            {item.product_name || <span className={TABLE_CELL_META}>未填名称</span>}
+          <TableCell
+            className={TABLE_CELL_TRUNCATE}
+            title={item.product_name || undefined}
+          >
+            {item.product_name || (
+              <span className={TABLE_CELL_META}>未填名称</span>
+            )}
             {item.note ? (
-              <p className={`mt-0.5 truncate ${TABLE_CELL_META}`} title={item.note}>
+              <p
+                className={`mt-0.5 truncate ${TABLE_CELL_META}`}
+                title={item.note}
+              >
                 {item.note}
               </p>
             ) : null}
@@ -130,7 +139,9 @@ export function CandidateTable({
           </TableCell>
           <TableCell>{item.marketplace}</TableCell>
           <TableCell>
-            <Badge variant={STAGE_VARIANTS[item.stage]}>{item.stageLabel}</Badge>
+            <Badge variant={STAGE_VARIANTS[item.stage]}>
+              {item.stageLabel}
+            </Badge>
           </TableCell>
           <TableCell className={TABLE_CELL_META}>
             {item.source === 'import' ? '表格导入' : '手工录入'}

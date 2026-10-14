@@ -122,9 +122,7 @@ describe('UserAuthForm', () => {
     await expect.element(accountInput).toBeInTheDocument()
     await expect.element(passwordInput).toBeInTheDocument()
     await expect.element(loginButton).toBeInTheDocument()
-    await expect
-      .element(screen.getByText('忘记密码？'))
-      .not.toBeInTheDocument()
+    await expect.element(screen.getByText('忘记密码？')).not.toBeInTheDocument()
   })
 
   it('shows required messages for an empty submission', async () => {
@@ -136,9 +134,7 @@ describe('UserAuthForm', () => {
     await expect
       .element(screen.getByText('请输入账号或邮箱。'))
       .toBeInTheDocument()
-    await expect
-      .element(screen.getByText('请输入密码。'))
-      .toBeInTheDocument()
+    await expect.element(screen.getByText('请输入密码。')).toBeInTheDocument()
     await expectPasswordErrorState(accountInput, passwordInput)
   })
 
@@ -193,11 +189,9 @@ describe('UserAuthForm', () => {
   })
 
   it('does not allow spread props to replace the internal submit handler', async () => {
-    const externalSubmit = vi.fn(
-      (event: React.FormEvent<HTMLFormElement>) => {
-        event.preventDefault()
-      }
-    )
+    const externalSubmit = vi.fn((event: React.FormEvent<HTMLFormElement>) => {
+      event.preventDefault()
+    })
     const externalProps = {
       id: 'external-submit-regression',
       onSubmit: externalSubmit,
@@ -222,9 +216,7 @@ describe('UserAuthForm', () => {
     await submitCredentials(accountInput, passwordInput, loginButton)
 
     await vi.waitFor(() =>
-      expect(mocks.toastError).toHaveBeenCalledWith(
-        '登录失败，请稍后重试。'
-      )
+      expect(mocks.toastError).toHaveBeenCalledWith('登录失败，请稍后重试。')
     )
     expect(mocks.setUser).not.toHaveBeenCalled()
     expect(mocks.setAccessToken).not.toHaveBeenCalled()
@@ -244,13 +236,21 @@ describe('UserAuthForm', () => {
 
     mocks.post.mockRejectedValueOnce(unauthorized)
     const first = await renderForm()
-    await submitCredentials(first.accountInput, first.passwordInput, first.loginButton)
+    await submitCredentials(
+      first.accountInput,
+      first.passwordInput,
+      first.loginButton
+    )
     await vi.waitFor(() =>
       expect(mocks.toastError).toHaveBeenCalledWith('账号或密码错误。')
     )
 
     mocks.post.mockRejectedValueOnce(disconnected)
-    await submitCredentials(first.accountInput, first.passwordInput, first.loginButton)
+    await submitCredentials(
+      first.accountInput,
+      first.passwordInput,
+      first.loginButton
+    )
     await vi.waitFor(() =>
       expect(mocks.toastError).toHaveBeenCalledWith(
         '无法连接服务，请检查网络或后端服务。'
@@ -328,9 +328,7 @@ describe('UserAuthForm', () => {
         '登录状态初始化失败，请重试。'
       )
     })
-    expect(mocks.toastError).not.toHaveBeenCalledWith(
-      '账号或密码错误。'
-    )
+    expect(mocks.toastError).not.toHaveBeenCalledWith('账号或密码错误。')
     expect(mocks.toastSuccess).not.toHaveBeenCalled()
     await expect.element(loginButton).toBeEnabled()
   })

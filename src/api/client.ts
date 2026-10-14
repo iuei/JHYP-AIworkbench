@@ -25,7 +25,8 @@ export class ApiRequestError extends Error {
 
 export function handleUnauthorized() {
   useAuthStore.getState().auth.reset()
-  if (typeof window !== 'undefined') window.dispatchEvent(new Event('auth:unauthorized'))
+  if (typeof window !== 'undefined')
+    window.dispatchEvent(new Event('auth:unauthorized'))
 }
 
 api.interceptors.request.use((config) => {
@@ -68,7 +69,10 @@ export async function rawRequest(path: string, init: RequestInit = {}) {
       .then((body) => (body as { message?: string } | null)?.message)
       .catch(() => null)
     if (response.status === 401) handleUnauthorized()
-    throw new ApiRequestError(message ?? `请求失败（HTTP ${response.status}）`, response.status)
+    throw new ApiRequestError(
+      message ?? `请求失败（HTTP ${response.status}）`,
+      response.status
+    )
   }
 
   return response

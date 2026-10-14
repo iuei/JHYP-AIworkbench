@@ -145,9 +145,7 @@ describe('SettingsUsers', () => {
       screen.getByRole('button', { name: '编辑 系统管理员' })
     )
 
-    await expect
-      .element(screen.getByLabelText('部门'))
-      .toHaveValue('供应链部')
+    await expect.element(screen.getByLabelText('部门')).toHaveValue('供应链部')
   })
 
   it('prevents an administrator from changing their own role', async () => {

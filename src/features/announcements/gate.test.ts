@@ -25,13 +25,17 @@ describe('公告弹窗队列', () => {
   it('按服务端给的顺序返回待弹公告（前端不重排）', () => {
     const items = [pending(3), pending(1), pending(2)]
 
-    expect(visibleAnnouncements(items, []).map((item) => item.id)).toEqual([3, 1, 2])
+    expect(visibleAnnouncements(items, []).map((item) => item.id)).toEqual([
+      3, 1, 2,
+    ])
   })
 
   it('过滤掉本次登录内已经关闭的公告', () => {
     const items = [pending(1), pending(2), pending(3)]
 
-    expect(visibleAnnouncements(items, [1]).map((item) => item.id)).toEqual([2, 3])
+    expect(visibleAnnouncements(items, [1]).map((item) => item.id)).toEqual([
+      2, 3,
+    ])
     expect(visibleAnnouncements(items, [1, 2, 3])).toEqual([])
   })
 
@@ -55,7 +59,9 @@ describe('公告弹窗队列', () => {
     expect(dismissedIdsForLogin(state, 1000)).toEqual([7])
     // 又登录了一次（loginAt 变化）：从零开始，之前关掉的公告该弹还是要弹
     expect(dismissedIdsForLogin(state, 2000)).toEqual([])
-    expect(visibleAnnouncements([pending(7)], dismissedIdsForLogin(state, 2000))).toHaveLength(1)
+    expect(
+      visibleAnnouncements([pending(7)], dismissedIdsForLogin(state, 2000))
+    ).toHaveLength(1)
   })
 })
 

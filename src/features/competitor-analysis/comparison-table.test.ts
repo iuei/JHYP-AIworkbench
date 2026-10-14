@@ -136,7 +136,10 @@ describe('transposeComparisonTable', () => {
   })
 
   it('只有一行数据也照样转置（单 ASIN 分析）', () => {
-    const single = transposeComparisonTable({ ...block, rows: [block.rows![0]] })
+    const single = transposeComparisonTable({
+      ...block,
+      rows: [block.rows![0]],
+    })
     expect(single.columns?.map((column) => column.key)).toEqual([
       'metric',
       'B0PRIMARY1',

@@ -6,7 +6,11 @@
  * 2. **替换范围**：只替换 `@` 到光标之间的文字 —— 越界会把用户后面的正文删掉。
  */
 import { describe, expect, it } from 'vitest'
-import { MENTION_MAX_KEYWORD_LENGTH, applyMention, detectMention } from './prompt-mention'
+import {
+  MENTION_MAX_KEYWORD_LENGTH,
+  applyMention,
+  detectMention,
+} from './prompt-mention'
 
 describe('detectMention：识别光标是否处于 @ 提及中', () => {
   it('行首的 @ 可触发', () => {

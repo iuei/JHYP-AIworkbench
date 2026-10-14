@@ -7,7 +7,9 @@ import { splitEndpointSecret } from './mcp-endpoint'
  */
 describe('splitEndpointSecret', () => {
   it('拆出密钥并把端点还原成标准值', () => {
-    expect(splitEndpointSecret('https://mcp.sellersprite.com/mcp?secret-key=abc123')).toEqual({
+    expect(
+      splitEndpointSecret('https://mcp.sellersprite.com/mcp?secret-key=abc123')
+    ).toEqual({
       endpoint: 'https://mcp.sellersprite.com/mcp',
       secret: 'abc123',
     })
@@ -18,9 +20,10 @@ describe('splitEndpointSecret', () => {
   })
 
   it('保留其它查询参数，只摘掉 secret-key', () => {
-    expect(splitEndpointSecret('https://mcp.sellersprite.com/mcp?secret-key=k&v=2')?.endpoint).toBe(
-      'https://mcp.sellersprite.com/mcp?v=2'
-    )
+    expect(
+      splitEndpointSecret('https://mcp.sellersprite.com/mcp?secret-key=k&v=2')
+        ?.endpoint
+    ).toBe('https://mcp.sellersprite.com/mcp?v=2')
   })
 
   it('非法输入不抛错（保存前不该因为一串乱码卡住界面）', () => {

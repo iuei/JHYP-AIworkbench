@@ -87,6 +87,8 @@ describe('SettingsProfile', () => {
     const screen = await renderProfile()
 
     await userEvent.click(screen.getByRole('button', { name: '退出登录' }))
-    await expect.element(screen.getByRole('dialog')).toHaveTextContent('确认退出登录')
+    await expect
+      .element(screen.getByRole('dialog'))
+      .toHaveTextContent('确认退出登录')
   })
 })

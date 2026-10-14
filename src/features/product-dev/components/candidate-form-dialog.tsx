@@ -20,7 +20,12 @@ import {
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { CANDIDATE_MARKETPLACE_OPTIONS } from '../format'
-import type { AttributeRow, Candidate, CandidateFormValues, CandidateStage } from '../types'
+import type {
+  AttributeRow,
+  Candidate,
+  CandidateFormValues,
+  CandidateStage,
+} from '../types'
 
 const STAGE_OPTIONS: { value: CandidateStage; label: string }[] = [
   { value: 'candidate', label: '候选' },
@@ -46,11 +51,15 @@ function toFormValues(candidate: Candidate | null): CandidateFormValues {
     productName: candidate.product_name,
     asin: candidate.asin ?? '',
     category: candidate.category,
-    targetPrice: candidate.target_price === null ? '' : String(candidate.target_price),
+    targetPrice:
+      candidate.target_price === null ? '' : String(candidate.target_price),
     marketplace: candidate.marketplace,
     stage: candidate.stage,
     note: candidate.note ?? '',
-    attributes: Object.entries(candidate.attributes).map(([key, value]) => ({ key, value })),
+    attributes: Object.entries(candidate.attributes).map(([key, value]) => ({
+      key,
+      value,
+    })),
   }
 }
 
@@ -79,7 +88,9 @@ export function CandidateFormDialog({
   pending,
   onSubmit,
 }: CandidateFormDialogProps) {
-  const [values, setValues] = useState<CandidateFormValues>(() => toFormValues(candidate))
+  const [values, setValues] = useState<CandidateFormValues>(() =>
+    toFormValues(candidate)
+  )
 
   /*
    * 表单初值只在**挂载时**取一次，靠调用方给的 `key` 保证"每次打开都是新实例"
@@ -97,12 +108,15 @@ export function CandidateFormDialog({
   function updateAttribute(index: number, part: Partial<AttributeRow>) {
     setValues((prev) => ({
       ...prev,
-      attributes: prev.attributes.map((row, i) => (i === index ? { ...row, ...part } : row)),
+      attributes: prev.attributes.map((row, i) =>
+        i === index ? { ...row, ...part } : row
+      ),
     }))
   }
 
   const canSubmit =
-    (values.productName.trim().length > 0 || values.asin.trim().length > 0) && !pending
+    (values.productName.trim().length > 0 || values.asin.trim().length > 0) &&
+    !pending
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -114,7 +128,9 @@ export function CandidateFormDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className='max-h-[85vh] overflow-y-auto sm:max-w-2xl'>
         <DialogHeader>
-          <DialogTitle>{candidate ? '编辑候选产品' : '新增候选产品'}</DialogTitle>
+          <DialogTitle>
+            {candidate ? '编辑候选产品' : '新增候选产品'}
+          </DialogTitle>
           <DialogDescription>
             产品名称与 ASIN 至少填一个；未上架的候选可以只填名称。
           </DialogDescription>
@@ -196,7 +212,9 @@ export function CandidateFormDialog({
               <Label>阶段</Label>
               <Select
                 value={values.stage}
-                onValueChange={(value) => patch({ stage: value as CandidateStage })}
+                onValueChange={(value) =>
+                  patch({ stage: value as CandidateStage })
+                }
               >
                 <SelectTrigger className='w-full' aria-label='阶段'>
                   <SelectValue placeholder='选择阶段' />
@@ -236,7 +254,9 @@ export function CandidateFormDialog({
                 variant='outline'
                 size='sm'
                 onClick={() =>
-                  patch({ attributes: [...values.attributes, { key: '', value: '' }] })
+                  patch({
+                    attributes: [...values.attributes, { key: '', value: '' }],
+                  })
                 }
               >
                 <Plus aria-hidden='true' />
@@ -252,14 +272,18 @@ export function CandidateFormDialog({
                   <div key={index} className='flex items-center gap-2'>
                     <Input
                       value={row.key}
-                      onChange={(event) => updateAttribute(index, { key: event.target.value })}
+                      onChange={(event) =>
+                        updateAttribute(index, { key: event.target.value })
+                      }
                       placeholder='维度名，例如：评分'
                       aria-label={`附加维度 ${index + 1} 的名称`}
                       className='flex-1'
                     />
                     <Input
                       value={row.value}
-                      onChange={(event) => updateAttribute(index, { value: event.target.value })}
+                      onChange={(event) =>
+                        updateAttribute(index, { value: event.target.value })
+                      }
                       placeholder='值，例如：4.3'
                       aria-label={`附加维度 ${index + 1} 的值`}
                       className='flex-1'
@@ -271,7 +295,9 @@ export function CandidateFormDialog({
                       aria-label={`删除附加维度 ${index + 1}`}
                       onClick={() =>
                         patch({
-                          attributes: values.attributes.filter((_, i) => i !== index),
+                          attributes: values.attributes.filter(
+                            (_, i) => i !== index
+                          ),
                         })
                       }
                     >
@@ -285,7 +311,11 @@ export function CandidateFormDialog({
         </form>
 
         <DialogFooter>
-          <Button type='button' variant='outline' onClick={() => onOpenChange(false)}>
+          <Button
+            type='button'
+            variant='outline'
+            onClick={() => onOpenChange(false)}
+          >
             取消
           </Button>
           <Button type='submit' form='candidate-form' disabled={!canSubmit}>

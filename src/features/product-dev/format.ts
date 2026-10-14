@@ -1,6 +1,6 @@
 import { isAxiosError } from 'axios'
-import { MARKETPLACE_OPTIONS } from '@/features/competitor-analysis/format'
 import { TABLE_EMPTY_VALUE } from '@/lib/table-styles'
+import { MARKETPLACE_OPTIONS } from '@/features/competitor-analysis/format'
 import type { CandidateStage, DimensionFormat } from './types'
 
 export {
@@ -44,7 +44,11 @@ export const WINDOW_OPTIONS = [
  * 已经说明了这一列是什么，宁可不写符号，也不写一个可能错的符号。
  */
 export function formatCurrency(value: number | null | undefined): string {
-  if (value === null || value === undefined || !Number.isFinite(Number(value))) {
+  if (
+    value === null ||
+    value === undefined ||
+    !Number.isFinite(Number(value))
+  ) {
     return TABLE_EMPTY_VALUE
   }
   return Number(value).toLocaleString('zh-CN', {
@@ -54,14 +58,22 @@ export function formatCurrency(value: number | null | undefined): string {
 }
 
 export function formatNumber(value: number | null | undefined): string {
-  if (value === null || value === undefined || !Number.isFinite(Number(value))) {
+  if (
+    value === null ||
+    value === undefined ||
+    !Number.isFinite(Number(value))
+  ) {
     return TABLE_EMPTY_VALUE
   }
   return Number(value).toLocaleString('zh-CN', { maximumFractionDigits: 2 })
 }
 
 export function formatPercent(value: number | null | undefined): string {
-  if (value === null || value === undefined || !Number.isFinite(Number(value))) {
+  if (
+    value === null ||
+    value === undefined ||
+    !Number.isFinite(Number(value))
+  ) {
     return TABLE_EMPTY_VALUE
   }
   return `${Number(value).toLocaleString('zh-CN', { maximumFractionDigits: 2 })}%`
@@ -78,7 +90,8 @@ export function formatDimensionValue(
   value: string | number | null | undefined,
   format: DimensionFormat
 ): string {
-  if (value === null || value === undefined || value === '') return TABLE_EMPTY_VALUE
+  if (value === null || value === undefined || value === '')
+    return TABLE_EMPTY_VALUE
   switch (format) {
     case 'currency':
       return formatCurrency(Number(value))

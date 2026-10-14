@@ -11,7 +11,9 @@ import { parseSnapshotSearch } from '@/features/competitor-analysis/search-param
  * ASIN 走**路径参数**而不是 search 参数：它是这个页面唯一的主体，
  * 放在路径里才能被收藏、分享，也能让"上一个/下一个 ASIN"的链接语义自然成立。
  */
-export const Route = createFileRoute('/_authenticated/competitor-analysis/$asin')({
+export const Route = createFileRoute(
+  '/_authenticated/competitor-analysis/$asin'
+)({
   staticData: { title: '竞品详情' },
   validateSearch: parseSnapshotSearch,
   component: AsinDetailRoute,

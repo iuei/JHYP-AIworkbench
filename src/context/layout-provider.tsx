@@ -39,7 +39,8 @@ export function LayoutProvider({ children }: LayoutProviderProps) {
 
   const [variant, _setVariant] = useState<Variant>(() => {
     const saved = getCookie(LAYOUT_VARIANT_COOKIE_NAME)
-    if (saved && saved !== DEFAULT_VARIANT) removeCookie(LAYOUT_VARIANT_COOKIE_NAME)
+    if (saved && saved !== DEFAULT_VARIANT)
+      removeCookie(LAYOUT_VARIANT_COOKIE_NAME)
     return DEFAULT_VARIANT
   })
 
@@ -54,7 +55,11 @@ export function LayoutProvider({ children }: LayoutProviderProps) {
 
   const setVariant = (_newVariant?: Variant) => {
     _setVariant(DEFAULT_VARIANT)
-    setCookie(LAYOUT_VARIANT_COOKIE_NAME, DEFAULT_VARIANT, LAYOUT_COOKIE_MAX_AGE)
+    setCookie(
+      LAYOUT_VARIANT_COOKIE_NAME,
+      DEFAULT_VARIANT,
+      LAYOUT_COOKIE_MAX_AGE
+    )
   }
 
   const resetLayout = () => {

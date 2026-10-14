@@ -19,7 +19,10 @@ export type DismissState = {
   dismissedIds: number[]
 }
 
-export const EMPTY_DISMISS_STATE: DismissState = { loginAt: 0, dismissedIds: [] }
+export const EMPTY_DISMISS_STATE: DismissState = {
+  loginAt: 0,
+  dismissedIds: [],
+}
 
 /**
  * 当前登录批次内已经关闭过的公告 id。

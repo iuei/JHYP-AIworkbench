@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-react'
-import { ComparisonHistory } from './comparison-history'
 import type { ComparisonHistoryItem } from '../types'
+import { ComparisonHistory } from './comparison-history'
 
 /**
  * 历史对比表格（2026-09-16 由右栏卡片改为整宽表格）。
@@ -32,9 +32,10 @@ const items: ComparisonHistoryItem[] = [
   },
 ]
 
-async function renderPanel(
-  { activeId = null, list = items }: { activeId?: number | null; list?: ComparisonHistoryItem[] } = {}
-) {
+async function renderPanel({
+  activeId = null,
+  list = items,
+}: { activeId?: number | null; list?: ComparisonHistoryItem[] } = {}) {
   const onSelect = vi.fn()
   const onDelete = vi.fn()
   const onRefresh = vi.fn()
@@ -81,8 +82,8 @@ describe('ComparisonHistory', () => {
     reviewButtons[0].click()
     expect(onSelect).toHaveBeenCalledWith(1)
 
-    const deleteButton = [...container.querySelectorAll('button')].find((button) =>
-      button.getAttribute('aria-label')?.includes('的对比记录')
+    const deleteButton = [...container.querySelectorAll('button')].find(
+      (button) => button.getAttribute('aria-label')?.includes('的对比记录')
     )
     expect(deleteButton).toBeDefined()
     deleteButton?.click()
@@ -98,7 +99,9 @@ describe('ComparisonHistory', () => {
 
   it('没有记录时给出空态说明，而不是一张空表', async () => {
     const { container } = await renderPanel({ list: [] })
-    expect(container.querySelectorAll('[data-comparison-history]')).toHaveLength(0)
+    expect(
+      container.querySelectorAll('[data-comparison-history]')
+    ).toHaveLength(0)
     expect(container.textContent).toContain(
       '还没有保存过对比。在「候选池」里勾选 2 个以上候选后即可发起对比。'
     )

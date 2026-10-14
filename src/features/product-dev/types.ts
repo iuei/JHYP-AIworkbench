@@ -1,7 +1,11 @@
 import type { AnswerBlock } from '@/features/ai-agent/types'
 
 /** 候选阶段（与 `server/product-dev-table.mjs` 的 STAGES 一一对应）。 */
-export type CandidateStage = 'candidate' | 'researching' | 'approved' | 'rejected'
+export type CandidateStage =
+  | 'candidate'
+  | 'researching'
+  | 'approved'
+  | 'rejected'
 
 /** 候选产品的来源：人工新建或表格导入。 */
 export type CandidateSource = 'manual' | 'import'
@@ -108,7 +112,12 @@ export interface ImportResult {
 /** 维度来源：人工录入 vs 我方报表 —— 两者在界面上必须能一眼分辨。 */
 export type DimensionSource = 'manual' | 'report'
 
-export type DimensionFormat = 'text' | 'currency' | 'number' | 'percent' | 'stage'
+export type DimensionFormat =
+  | 'text'
+  | 'currency'
+  | 'number'
+  | 'percent'
+  | 'stage'
 
 export interface ComparisonDimension {
   key: string
@@ -189,7 +198,12 @@ export interface MarketCategoryResult {
   keyword: string
   marketplace: string
   categories: MarketCategory[]
-  meta: { calls: number; cacheHits: number; estimatedCalls: number; ttlHours: number }
+  meta: {
+    calls: number
+    cacheHits: number
+    estimatedCalls: number
+    ttlHours: number
+  }
 }
 
 /** 一条市场结论（结构同竞品分析的 findings，但全部来自市场结构，不带 scope）。 */

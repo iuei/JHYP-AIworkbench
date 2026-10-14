@@ -14,13 +14,27 @@ import {
   RotateCcw,
   Wrench,
 } from 'lucide-react'
+import { useAuthStore } from '@/stores/auth-store'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
 import { Textarea } from '@/components/ui/textarea'
-import { useAuthStore } from '@/stores/auth-store'
-import { apiErrorMessage, clearFindingDisposition, setFindingDisposition } from '../api'
-import { FINDING_LEVEL_LABELS, FINDING_LEVEL_VARIANTS, formatDateTime } from '../format'
+import {
+  apiErrorMessage,
+  clearFindingDisposition,
+  setFindingDisposition,
+} from '../api'
+import {
+  FINDING_LEVEL_LABELS,
+  FINDING_LEVEL_VARIANTS,
+  formatDateTime,
+} from '../format'
 import type {
   Finding,
   FindingDisposition,
@@ -109,8 +123,14 @@ function DecisionDesk({
   const selectedEntry = sorted
     .map((finding, index) => ({ finding, key: `${finding.title}-${index}` }))
     .find((entry) => entry.key === selectedKey)
-  const selected = selectedEntry?.finding ?? sorted.find((finding) => finding.level !== 'info') ?? sorted[0] ?? null
-  const actionableCount = sorted.filter((finding) => finding.level !== 'info').length
+  const selected =
+    selectedEntry?.finding ??
+    sorted.find((finding) => finding.level !== 'info') ??
+    sorted[0] ??
+    null
+  const actionableCount = sorted.filter(
+    (finding) => finding.level !== 'info'
+  ).length
   const local = sorted.filter((finding) => finding.scope !== 'public')
   const external = sorted.filter((finding) => finding.scope === 'public')
 
@@ -192,12 +212,12 @@ function DecisionFindingGroup({
             >
               <span className='flex items-start gap-2'>
                 <Badge
-                  className='mt-0.5 shrink-0 whitespace-nowrap text-[11px]'
+                  className='mt-0.5 shrink-0 text-[11px] whitespace-nowrap'
                   variant={FINDING_LEVEL_VARIANTS[finding.level]}
                 >
                   {FINDING_LEVEL_LABELS[finding.level]}
                 </Badge>
-                <span className='min-w-0 text-sm font-medium leading-relaxed text-pretty'>
+                <span className='min-w-0 text-sm leading-relaxed font-medium text-pretty'>
                   {finding.title}
                 </span>
               </span>
@@ -226,30 +246,42 @@ function DecisionFindingPane({
       <div className='flex flex-wrap items-start justify-between gap-2 border-b pb-4'>
         <div className='min-w-0'>
           <p className='text-xs text-muted-foreground'>当前查看的问题</p>
-          <h3 className='mt-1 text-base font-semibold leading-relaxed text-pretty'>
+          <h3 className='mt-1 text-base leading-relaxed font-semibold text-pretty'>
             {finding.title}
           </h3>
         </div>
-        <Badge className='shrink-0 whitespace-nowrap' variant={FINDING_LEVEL_VARIANTS[finding.level]}>
+        <Badge
+          className='shrink-0 whitespace-nowrap'
+          variant={FINDING_LEVEL_VARIANTS[finding.level]}
+        >
           {FINDING_LEVEL_LABELS[finding.level]}
         </Badge>
       </div>
 
       <div className='mt-4 space-y-4'>
         <div className='rounded-md bg-muted/40 px-3 py-2.5'>
-          <p className='text-xs font-medium text-muted-foreground'>发生了什么</p>
-          <p className='mt-1 text-sm leading-relaxed text-pretty'>{finding.detail}</p>
+          <p className='text-xs font-medium text-muted-foreground'>
+            发生了什么
+          </p>
+          <p className='mt-1 text-sm leading-relaxed text-pretty'>
+            {finding.detail}
+          </p>
         </div>
 
         {finding.fix ? (
           <FindingFixBlock context={linkContext} fix={finding.fix} />
         ) : (
           <div className='space-y-2 rounded-md border border-border/60 px-3 py-2.5'>
-            <p className='text-xs font-medium text-muted-foreground'>处理建议</p>
-            <p className='text-sm leading-relaxed text-pretty'>
-              {finding.action ?? '请查看相关结果，确认触发该提示的具体指标后再处理。'}
+            <p className='text-xs font-medium text-muted-foreground'>
+              处理建议
             </p>
-            {(actionable || finding.action) && <FallbackFindingLink context={linkContext} />}
+            <p className='text-sm leading-relaxed text-pretty'>
+              {finding.action ??
+                '请查看相关结果，确认触发该提示的具体指标后再处理。'}
+            </p>
+            {(actionable || finding.action) && (
+              <FallbackFindingLink context={linkContext} />
+            )}
           </div>
         )}
 
@@ -257,7 +289,9 @@ function DecisionFindingPane({
 
         {actionable && (
           <div className='flex gap-2 border-t pt-3 text-xs leading-relaxed text-muted-foreground'>
-            <span className='shrink-0 font-medium text-foreground'>完成条件</span>
+            <span className='shrink-0 font-medium text-foreground'>
+              完成条件
+            </span>
             <span>
               改完点「标记已处理」，系统会在你下一次分析时自动核验：指标不再命中该规则即判定已解决，
               仍然命中会打回并说明本次的实际情况。
@@ -274,8 +308,14 @@ function DecisionFindingPane({
               variant='ghost'
               onClick={() => setShowEvidence((current) => !current)}
             >
-              {showEvidence ? <ChevronDown className='size-3.5' aria-hidden='true' /> : <ChevronRight className='size-3.5' aria-hidden='true' />}
-              {showEvidence ? '收起依据' : `查看依据 ${finding.evidence.length} 条`}
+              {showEvidence ? (
+                <ChevronDown className='size-3.5' aria-hidden='true' />
+              ) : (
+                <ChevronRight className='size-3.5' aria-hidden='true' />
+              )}
+              {showEvidence
+                ? '收起依据'
+                : `查看依据 ${finding.evidence.length} 条`}
             </Button>
             {showEvidence && (
               <ul className='mt-1 space-y-1 text-xs leading-relaxed text-muted-foreground'>
@@ -333,7 +373,7 @@ export function FindingsPanel({
           >
             {FINDING_LEVEL_LABELS[level]}
           </Badge>
-          <span className='shrink-0 whitespace-nowrap text-xs text-muted-foreground'>
+          <span className='shrink-0 text-xs whitespace-nowrap text-muted-foreground'>
             共 {findings.length} 条
           </span>
         </div>
@@ -416,13 +456,13 @@ function FindingGroup({
         <div className='flex flex-wrap items-center gap-x-2 gap-y-1'>
           <h3 className='text-sm font-semibold'>{title}</h3>
           <Badge
-            className='shrink-0 whitespace-nowrap font-normal'
+            className='shrink-0 font-normal whitespace-nowrap'
             variant='outline'
           >
             {items.length} 条
           </Badge>
         </div>
-        <p className='max-w-3xl text-xs leading-relaxed text-muted-foreground text-pretty'>
+        <p className='max-w-3xl text-xs leading-relaxed text-pretty text-muted-foreground'>
           {hint}
         </p>
       </div>
@@ -430,10 +470,10 @@ function FindingGroup({
         <ul className='space-y-4'>
           {visibleActionable.map((finding, index) => (
             <FindingItem
-                finding={finding}
-                key={`${finding.title}-${index}`}
-                linkContext={linkContext}
-              />
+              finding={finding}
+              key={`${finding.title}-${index}`}
+              linkContext={linkContext}
+            />
           ))}
         </ul>
       ) : (
@@ -479,10 +519,10 @@ function FindingGroup({
             <ul className='space-y-4'>
               {infoItems.map((finding, index) => (
                 <FindingItem
-                finding={finding}
-                key={`${finding.title}-${index}`}
-                linkContext={linkContext}
-              />
+                  finding={finding}
+                  key={`${finding.title}-${index}`}
+                  linkContext={linkContext}
+                />
               ))}
             </ul>
           )}
@@ -710,23 +750,33 @@ function DispositionActions({
   }
 
   const markClaimed = useMutation({
-    mutationFn: () => setFindingDisposition({ analysisId, code, target, status: 'claimed' }),
+    mutationFn: () =>
+      setFindingDisposition({ analysisId, code, target, status: 'claimed' }),
     onSuccess: () => {
       setFeedback(null)
       invalidate()
     },
-    onError: (error) => setFeedback(apiErrorMessage(error, '标记失败，请稍后重试。')),
+    onError: (error) =>
+      setFeedback(apiErrorMessage(error, '标记失败，请稍后重试。')),
   })
 
   const markIgnored = useMutation({
-    mutationFn: () => setFindingDisposition({ analysisId, code, target, status: 'ignored', note }),
+    mutationFn: () =>
+      setFindingDisposition({
+        analysisId,
+        code,
+        target,
+        status: 'ignored',
+        note,
+      }),
     onSuccess: () => {
       setNoteOpen(false)
       setNote('')
       setFeedback(null)
       invalidate()
     },
-    onError: (error) => setFeedback(apiErrorMessage(error, '标记失败，请稍后重试。')),
+    onError: (error) =>
+      setFeedback(apiErrorMessage(error, '标记失败，请稍后重试。')),
   })
 
   const undo = useMutation({
@@ -735,7 +785,8 @@ function DispositionActions({
       setFeedback(null)
       invalidate()
     },
-    onError: (error) => setFeedback(apiErrorMessage(error, '撤销失败，请稍后重试。')),
+    onError: (error) =>
+      setFeedback(apiErrorMessage(error, '撤销失败，请稍后重试。')),
   })
 
   const busy = markClaimed.isPending || markIgnored.isPending || undo.isPending
@@ -747,7 +798,8 @@ function DispositionActions({
   async function copySteps() {
     const lines: string[] = []
     if (finding.fix?.what) lines.push(`处理什么：${finding.fix.what}`)
-    if (steps.length > 0) lines.push(...steps.map((step, index) => `${index + 1}. ${step}`))
+    if (steps.length > 0)
+      lines.push(...steps.map((step, index) => `${index + 1}. ${step}`))
     if (lines.length === 0) lines.push(finding.action ?? finding.title)
     lines.push(`（来自竞品分析结论：${finding.title}）`)
     try {
@@ -881,7 +933,11 @@ function DispositionActions({
 }
 
 /** 台账状态那一行：徽章 + 一句"这意味着什么"（口径必须写在界面上）。 */
-function DispositionStatus({ disposition }: { disposition: FindingDisposition }) {
+function DispositionStatus({
+  disposition,
+}: {
+  disposition: FindingDisposition
+}) {
   const status = disposition.status
   return (
     <div className='space-y-1'>
@@ -894,25 +950,35 @@ function DispositionStatus({ disposition }: { disposition: FindingDisposition })
         </Badge>
         {status === 'claimed' && (
           <span className='text-muted-foreground'>
-            你已标记处理完成{disposition.claimedAt ? `（${formatDateTime(disposition.claimedAt)}）` : ''}
+            你已标记处理完成
+            {disposition.claimedAt
+              ? `（${formatDateTime(disposition.claimedAt)}）`
+              : ''}
             ，下一次分析会自动核验。
           </span>
         )}
         {status === 'verified' && (
           <span className='text-muted-foreground'>
             后续分析里这条结论没有再命中，系统判定已解决
-            {disposition.verifiedAt ? `（${formatDateTime(disposition.verifiedAt)}）` : ''}。
+            {disposition.verifiedAt
+              ? `（${formatDateTime(disposition.verifiedAt)}）`
+              : ''}
+            。
           </span>
         )}
         {status === 'ignored' && (
           <span className='text-muted-foreground'>
-            已选择不处理，系统不再核验这条{disposition.note ? `：${disposition.note}` : ''}
+            已选择不处理，系统不再核验这条
+            {disposition.note ? `：${disposition.note}` : ''}
           </span>
         )}
         {status === 'open' && (
           <span className='text-muted-foreground'>
             你标记过已处理，但后续分析仍然命中
-            {disposition.reopenCount > 1 ? `（第 ${disposition.reopenCount} 次）` : ''}。
+            {disposition.reopenCount > 1
+              ? `（第 ${disposition.reopenCount} 次）`
+              : ''}
+            。
           </span>
         )}
       </div>
@@ -1029,17 +1095,19 @@ function FindingItem({
         >
           {FINDING_LEVEL_LABELS[finding.level]}
         </Badge>
-        <p className='max-w-3xl text-sm font-medium leading-relaxed text-pretty'>
+        <p className='max-w-3xl text-sm leading-relaxed font-medium text-pretty'>
           {finding.title}
         </p>
       </div>
-      <p className='mt-2 max-w-3xl text-sm leading-relaxed text-muted-foreground text-pretty'>
+      <p className='mt-2 max-w-3xl text-sm leading-relaxed text-pretty text-muted-foreground'>
         {finding.detail}
       </p>
       {finding.fix ? (
         <FindingFixBlock context={linkContext} fix={finding.fix} />
       ) : (
-        (finding.action || finding.level === 'high' || finding.level === 'medium') && (
+        (finding.action ||
+          finding.level === 'high' ||
+          finding.level === 'medium') && (
           <div className='mt-3 max-w-3xl space-y-2 rounded-md border border-border/60 bg-muted/60 px-3 py-2'>
             <div className='flex gap-2'>
               <Lightbulb
@@ -1048,7 +1116,8 @@ function FindingItem({
               />
               <p className='text-sm leading-relaxed text-pretty'>
                 <span className='font-medium'>建议：</span>
-                {finding.action ?? '请先查看相关结果，确认触发该提示的具体指标，再按明细中的数据处理。'}
+                {finding.action ??
+                  '请先查看相关结果，确认触发该提示的具体指标，再按明细中的数据处理。'}
               </p>
             </div>
             <div className='flex flex-wrap items-center gap-2 pl-6'>
@@ -1093,20 +1162,19 @@ function FindingItem({
 }
 
 /** 老快照没有结构化 fix 时仍提供一个真实可达的复核入口。 */
-function FallbackFindingLink({
-  context,
-}: {
-  context?: FindingsLinkContext
-}) {
+function FallbackFindingLink({ context }: { context?: FindingsLinkContext }) {
   const to = context?.analysisId
     ? '/competitor-analysis/results'
     : '/competitor-analysis'
-  const search = context?.analysisId
-    ? { analysisId: context.analysisId }
-    : {}
+  const search = context?.analysisId ? { analysisId: context.analysisId } : {}
 
   return (
-    <Button asChild className='h-7 gap-1 px-2 text-xs' size='sm' variant='outline'>
+    <Button
+      asChild
+      className='h-7 gap-1 px-2 text-xs'
+      size='sm'
+      variant='outline'
+    >
       <Link search={search} to={to}>
         查看相关结果
         <ArrowUpRight className='size-3.5' aria-hidden='true' />

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
+import { isAxiosError } from 'axios'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { isAxiosError } from 'axios'
 import { Clock3, Lightbulb, Loader2, Search, Store } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -29,7 +29,11 @@ import {
   saveMarketInsightReport,
   searchMarketCategories,
 } from '../api'
-import type { MarketAnalysisResult, MarketCategory, MarketFinding } from '../types'
+import type {
+  MarketAnalysisResult,
+  MarketCategory,
+  MarketFinding,
+} from '../types'
 
 /** 站点选项（与卖家精灵收录范围一致；市场调研不需要"自动推导"——响应里没有 ASIN 可推导）。 */
 const MARKETPLACES = [
@@ -88,7 +92,10 @@ export function MarketResearchPanel({
   const [categories, setCategories] = useState<MarketCategory[]>([])
   const [selected, setSelected] = useState<MarketCategory | null>(null)
   const [result, setResult] = useState<MarketAnalysisResult | null>(null)
-  const [searchMeta, setSearchMeta] = useState<{ calls: number; cacheHits: number } | null>(null)
+  const [searchMeta, setSearchMeta] = useState<{
+    calls: number
+    cacheHits: number
+  } | null>(null)
   const queryClient = useQueryClient()
 
   const reports = useQuery({
@@ -114,7 +121,9 @@ export function MarketResearchPanel({
   const saveReport = useMutation({
     mutationFn: saveMarketInsightReport,
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['market-insights', 'reports'] })
+      void queryClient.invalidateQueries({
+        queryKey: ['market-insights', 'reports'],
+      })
     },
   })
 
@@ -123,7 +132,9 @@ export function MarketResearchPanel({
     onSuccess: (report) => {
       setMarketplace(report.marketplace)
       setResult(report.result)
-      setKeyword(typeof report.filters.keyword === 'string' ? report.filters.keyword : '')
+      setKeyword(
+        typeof report.filters.keyword === 'string' ? report.filters.keyword : ''
+      )
       setSelected({
         nodeIdPath: report.result.nodeIdPath,
         nodeId: null,
@@ -204,8 +215,15 @@ export function MarketResearchPanel({
                 </SelectContent>
               </Select>
             </div>
-            <Button type='submit' disabled={search.isPending || keyword.trim().length === 0}>
-              {search.isPending ? <Loader2 className='animate-spin' /> : <Search aria-hidden='true' />}
+            <Button
+              type='submit'
+              disabled={search.isPending || keyword.trim().length === 0}
+            >
+              {search.isPending ? (
+                <Loader2 className='animate-spin' />
+              ) : (
+                <Search aria-hidden='true' />
+              )}
               搜索类目
             </Button>
           </form>
@@ -238,19 +256,25 @@ export function MarketResearchPanel({
                     <button
                       type='button'
                       className={`flex w-full flex-wrap items-center justify-between gap-2 px-3 py-2 text-left text-sm hover:bg-muted ${
-                        selected?.nodeIdPath === category.nodeIdPath ? 'bg-muted' : ''
+                        selected?.nodeIdPath === category.nodeIdPath
+                          ? 'bg-muted'
+                          : ''
                       }`}
                       disabled={analyze.isPending}
                       onClick={() => pickCategory(category)}
                     >
                       <span className='min-w-0'>
-                        <span className='block truncate font-medium'>{category.label}</span>
+                        <span className='block truncate font-medium'>
+                          {category.label}
+                        </span>
                         <span className='block truncate text-xs text-muted-foreground'>
                           {category.nodeIdPath}
                         </span>
                       </span>
                       <span className='shrink-0 text-xs text-muted-foreground'>
-                        {category.products !== null ? `${category.products} 个在售` : '—'}
+                        {category.products !== null
+                          ? `${category.products} 个在售`
+                          : '—'}
                       </span>
                     </button>
                   </li>
@@ -301,12 +325,15 @@ export function MarketResearchPanel({
                     })
                   }
                 >
-                  {saveReport.isPending ? <Loader2 className='animate-spin' /> : null}
+                  {saveReport.isPending ? (
+                    <Loader2 className='animate-spin' />
+                  ) : null}
                   保存报告
                 </Button>
               </div>
               <CardDescription>
-                本次调用 {result.meta.calls} 次（缓存命中 {result.meta.cacheHits} 次，命中不计费）· 类目节点{' '}
+                本次调用 {result.meta.calls} 次（缓存命中{' '}
+                {result.meta.cacheHits} 次，命中不计费）· 类目节点{' '}
                 {result.nodeIdPath}
               </CardDescription>
             </CardHeader>
@@ -317,7 +344,9 @@ export function MarketResearchPanel({
                 </p>
               )}
               {saveReport.isSuccess && (
-                <p className='text-sm text-emerald-600'>报告已保存，可在下方历史记录中回看。</p>
+                <p className='text-sm text-emerald-600'>
+                  报告已保存，可在下方历史记录中回看。
+                </p>
               )}
               <p className='text-sm'>{result.headline}</p>
               {result.meta.errors.length > 0 && (
@@ -337,7 +366,9 @@ export function MarketResearchPanel({
                   >
                     把这批 ASIN 带到竞品分析对比
                   </Link>
-                  <span className='font-mono'>{result.topAsins.join('、')}</span>
+                  <span className='font-mono'>
+                    {result.topAsins.join('、')}
+                  </span>
                 </p>
               )}
             </CardContent>
@@ -357,7 +388,9 @@ export function MarketResearchPanel({
                     <li
                       key={`${finding.title}-${index}`}
                       className={`rounded-lg border p-4 ${
-                        finding.level === 'high' ? 'border-destructive/40' : 'border-border'
+                        finding.level === 'high'
+                          ? 'border-destructive/40'
+                          : 'border-border'
                       }`}
                     >
                       <div className='flex flex-wrap items-center gap-2'>
@@ -366,10 +399,15 @@ export function MarketResearchPanel({
                         </Badge>
                         <p className='text-sm font-medium'>{finding.title}</p>
                       </div>
-                      <p className='mt-2 text-sm text-muted-foreground'>{finding.detail}</p>
+                      <p className='mt-2 text-sm text-muted-foreground'>
+                        {finding.detail}
+                      </p>
                       {finding.action && (
                         <p className='mt-2 flex gap-2 rounded-md bg-muted px-3 py-2 text-sm'>
-                          <Lightbulb className='mt-0.5 size-4 shrink-0' aria-hidden='true' />
+                          <Lightbulb
+                            className='mt-0.5 size-4 shrink-0'
+                            aria-hidden='true'
+                          />
                           <span>{finding.action}</span>
                         </p>
                       )}
@@ -393,7 +431,9 @@ export function MarketResearchPanel({
         <Card>
           <CardHeader className='gap-1'>
             <CardTitle className='text-base'>历史市场报告</CardTitle>
-            <CardDescription>读取保存时的冻结结果，不会重新消耗卖家精灵调用额度。</CardDescription>
+            <CardDescription>
+              读取保存时的冻结结果，不会重新消耗卖家精灵调用额度。
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <ul className='divide-y rounded-lg border'>
@@ -423,7 +463,10 @@ export function MarketResearchPanel({
             </ul>
             {loadReport.isError && (
               <p className='mt-2 text-sm text-destructive' role='alert'>
-                {errorMessage(loadReport.error, '历史报告加载失败，请稍后重试。')}
+                {errorMessage(
+                  loadReport.error,
+                  '历史报告加载失败，请稍后重试。'
+                )}
               </p>
             )}
           </CardContent>
@@ -434,13 +477,15 @@ export function MarketResearchPanel({
         <Card>
           <CardHeader className='gap-1'>
             <CardTitle className='text-base'>还没有调研结果</CardTitle>
-            <CardDescription>输入品类词并选择站点，先从搜索结果里挑一个类目</CardDescription>
+            <CardDescription>
+              输入品类词并选择站点，先从搜索结果里挑一个类目
+            </CardDescription>
           </CardHeader>
           {/* 口径压成一行（2026-09-16，与竞品分析同一次清理）：空态只需要"怎么开始 + 会得到什么" */}
           <CardContent>
             <p className='text-xs text-muted-foreground'>
-              结论由服务端按阈值算出、命中才产出，不编评语；选中类目后可把该市场的 TOP
-              商品带到「竞品分析」逐个对比。
+              结论由服务端按阈值算出、命中才产出，不编评语；选中类目后可把该市场的
+              TOP 商品带到「竞品分析」逐个对比。
             </p>
           </CardContent>
         </Card>

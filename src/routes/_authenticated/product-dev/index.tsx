@@ -20,20 +20,26 @@ type LegacyProductDevSearch = {
 
 export const Route = createFileRoute('/_authenticated/product-dev/')({
   // 只为读旧参数：老链接的 view 用不上，但解析出来才能判断该跳到哪个新路径
-  validateSearch: (search: Record<string, unknown>): LegacyProductDevSearch => ({
+  validateSearch: (
+    search: Record<string, unknown>
+  ): LegacyProductDevSearch => ({
     view: search.view,
     keyword: search.keyword,
     marketplace: search.marketplace,
   }),
   beforeLoad: ({ location }) => {
-    const { view, keyword, marketplace } = location.search as LegacyProductDevSearch
+    const { view, keyword, marketplace } =
+      location.search as LegacyProductDevSearch
     if (view !== 'market' && view !== 'compare') return
 
     if (view === 'market') {
       throw redirect({
         to: '/product-dev/market',
         search: {
-          keyword: typeof keyword === 'string' && keyword.trim() ? keyword.trim() : undefined,
+          keyword:
+            typeof keyword === 'string' && keyword.trim()
+              ? keyword.trim()
+              : undefined,
           marketplace:
             typeof marketplace === 'string' && /^[A-Za-z]{2}$/.test(marketplace)
               ? marketplace.toUpperCase()

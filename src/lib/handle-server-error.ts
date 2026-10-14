@@ -27,8 +27,13 @@ export function handleServerError(error: unknown) {
       | { message?: unknown; title?: unknown }
       | undefined
     const message =
-      typeof data?.message === 'string' && data.message.length > 0 ? data.message : null
-    const title = typeof data?.title === 'string' && data.title.length > 0 ? data.title : null
+      typeof data?.message === 'string' && data.message.length > 0
+        ? data.message
+        : null
+    const title =
+      typeof data?.title === 'string' && data.title.length > 0
+        ? data.title
+        : null
     if (message) errMsg = message
     else if (title) errMsg = title
   }

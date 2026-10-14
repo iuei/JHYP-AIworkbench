@@ -8,10 +8,7 @@ import {
   Trash2,
   X,
 } from 'lucide-react'
-import {
-  TABLE_SEARCH_ICON,
-  TABLE_SEARCH_INPUT,
-} from '@/lib/table-styles'
+import { TABLE_SEARCH_ICON, TABLE_SEARCH_INPUT } from '@/lib/table-styles'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'

@@ -157,8 +157,8 @@ export function WatchlistImportDialog({ open, onOpenChange }: Props) {
           <DialogTitle>从表格导入 ASIN</DialogTitle>
           <DialogDescription>
             支持 CSV 与 Excel（.xlsx）：自动识别 ASIN / 站点 / 别名 / 备注列。
-            建议先下载模板，按模板表头填好再上传 —— 格式统一，解析最稳。老的 .xls
-            请先另存为 .xlsx。
+            建议先下载模板，按模板表头填好再上传 —— 格式统一，解析最稳。老的
+            .xls 请先另存为 .xlsx。
           </DialogDescription>
         </DialogHeader>
 
@@ -176,8 +176,8 @@ export function WatchlistImportDialog({ open, onOpenChange }: Props) {
                 </p>
                 {result.summary.duplicated.length > 0 && (
                   <p className='text-muted-foreground'>
-                    列表里已有 {result.summary.duplicated.length} 条（同一 ASIN +
-                    站点），未重复写入。
+                    列表里已有 {result.summary.duplicated.length} 条（同一 ASIN
+                    + 站点），未重复写入。
                   </p>
                 )}
                 {result.summary.repeated.length > 0 && (
@@ -250,9 +250,9 @@ export function WatchlistImportDialog({ open, onOpenChange }: Props) {
             {preview.overflow && (
               <p className='flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive'>
                 <AlertTriangle className='mt-0.5 size-4 shrink-0' />
-                导入后会有 {preview.itemCount + preview.addCount} 条 ASIN，超出上限{' '}
-                {preview.capacity} 条（多出 {preview.overflowBy} 条）。请先精简表格，
-                或删掉一些不再跟踪的 ASIN。
+                导入后会有 {preview.itemCount + preview.addCount} 条
+                ASIN，超出上限 {preview.capacity} 条（多出 {preview.overflowBy}{' '}
+                条）。请先精简表格， 或删掉一些不再跟踪的 ASIN。
               </p>
             )}
 
@@ -376,7 +376,8 @@ export function WatchlistImportDialog({ open, onOpenChange }: Props) {
               </Button>
             </div>
             <p className='text-xs text-muted-foreground'>
-              模板表头为 ASIN / 站点 / 别名 / 备注；站点留空时按上面选中的默认站点落库。
+              模板表头为 ASIN / 站点 / 别名 /
+              备注；站点留空时按上面选中的默认站点落库。
             </p>
           </div>
         )}
@@ -438,7 +439,9 @@ function InvalidRows({
         ))}
       </ul>
       {rows.length > 10 && (
-        <p className='mt-1 text-muted-foreground'>其余 {rows.length - 10} 行略。</p>
+        <p className='mt-1 text-muted-foreground'>
+          其余 {rows.length - 10} 行略。
+        </p>
       )}
     </div>
   )

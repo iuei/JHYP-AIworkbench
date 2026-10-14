@@ -27,10 +27,12 @@ export function HistoryLevelBadge({ item }: { item: HistoryItem }) {
   const cleared = item.clearedFindingCount ?? 0
   return (
     <span className='flex flex-wrap items-center gap-1.5'>
-      <Badge variant={FINDING_LEVEL_VARIANTS[level]}>{FINDING_LEVEL_LABELS[level]}</Badge>
+      <Badge variant={FINDING_LEVEL_VARIANTS[level]}>
+        {FINDING_LEVEL_LABELS[level]}
+      </Badge>
       {cleared > 0 && (
         <span
-          className='whitespace-nowrap text-xs text-muted-foreground'
+          className='text-xs whitespace-nowrap text-muted-foreground'
           data-history-cleared={cleared}
         >
           已销账 {cleared} 条

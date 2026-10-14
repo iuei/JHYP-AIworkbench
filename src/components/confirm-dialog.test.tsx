@@ -79,9 +79,7 @@ describe('ConfirmDialog', () => {
     )
 
     await expect.element(getByRole('button', { name: '取消' })).toBeDisabled()
-    await expect
-      .element(getByRole('button', { name: '继续' }))
-      .toBeDisabled()
+    await expect.element(getByRole('button', { name: '继续' })).toBeDisabled()
   })
 
   it('supports custom button texts', async () => {

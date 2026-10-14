@@ -18,7 +18,11 @@ function getIsDesktop() {
 }
 
 function useIsDesktop() {
-  return useSyncExternalStore(subscribeToDesktopChange, getIsDesktop, () => false)
+  return useSyncExternalStore(
+    subscribeToDesktopChange,
+    getIsDesktop,
+    () => false
+  )
 }
 
 export function SignInBrandPanel() {

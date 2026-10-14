@@ -121,7 +121,10 @@ export function AsinDetailPage({ asin, analysisId }: AsinDetailPageProps) {
     return (
       <SnapshotShell>
         <SnapshotStateCard
-          description={apiErrorMessage(snapshot.error, '读取这条分析记录失败，请稍后重试。')}
+          description={apiErrorMessage(
+            snapshot.error,
+            '读取这条分析记录失败，请稍后重试。'
+          )}
           title='打不开这次分析'
         />
       </SnapshotShell>
@@ -159,13 +162,17 @@ export function AsinDetailPage({ asin, analysisId }: AsinDetailPageProps) {
       {!hasId && (
         <Card>
           <CardContent className='py-3 text-sm text-muted-foreground'>
-            未指定分析记录，这里自动打开<b>最近一次</b>包含 {detail.asin} 的分析（#
+            未指定分析记录，这里自动打开<b>最近一次</b>包含 {detail.asin}{' '}
+            的分析（#
             {effectiveId}）。要指定某一次，从结果里的商品卡片点进来即可。
           </CardContent>
         </Card>
       )}
 
-      <ProductOverviewCard detail={detail} createdAt={result.createdAt ?? null} />
+      <ProductOverviewCard
+        detail={detail}
+        createdAt={result.createdAt ?? null}
+      />
 
       {detail.findings.length > 0 && (
         <FindingsPanel
@@ -185,7 +192,8 @@ export function AsinDetailPage({ asin, analysisId }: AsinDetailPageProps) {
           <CardHeader className='gap-1'>
             <CardTitle className='text-base'>公开数据明细</CardTitle>
             <CardDescription>
-              本次分析没有取到这个 ASIN 的公开数据明细（可能是分析时没勾选「流量与关键词 /
+              本次分析没有取到这个 ASIN
+              的公开数据明细（可能是分析时没勾选「流量与关键词 /
               评论痛点」，或卖家精灵未收录）。
             </CardDescription>
           </CardHeader>
@@ -194,9 +202,10 @@ export function AsinDetailPage({ asin, analysisId }: AsinDetailPageProps) {
 
       {detail.comparison && <LocalPerformanceCard row={detail.comparison} />}
 
-      {detail.inventory?.mapped && (detail.inventory.items?.length ?? 0) > 0 && (
-        <InventoryCard detail={detail} />
-      )}
+      {detail.inventory?.mapped &&
+        (detail.inventory.items?.length ?? 0) > 0 && (
+          <InventoryCard detail={detail} />
+        )}
 
       <SourceCard
         analysisId={analysisId}
@@ -266,7 +275,10 @@ function ProductOverviewCard({
             {attributes.map((item) => (
               <div key={item.label} className='min-w-0'>
                 <dt className='text-xs text-muted-foreground'>{item.label}</dt>
-                <dd className='truncate font-medium tabular-nums' title={item.value}>
+                <dd
+                  className='truncate font-medium tabular-nums'
+                  title={item.value}
+                >
                   {item.value}
                 </dd>
               </div>
@@ -346,7 +358,10 @@ function LocalPerformanceCard({ row }: { row: ComparisonRow }) {
             {metrics.map((item) => (
               <div key={item.label} className='min-w-0'>
                 <dt className='text-xs text-muted-foreground'>{item.label}</dt>
-                <dd className='truncate font-medium tabular-nums' title={item.value}>
+                <dd
+                  className='truncate font-medium tabular-nums'
+                  title={item.value}
+                >
                   {item.value}
                 </dd>
               </div>
@@ -389,11 +404,18 @@ function InventoryCard({ detail }: { detail: AsinDetail }) {
                 { label: '占用', value: formatNumber(item.reserved) },
                 { label: '日均销量', value: formatNumber(item.dailySales) },
                 { label: '可售天数', value: formatNumber(item.daysOfSupply) },
-                { label: '建议补货', value: formatNumber(item.suggestedReorder) },
+                {
+                  label: '建议补货',
+                  value: formatNumber(item.suggestedReorder),
+                },
               ].map((entry) => (
                 <div key={entry.label} className='min-w-0'>
-                  <dt className='text-xs text-muted-foreground'>{entry.label}</dt>
-                  <dd className='truncate font-medium tabular-nums'>{entry.value}</dd>
+                  <dt className='text-xs text-muted-foreground'>
+                    {entry.label}
+                  </dt>
+                  <dd className='truncate font-medium tabular-nums'>
+                    {entry.value}
+                  </dd>
                 </div>
               ))}
             </dl>
@@ -426,13 +448,15 @@ function SourceCard({
       <CardHeader className='gap-1'>
         <CardTitle className='text-base'>数据来源与口径</CardTitle>
         <CardDescription>
-          本页是 {detail.asin} 在一次分析快照里的切片，不重新调用卖家精灵（因此不会消耗额度）
+          本页是 {detail.asin}{' '}
+          在一次分析快照里的切片，不重新调用卖家精灵（因此不会消耗额度）
         </CardDescription>
       </CardHeader>
       <CardContent className='space-y-3 text-sm text-muted-foreground'>
         <ul className='space-y-1'>
           <li>
-            分析区间 {detail.startDate} ~ {detail.endDate}（{detail.windowDays} 天）
+            分析区间 {detail.startDate} ~ {detail.endDate}（{detail.windowDays}{' '}
+            天）
             {result.compareLabel ? ` · ${result.compareLabel}` : ' · 不做对比'}
             {result.marketplaceSource === 'auto' ? ' · 站点按数据推导' : ''}
           </li>

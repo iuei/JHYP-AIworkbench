@@ -127,11 +127,16 @@ function MetricOverrideForm({
             {period
               ? `统计区间：${period.startDate} ~ ${period.endDate}（页面当前正在看的区间）`
               : '当前统计区间还没确定，请先在页面上选好区间。'}
-            。填了的项以人工值为准，留空的继续用报表；页面与 AI 助手都会采用这里填的数字。
+            。填了的项以人工值为准，留空的继续用报表；页面与 AI
+            助手都会采用这里填的数字。
           </DialogDescription>
         </DialogHeader>
 
-        <MetricOverrideFields draft={draft} disabled={pending} onChange={setDraft} />
+        <MetricOverrideFields
+          draft={draft}
+          disabled={pending}
+          onChange={setDraft}
+        />
 
         <DialogFooter>
           {item.metrics?.manual && (
@@ -154,7 +159,11 @@ function MetricOverrideForm({
           >
             取消
           </Button>
-          <Button type='button' disabled={pending || !canSubmit} onClick={handleSave}>
+          <Button
+            type='button'
+            disabled={pending || !canSubmit}
+            onClick={handleSave}
+          >
             {save.isPending ? (
               <Loader2 className='animate-spin' aria-hidden='true' />
             ) : (

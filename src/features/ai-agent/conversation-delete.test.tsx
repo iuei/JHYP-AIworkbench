@@ -1,8 +1,8 @@
 import { AxiosError, type AxiosResponse } from 'axios'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { page } from 'vitest/browser'
 import { render } from 'vitest-browser-react'
+import { page } from 'vitest/browser'
 import { ChatWorkbench } from './pages/chat-workbench'
 import type { AiMessage, Conversation } from './types'
 
@@ -48,7 +48,11 @@ vi.mock('@tanstack/react-router', async (importOriginal) => {
 
 function notFound() {
   const error = new AxiosError('会话不存在。')
-  error.response = { status: 404, statusText: 'Not Found', data: {} } as AxiosResponse
+  error.response = {
+    status: 404,
+    statusText: 'Not Found',
+    data: {},
+  } as AxiosResponse
   return error
 }
 
@@ -163,9 +167,15 @@ describe('会话列表的「⋯」操作菜单与删除', () => {
     expect(rowMenu('库存补货流程').element().closest('.opacity-0')).toBeNull()
 
     await rowMenu('库存补货流程').click()
-    await expect.element(page.getByRole('menuitem', { name: '置顶会话' })).toBeVisible()
-    await expect.element(page.getByRole('menuitem', { name: '重命名' })).toBeVisible()
-    await expect.element(page.getByRole('menuitem', { name: '删除' })).toBeVisible()
+    await expect
+      .element(page.getByRole('menuitem', { name: '置顶会话' }))
+      .toBeVisible()
+    await expect
+      .element(page.getByRole('menuitem', { name: '重命名' }))
+      .toBeVisible()
+    await expect
+      .element(page.getByRole('menuitem', { name: '删除' }))
+      .toBeVisible()
   })
 
   it('删除正在查看的会话后回到新会话空态', async () => {

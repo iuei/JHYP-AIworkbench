@@ -1,7 +1,7 @@
-import { describe, expect, it } from 'vitest'
-import { page } from 'vitest/browser'
-import { render } from 'vitest-browser-react'
 import '@/styles/index.css'
+import { describe, expect, it } from 'vitest'
+import { render } from 'vitest-browser-react'
+import { page } from 'vitest/browser'
 import { AuthLayout } from './auth-layout'
 
 function getAuthContentWidth(screen: Awaited<ReturnType<typeof render>>) {
@@ -22,9 +22,7 @@ describe('AuthLayout', () => {
     await expect
       .element(screen.getByRole('heading', { name: 'JHYP 智能工作台' }))
       .toBeInTheDocument()
-    await expect
-      .element(screen.getByText('默认认证内容'))
-      .toBeInTheDocument()
+    await expect.element(screen.getByText('默认认证内容')).toBeInTheDocument()
   })
 
   it('shows the split aside on desktop', async () => {
@@ -36,9 +34,7 @@ describe('AuthLayout', () => {
       </AuthLayout>
     )
 
-    await expect
-      .element(screen.getByText('登录品牌区域'))
-      .toBeVisible()
+    await expect.element(screen.getByText('登录品牌区域')).toBeVisible()
     await expect
       .element(screen.getByTestId('auth-brand-name'))
       .not.toBeVisible()
@@ -69,15 +65,9 @@ describe('AuthLayout', () => {
       </AuthLayout>
     )
 
-    await expect
-      .element(screen.getByText('登录品牌区域'))
-      .not.toBeVisible()
-    await expect
-      .element(screen.getByTestId('auth-brand-name'))
-      .toBeVisible()
-    await expect
-      .element(screen.getByText('登录表单区域'))
-      .toBeInTheDocument()
+    await expect.element(screen.getByText('登录品牌区域')).not.toBeVisible()
+    await expect.element(screen.getByTestId('auth-brand-name')).toBeVisible()
+    await expect.element(screen.getByText('登录表单区域')).toBeInTheDocument()
     expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(
       document.documentElement.clientWidth
     )

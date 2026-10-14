@@ -2,9 +2,9 @@ import { describe, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-react'
 
 vi.mock('@tanstack/react-router', async () => {
-  const actual = await vi.importActual<
-    typeof import('@tanstack/react-router')
-  >('@tanstack/react-router')
+  const actual = await vi.importActual<typeof import('@tanstack/react-router')>(
+    '@tanstack/react-router'
+  )
 
   return {
     ...actual,
@@ -19,16 +19,13 @@ vi.mock('@tanstack/react-router', async () => {
   }
 })
 
-vi.mock(
-  import('@/features/auth/sign-in/components/user-auth-form'),
-  () => ({
-    UserAuthForm: ({ redirectTo }: { redirectTo?: string }) => (
-      <div data-testid='user-auth-form' data-redirect-to={redirectTo}>
-        登录表单
-      </div>
-    ),
-  })
-)
+vi.mock(import('@/features/auth/sign-in/components/user-auth-form'), () => ({
+  UserAuthForm: ({ redirectTo }: { redirectTo?: string }) => (
+    <div data-testid='user-auth-form' data-redirect-to={redirectTo}>
+      登录表单
+    </div>
+  ),
+}))
 
 describe('SignIn', () => {
   it('renders the selected split-login content', async () => {

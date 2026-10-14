@@ -115,7 +115,9 @@ export function addOutcomeSentence(outcome: {
   invalid: string[]
 }): string {
   const parts: string[] = []
-  parts.push(outcome.added.length ? `新增 ${outcome.added.length} 条` : '没有新增')
+  parts.push(
+    outcome.added.length ? `新增 ${outcome.added.length} 条` : '没有新增'
+  )
   if (outcome.duplicated.length)
     parts.push(`列表已有 ${outcome.duplicated.length} 条`)
   if (outcome.repeated.length)

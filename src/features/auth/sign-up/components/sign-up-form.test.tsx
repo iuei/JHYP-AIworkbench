@@ -28,8 +28,7 @@ vi.mock('sonner', async (importOriginal) => {
 })
 
 vi.mock('@tanstack/react-router', async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import('@tanstack/react-router')>()
+  const actual = await importOriginal<typeof import('@tanstack/react-router')>()
 
   return {
     ...actual,
@@ -118,8 +117,14 @@ describe('SignUpForm', () => {
   })
 
   it('rejects a password shorter than 8 characters', async () => {
-    const { screen, loginInput, nameInput, passwordInput, confirmInput, submitButton } =
-      await renderForm()
+    const {
+      screen,
+      loginInput,
+      nameInput,
+      passwordInput,
+      confirmInput,
+      submitButton,
+    } = await renderForm()
 
     await userEvent.fill(loginInput, '13800000000')
     await userEvent.fill(nameInput, '李四')
@@ -134,8 +139,14 @@ describe('SignUpForm', () => {
   })
 
   it('rejects mismatched passwords', async () => {
-    const { screen, loginInput, nameInput, passwordInput, confirmInput, submitButton } =
-      await renderForm()
+    const {
+      screen,
+      loginInput,
+      nameInput,
+      passwordInput,
+      confirmInput,
+      submitButton,
+    } = await renderForm()
 
     await userEvent.fill(loginInput, '13800000000')
     await userEvent.fill(nameInput, '李四')

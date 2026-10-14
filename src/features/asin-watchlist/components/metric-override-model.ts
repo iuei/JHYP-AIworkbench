@@ -79,7 +79,8 @@ export function describeCoverage(draft: ManualMetricsDraft): string {
     draft.spend.trim() !== '' ||
     draft.adSales.trim() !== '' ||
     draft.orders.trim() !== ''
-  const hasSales = draft.units.trim() !== '' || draft.businessSales.trim() !== ''
+  const hasSales =
+    draft.units.trim() !== '' || draft.businessSales.trim() !== ''
   if (hasAds && hasSales) return '广告+销售'
   if (hasAds) return '仅广告'
   if (hasSales) return '仅销售'

@@ -13,8 +13,6 @@ import {
   TABLE_SEARCH_INPUT,
 } from '@/lib/table-styles'
 import { cn } from '@/lib/utils'
-import { ConfirmDialog } from '@/components/confirm-dialog'
-import { DataTable } from '@/components/data-table'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -27,6 +25,8 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { TableCell, TableHead, TableRow } from '@/components/ui/table'
+import { ConfirmDialog } from '@/components/confirm-dialog'
+import { DataTable } from '@/components/data-table'
 import { ContentSection } from '@/features/settings/components/content-section'
 import {
   announcementErrorMessage,
@@ -61,9 +61,9 @@ export function AnnouncementsAdmin() {
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(20)
   /** 非 null 时挂载编辑弹窗；`announcement: null` 表示新建。 */
-  const [formTarget, setFormTarget] = useState<{ announcement: Announcement | null } | null>(
-    null
-  )
+  const [formTarget, setFormTarget] = useState<{
+    announcement: Announcement | null
+  } | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Announcement | null>(null)
 
   const list = useAnnouncementList({ status, keyword, page, pageSize })
@@ -90,7 +90,9 @@ export function AnnouncementsAdmin() {
     <ContentSection>
       <DataTable
         columns={7}
-        emptyText={hasFilters ? '未找到符合条件的公告' : '还没有公告，点右上角新建一条'}
+        emptyText={
+          hasFilters ? '未找到符合条件的公告' : '还没有公告，点右上角新建一条'
+        }
         errorText='公告列表加载失败，请稍后重试。'
         isEmpty={items.length === 0}
         isError={list.isError}
@@ -198,14 +200,20 @@ export function AnnouncementsAdmin() {
               </TableCell>
               <TableCell>
                 <span>{ANNOUNCEMENT_STATUS_LABELS[announcement.status]}</span>
-                {announcement.status === 'published' && schedule !== 'active' && (
-                  <p className='text-xs text-muted-foreground'>
-                    {schedule === 'scheduled' ? '未到生效时间' : '已过失效时间'}
-                  </p>
-                )}
+                {announcement.status === 'published' &&
+                  schedule !== 'active' && (
+                    <p className='text-xs text-muted-foreground'>
+                      {schedule === 'scheduled'
+                        ? '未到生效时间'
+                        : '已过失效时间'}
+                    </p>
+                  )}
               </TableCell>
               <TableCell className={TABLE_CELL_META}>
-                {describeSchedule(announcement.publishAt, announcement.expireAt)}
+                {describeSchedule(
+                  announcement.publishAt,
+                  announcement.expireAt
+                )}
               </TableCell>
               <TableCell className={TABLE_CELL_NUMERIC}>
                 {announcement.readCount}
@@ -229,7 +237,9 @@ export function AnnouncementsAdmin() {
                   } ${announcement.title}`}
                   disabled={setAnnouncementStatus.isPending}
                   size='sm'
-                  variant={announcement.status === 'published' ? 'outline' : 'default'}
+                  variant={
+                    announcement.status === 'published' ? 'outline' : 'default'
+                  }
                   onClick={() =>
                     setAnnouncementStatus.mutate(
                       {

@@ -45,8 +45,13 @@ export interface AsinDetail {
 }
 
 /** 该 ASIN 是否属于这次分析（本品或任一竞品）。 */
-export function hasAsin(result: CompetitorAnalysisResult, asin: string): boolean {
-  return (result.asins ?? []).some((item) => item.toUpperCase() === asin.toUpperCase())
+export function hasAsin(
+  result: CompetitorAnalysisResult,
+  asin: string
+): boolean {
+  return (result.asins ?? []).some(
+    (item) => item.toUpperCase() === asin.toUpperCase()
+  )
 }
 
 /**
@@ -59,7 +64,9 @@ export function selectAsinDetail(
   result: CompetitorAnalysisResult,
   asin: string
 ): AsinDetail | null {
-  const normalized = String(asin ?? '').trim().toUpperCase()
+  const normalized = String(asin ?? '')
+    .trim()
+    .toUpperCase()
   if (!normalized || !hasAsin(result, normalized)) return null
 
   const primaryAsin = (result.primaryAsin ?? result.asin ?? '').toUpperCase()

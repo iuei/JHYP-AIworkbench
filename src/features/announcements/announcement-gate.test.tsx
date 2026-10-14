@@ -1,9 +1,9 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { page, userEvent } from 'vitest/browser'
-import { render } from 'vitest-browser-react'
-import { useAuthStore } from '@/stores/auth-store'
 import { clearCookies } from '@/test-utils/cookies'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { render } from 'vitest-browser-react'
+import { page, userEvent } from 'vitest/browser'
+import { useAuthStore } from '@/stores/auth-store'
 import { AnnouncementGate } from './components/announcement-gate'
 import type { PendingAnnouncement } from './types'
 
@@ -89,9 +89,7 @@ describe('公告弹窗：登录时弹出', () => {
     await renderGate()
 
     expect(pendingRequests()).toHaveLength(0)
-    await expect
-      .element(page.getByText('系统维护通知'))
-      .not.toBeInTheDocument()
+    await expect.element(page.getByText('系统维护通知')).not.toBeInTheDocument()
   })
 
   it('登录后弹出「只弹一次」的公告，点「我知道了」才上报已读', async () => {

@@ -47,10 +47,4 @@ type SidebarData = {
   navItems: NavItem[]
 }
 
-export type {
-  SidebarData,
-  NavItem,
-  NavCollapsible,
-  NavLink,
-  NavChildItem,
-}
+export type { SidebarData, NavItem, NavCollapsible, NavLink, NavChildItem }

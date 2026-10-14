@@ -156,8 +156,7 @@ export function buildProductViewItems({
       asin,
       role: upper === primary ? 'subject' : 'competitor',
       roleLabel: upper === primary ? '本品' : '竞品',
-      product:
-        rows.find((row) => row.asin.toUpperCase() === upper) ?? null,
+      product: rows.find((row) => row.asin.toUpperCase() === upper) ?? null,
       comparison:
         comparisonRows.find((row) => row.asin.toUpperCase() === upper) ?? null,
     }

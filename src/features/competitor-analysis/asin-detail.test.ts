@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import type { AnswerBlock } from '@/features/ai-agent/types'
-import type { CompetitorAnalysisResult } from './types'
-import { PUBLIC_PRODUCT_COLUMN_KEYS } from './product-view'
 import { filterBlocksForAsin, hasAsin, selectAsinDetail } from './asin-detail'
+import { PUBLIC_PRODUCT_COLUMN_KEYS } from './product-view'
+import type { CompetitorAnalysisResult } from './types'
 
 const PRIMARY = 'B0PRIMARY1'
 const COMPETITOR = 'B0COMPETI1'
@@ -242,7 +242,10 @@ describe('filterBlocksForAsin', () => {
   it('组级块（不带 ASIN 标识）不进详情页', () => {
     expect(filterBlocksForAsin([groupMetrics], PRIMARY)).toEqual([])
     expect(
-      filterBlocksForAsin([{ kind: 'metrics', title: '公开口径对比', items: [] }], PRIMARY)
+      filterBlocksForAsin(
+        [{ kind: 'metrics', title: '公开口径对比', items: [] }],
+        PRIMARY
+      )
     ).toEqual([])
   })
 

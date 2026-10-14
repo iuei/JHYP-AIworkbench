@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { page, userEvent } from 'vitest/browser'
 import { render } from 'vitest-browser-react'
+import { page, userEvent } from 'vitest/browser'
 import { DatasourceManagement } from './pages/datasource-management'
 
 const mocks = vi.hoisted(() => ({ get: vi.fn(), rawRequest: vi.fn() }))
@@ -44,7 +44,9 @@ const rowsPayload = {
     { key: 'asin', label: 'ASIN', type: 'string', required: true },
     { key: 'spend', label: '花费', type: 'decimal', required: false },
   ],
-  rows: [{ id: 1, stat_date: '2026-09-01', asin: 'B0TEST1234', spend: '12.50' }],
+  rows: [
+    { id: 1, stat_date: '2026-09-01', asin: 'B0TEST1234', spend: '12.50' },
+  ],
   total: 1,
   page: 1,
   pageSize: 20,
@@ -99,7 +101,9 @@ describe('数据源与导入：查看数据源详情数据', () => {
     await renderPage()
 
     await expect
-      .element(page.getByRole('button', { name: '查看Amazon 广告日报数据详情' }))
+      .element(
+        page.getByRole('button', { name: '查看Amazon 广告日报数据详情' })
+      )
       .toBeVisible()
     // 清单接口只给统计：管理员没点开就不该为一份没人看的数据买单
     expect(rowRequests()).toHaveLength(0)

@@ -32,7 +32,11 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import { MARKETPLACE_OPTIONS, addOutcomeSentence, errorMessage } from '../format'
+import {
+  MARKETPLACE_OPTIONS,
+  addOutcomeSentence,
+  errorMessage,
+} from '../format'
 import { useAddMyAsins } from '../hooks'
 import { MARKETPLACES } from '../types'
 import { MetricOverrideFields } from './metric-override-fields'
@@ -76,7 +80,11 @@ type AddItemDialogProps = {
  * 条目与人工指标**在同一次请求里写入**（2026-09-18 修）：分两步时，第一步会让列表刷新、
  * 弹窗卸载重挂载，第二步的回调就再也回不到界面 —— 表现为"又弹出一个录入窗口"且指标丢失。
  */
-export function AddItemDialog({ open, onOpenChange, period }: AddItemDialogProps) {
+export function AddItemDialog({
+  open,
+  onOpenChange,
+  period,
+}: AddItemDialogProps) {
   if (!open) return null
   return <AddItemForm period={period} onOpenChange={onOpenChange} />
 }
@@ -122,7 +130,9 @@ function AddItemForm({
           toast.success(addOutcomeSentence(result))
           if (withMetrics) {
             if (result.manualError) {
-              toast.error(`ASIN 已添加，但指标没保存成功：${result.manualError}`)
+              toast.error(
+                `ASIN 已添加，但指标没保存成功：${result.manualError}`
+              )
             } else if (result.override) {
               toast.success('已保存人工指标')
             } else if (result.added.length === 0) {
@@ -248,7 +258,9 @@ function AddItemForm({
                 <Checkbox
                   aria-label='同时录入这个区间的指标'
                   checked={metricsOpen}
-                  onCheckedChange={(checked) => setMetricsOpen(checked === true)}
+                  onCheckedChange={(checked) =>
+                    setMetricsOpen(checked === true)
+                  }
                 />
                 同时录入这个区间的指标（可选）
               </label>
@@ -266,7 +278,8 @@ function AddItemForm({
                   />
                 ) : (
                   <p className='text-xs text-destructive'>
-                    区间未确定，无法录入指标；先添加 ASIN，再在页面上选好区间后用行内的「录入指标」补录。
+                    区间未确定，无法录入指标；先添加
+                    ASIN，再在页面上选好区间后用行内的「录入指标」补录。
                   </p>
                 ))}
             </div>

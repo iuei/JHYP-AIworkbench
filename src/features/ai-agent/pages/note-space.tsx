@@ -24,7 +24,6 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
-import { Skeleton } from '@/components/ui/skeleton'
 import {
   Select,
   SelectContent,
@@ -32,6 +31,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Skeleton } from '@/components/ui/skeleton'
 import { TableCell, TableHead, TableRow } from '@/components/ui/table'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { DataTable } from '@/components/data-table'
@@ -44,11 +44,11 @@ import {
   useMySkill,
   useSubmitNote,
 } from '../api/queries'
+import { LayoutToggle } from '../components/layout-toggle'
+import { CARD_GRID, useListLayout } from '../components/list-layout'
 import { NoteDetailDialog, NoteEditorDialog } from '../components/note-dialogs'
 import { PageShell } from '../components/page-shell'
 import { SkillConfigCard } from '../components/skill-config-card'
-import { LayoutToggle } from '../components/layout-toggle'
-import { CARD_GRID, useListLayout } from '../components/list-layout'
 import {
   NOTE_ARCHIVE_HINTS,
   NOTE_DELETE_HINT,
@@ -298,7 +298,8 @@ export function NoteSpace() {
               </p>
             ) : rows.length === 0 ? (
               <p className='rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground'>
-                还没有沉淀。可以手工新建，或在对话里点「沉淀为知识」让 AI 帮忙整理。
+                还没有沉淀。可以手工新建，或在对话里点「沉淀为知识」让 AI
+                帮忙整理。
               </p>
             ) : (
               <div className={CARD_GRID}>
@@ -320,7 +321,9 @@ export function NoteSpace() {
             )}
 
             {/* 表格视图的分页器由 `DataTable` 内部渲染，这里只在卡片视图补一个 */}
-            {rows.length > 0 && pagination && <TablePagination {...pagination} />}
+            {rows.length > 0 && pagination && (
+              <TablePagination {...pagination} />
+            )}
           </>
         ) : (
           <DataTable

@@ -1,14 +1,13 @@
 import { useState } from 'react'
-import { isAxiosError } from 'axios'
 import { z } from 'zod'
+import { isAxiosError } from 'axios'
+import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useNavigate } from '@tanstack/react-router'
 import { Loader2, UserPlus } from 'lucide-react'
-import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import { api } from '@/api/client'
 import { cn } from '@/lib/utils'
-import { PasswordInput } from '@/components/password-input'
 import { Button } from '@/components/ui/button'
 import {
   Form,
@@ -19,6 +18,7 @@ import {
   FormMessage,
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
+import { PasswordInput } from '@/components/password-input'
 
 /**
  * 密码长度口径与 `server/user-management.mjs` 的 `parseUserRegister` 保持一致。
@@ -43,14 +43,8 @@ const formSchema = z
       .max(80, '姓名不能超过 80 个字符。'),
     password: z
       .string()
-      .min(
-        MIN_PASSWORD_LENGTH,
-        `密码至少需要 ${MIN_PASSWORD_LENGTH} 个字符。`
-      )
-      .max(
-        MAX_PASSWORD_LENGTH,
-        `密码不能超过 ${MAX_PASSWORD_LENGTH} 个字符。`
-      ),
+      .min(MIN_PASSWORD_LENGTH, `密码至少需要 ${MIN_PASSWORD_LENGTH} 个字符。`)
+      .max(MAX_PASSWORD_LENGTH, `密码不能超过 ${MAX_PASSWORD_LENGTH} 个字符。`),
     confirmPassword: z.string().min(1, '请再次输入密码。'),
   })
   .refine((values) => values.password === values.confirmPassword, {
@@ -138,7 +132,11 @@ export function SignUpForm({
             <FormItem>
               <FormLabel>姓名</FormLabel>
               <FormControl>
-                <Input placeholder='请输入真实姓名' autoComplete='name' {...field} />
+                <Input
+                  placeholder='请输入真实姓名'
+                  autoComplete='name'
+                  {...field}
+                />
               </FormControl>
               <FormMessage />
             </FormItem>

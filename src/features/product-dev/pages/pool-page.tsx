@@ -2,10 +2,10 @@ import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus, Search, Upload, X } from 'lucide-react'
 import { toast } from 'sonner'
+import { TABLE_SEARCH_ICON, TABLE_SEARCH_INPUT } from '@/lib/table-styles'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { ConfirmDialog } from '@/components/confirm-dialog'
 import {
   Select,
   SelectContent,
@@ -13,7 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { TABLE_SEARCH_ICON, TABLE_SEARCH_INPUT } from '@/lib/table-styles'
+import { ConfirmDialog } from '@/components/confirm-dialog'
 import {
   createCandidate,
   deleteCandidate,
@@ -74,7 +74,14 @@ export function ProductDevPoolPage() {
   }, [keyword])
 
   const candidates = useQuery({
-    queryKey: ['product-dev-candidates', queryKeyword, marketplace, stage, page, pageSize],
+    queryKey: [
+      'product-dev-candidates',
+      queryKeyword,
+      marketplace,
+      stage,
+      page,
+      pageSize,
+    ],
     queryFn: () =>
       fetchCandidates({
         keyword: queryKeyword,
@@ -125,7 +132,8 @@ export function ProductDevPoolPage() {
     toggleSelectMany(candidates.data?.items ?? [])
   }
 
-  const hasFilters = Boolean(queryKeyword) || marketplace !== ALL || stage !== ALL
+  const hasFilters =
+    Boolean(queryKeyword) || marketplace !== ALL || stage !== ALL
 
   return (
     <>
@@ -141,7 +149,9 @@ export function ProductDevPoolPage() {
         hasFilters={hasFilters}
         selectedIds={new Set(selected.keys())}
         onToggle={(id) => {
-          const item = candidates.data?.items.find((candidate) => candidate.id === id)
+          const item = candidates.data?.items.find(
+            (candidate) => candidate.id === id
+          )
           if (item) toggleSelect(item)
         }}
         onToggleAll={toggleSelectAll}
@@ -286,7 +296,9 @@ export function ProductDevPoolPage() {
         confirmText='删除'
         destructive
         isLoading={removeCandidate.isPending}
-        handleConfirm={() => pendingDelete && removeCandidate.mutate(pendingDelete.id)}
+        handleConfirm={() =>
+          pendingDelete && removeCandidate.mutate(pendingDelete.id)
+        }
       />
     </>
   )

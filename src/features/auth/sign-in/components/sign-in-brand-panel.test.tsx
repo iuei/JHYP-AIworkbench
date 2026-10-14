@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { page } from 'vitest/browser'
 import { render } from 'vitest-browser-react'
+import { page } from 'vitest/browser'
 import { ThemeProvider, type Theme } from '@/context/theme-provider'
 import { SignInBrandPanel } from './sign-in-brand-panel'
 

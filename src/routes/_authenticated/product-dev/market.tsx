@@ -17,7 +17,8 @@ export const Route = createFileRoute('/_authenticated/product-dev/market')({
         ? search.keyword.trim().slice(0, 60)
         : undefined,
     marketplace:
-      typeof search.marketplace === 'string' && /^[A-Za-z]{2}$/.test(search.marketplace)
+      typeof search.marketplace === 'string' &&
+      /^[A-Za-z]{2}$/.test(search.marketplace)
         ? search.marketplace.toUpperCase()
         : undefined,
   }),

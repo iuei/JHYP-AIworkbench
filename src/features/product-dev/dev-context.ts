@@ -47,7 +47,9 @@ export type ProductDevContextValue = {
 }
 
 /** 与 `header-slot-context.ts` 同一做法：context 与 hook 放在无组件的文件里，满足 Fast Refresh 约束。 */
-export const ProductDevContext = createContext<ProductDevContextValue | null>(null)
+export const ProductDevContext = createContext<ProductDevContextValue | null>(
+  null
+)
 
 export function useProductDev(): ProductDevContextValue {
   const value = useContext(ProductDevContext)

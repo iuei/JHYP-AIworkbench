@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
 import type { AnswerBlock } from '@/features/ai-agent/types'
-import type { PublicProductRow } from './types'
 import {
   PUBLIC_PRODUCT_COLUMN_KEYS,
   PRODUCT_TABLE_DATASET,
@@ -9,6 +8,7 @@ import {
   splitPublicProductBlocks,
   transposeProductTable,
 } from './product-view'
+import type { PublicProductRow } from './types'
 
 const PRODUCT_COLUMNS = PUBLIC_PRODUCT_COLUMN_KEYS.map((key) => ({
   key,

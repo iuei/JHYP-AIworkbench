@@ -13,8 +13,12 @@ describe('WINDOW_OPTIONS', () => {
       '365',
       'custom',
     ])
-    expect(WINDOW_OPTIONS.find((option) => option.value === '180')?.label).toBe('半年')
-    expect(WINDOW_OPTIONS.find((option) => option.value === '365')?.label).toBe('一年')
+    expect(WINDOW_OPTIONS.find((option) => option.value === '180')?.label).toBe(
+      '半年'
+    )
+    expect(WINDOW_OPTIONS.find((option) => option.value === '365')?.label).toBe(
+      '一年'
+    )
   })
 })
 

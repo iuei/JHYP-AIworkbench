@@ -12,8 +12,12 @@ const sidebar = vi.hoisted(() => ({
 }))
 
 vi.mock('@/components/ui/sidebar', () => ({
-  SidebarGroup: ({ children }: React.PropsWithChildren) => <div>{children}</div>,
-  SidebarGroupLabel: ({ children }: React.PropsWithChildren) => <div>{children}</div>,
+  SidebarGroup: ({ children }: React.PropsWithChildren) => (
+    <div>{children}</div>
+  ),
+  SidebarGroupLabel: ({ children }: React.PropsWithChildren) => (
+    <div>{children}</div>
+  ),
   SidebarMenu: ({ children }: React.PropsWithChildren) => <ul>{children}</ul>,
   SidebarMenuItem: ({
     children,
@@ -33,7 +37,9 @@ vi.mock('@/components/ui/sidebar', () => ({
       {children}
     </button>
   ),
-  SidebarMenuSub: ({ children }: React.PropsWithChildren) => <ul>{children}</ul>,
+  SidebarMenuSub: ({ children }: React.PropsWithChildren) => (
+    <ul>{children}</ul>
+  ),
   SidebarMenuSubItem: ({ children }: React.PropsWithChildren) => (
     <li>{children}</li>
   ),
@@ -53,8 +59,11 @@ vi.mock('@tanstack/react-router', () => ({
       {children}
     </a>
   ),
-  useLocation: ({ select }: { select: (location: { href: string }) => unknown }) =>
-    select({ href: '/' }),
+  useLocation: ({
+    select,
+  }: {
+    select: (location: { href: string }) => unknown
+  }) => select({ href: '/' }),
 }))
 
 const items: NavItem[] = [
@@ -79,7 +88,9 @@ describe('NavGroup', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'AI 助手' }))
 
-    await expect.element(screen.getByRole('menuitem', { name: '对话' })).toBeVisible()
+    await expect
+      .element(screen.getByRole('menuitem', { name: '对话' }))
+      .toBeVisible()
     await expect
       .element(screen.getByRole('menuitem', { name: '我的沉淀' }))
       .toBeVisible()
@@ -95,7 +106,9 @@ describe('NavGroup', () => {
     await userEvent.hover(screen.getByRole('button', { name: 'AI 助手' }))
 
     // 悬停带 120ms 打开延迟，expect.element 会重试直到出现
-    await expect.element(screen.getByRole('menuitem', { name: '对话' })).toBeVisible()
+    await expect
+      .element(screen.getByRole('menuitem', { name: '对话' }))
+      .toBeVisible()
   })
 
   /*
@@ -150,7 +163,9 @@ describe('NavGroup', () => {
     await expect.element(screen.getByText('业务运营')).toBeVisible()
     await expect.element(screen.getByText('系统管理')).toBeVisible()
     // 「执行日志」整页只出现一次（就是那个入口本身），没有同名分组小字
-    expect((document.body.textContent ?? '').split('执行日志').length - 1).toBe(1)
+    expect((document.body.textContent ?? '').split('执行日志').length - 1).toBe(
+      1
+    )
     expect(document.querySelectorAll('[data-slot="separator"]').length).toBe(1)
   })
 })

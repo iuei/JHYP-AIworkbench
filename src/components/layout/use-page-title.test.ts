@@ -5,9 +5,7 @@ const m = (title?: string) => ({ staticData: title ? { title } : {} })
 
 describe('pickPageTitle', () => {
   it('取最深一层声明的标题', () => {
-    expect(
-      pickPageTitle([m(), m('设置'), m(), m('用户管理')])
-    ).toBe('用户管理')
+    expect(pickPageTitle([m(), m('设置'), m(), m('用户管理')])).toBe('用户管理')
   })
 
   it('子页没声明时继承模块级标题', () => {

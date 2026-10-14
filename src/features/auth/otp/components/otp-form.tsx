@@ -22,10 +22,7 @@ import {
 } from '@/components/ui/input-otp'
 
 const formSchema = z.object({
-  otp: z
-    .string()
-    .min(6, '请输入 6 位验证码。')
-    .max(6, '请输入 6 位验证码。'),
+  otp: z.string().min(6, '请输入 6 位验证码。').max(6, '请输入 6 位验证码。'),
 })
 
 type OtpFormProps = React.HTMLAttributes<HTMLFormElement>

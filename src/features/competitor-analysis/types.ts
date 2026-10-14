@@ -49,7 +49,11 @@ export interface FindingFix {
  *
  * 没有台账行时 `Finding.disposition` 为 `null`，界面按「待处理」渲染。
  */
-export type FindingDispositionStatus = 'open' | 'claimed' | 'verified' | 'ignored'
+export type FindingDispositionStatus =
+  | 'open'
+  | 'claimed'
+  | 'verified'
+  | 'ignored'
 
 /** 一条结论的处置状态（服务端 `attachDispositions` 附在每条结论上）。 */
 export interface FindingDisposition {
@@ -235,7 +239,12 @@ export interface DataFreshness {
   importedAt: string | null
   periodEnd: string | null
   note: string
-  datasets?: { dataset: string; label: string; importedAt: string | null; rows: number }[]
+  datasets?: {
+    dataset: string
+    label: string
+    importedAt: string | null
+    rows: number
+  }[]
 }
 
 export interface CompetitorAnalysisResult {

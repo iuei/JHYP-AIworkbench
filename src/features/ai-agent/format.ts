@@ -92,7 +92,10 @@ export const NOTE_DELETE_HINT =
  * 归档权限：已发布条目的归档在服务端要求管理员（published->archived = admin），
  * 员工侧按钮必须同步禁用，否则点了必然报错。
  */
-export function canArchiveNote(note: { status: string }, scope: 'self' | 'admin' = 'self'): boolean {
+export function canArchiveNote(
+  note: { status: string },
+  scope: 'self' | 'admin' = 'self'
+): boolean {
   if (note.status === 'archived') return false
   if (scope === 'admin') return true
   return note.status !== 'published'

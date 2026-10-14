@@ -1,9 +1,9 @@
+import '@/styles/index.css'
 import { describe, expect, it } from 'vitest'
 import { render } from 'vitest-browser-react'
-import '@/styles/index.css'
 import type { AnswerBlock } from '../types'
-import { AnswerBlocks } from './answer-blocks'
 import { dedupeAnswerBlocks } from './answer-block-utils'
+import { AnswerBlocks } from './answer-blocks'
 
 /**
  * 共享表格渲染的护栏（2026-09-17）。

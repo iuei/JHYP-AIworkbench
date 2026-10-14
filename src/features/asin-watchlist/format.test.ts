@@ -88,7 +88,12 @@ describe('filterMyAsinRows', () => {
       metrics: null,
     },
     {
-      ...item({ id: 2, asin: 'B0BBBBBBBB', marketplace: 'DE', note: '德国站新品' }),
+      ...item({
+        id: 2,
+        asin: 'B0BBBBBBBB',
+        marketplace: 'DE',
+        note: '德国站新品',
+      }),
       metrics: null,
     },
   ]
@@ -129,16 +134,12 @@ describe('sortMyAsinRows', () => {
       withMetrics('B0BBBBBBBB', 100),
     ]
 
-    expect(sortMyAsinRows(rows, 'spend', 'asc').map((row) => row.asin)).toEqual([
-      'B0BBBBBBBB',
-      'B0AAAAAAAA',
-      'B0CCCCCCCC',
-    ])
-    expect(sortMyAsinRows(rows, 'spend', 'desc').map((row) => row.asin)).toEqual([
-      'B0AAAAAAAA',
-      'B0BBBBBBBB',
-      'B0CCCCCCCC',
-    ])
+    expect(sortMyAsinRows(rows, 'spend', 'asc').map((row) => row.asin)).toEqual(
+      ['B0BBBBBBBB', 'B0AAAAAAAA', 'B0CCCCCCCC']
+    )
+    expect(
+      sortMyAsinRows(rows, 'spend', 'desc').map((row) => row.asin)
+    ).toEqual(['B0AAAAAAAA', 'B0BBBBBBBB', 'B0CCCCCCCC'])
   })
 
   it('空别名恒排最后（无论升降序）', () => {
@@ -153,7 +154,10 @@ describe('sortMyAsinRows', () => {
   it('可以按站点排序', () => {
     const rows: MyAsinTableRow[] = [
       { ...item({ asin: 'B0AAAAAAAA', marketplace: 'US' }), metrics: null },
-      { ...item({ id: 2, asin: 'B0BBBBBBBB', marketplace: 'DE' }), metrics: null },
+      {
+        ...item({ id: 2, asin: 'B0BBBBBBBB', marketplace: 'DE' }),
+        metrics: null,
+      },
     ]
     expect(
       sortMyAsinRows(rows, 'marketplace', 'asc').map((row) => row.marketplace)
@@ -187,10 +191,16 @@ describe('myAsinRowsToCsv', () => {
   it('跟随当前行导出，空指标导出空单元格并带站点列', () => {
     const rows: MyAsinTableRow[] = [
       { ...item({ alias: '含,逗号' }), metrics: metric({ spend: 100 }) },
-      { ...item({ id: 2, asin: 'B0BBBBBBBB', marketplace: 'DE' }), metrics: null },
+      {
+        ...item({ id: 2, asin: 'B0BBBBBBBB', marketplace: 'DE' }),
+        metrics: null,
+      },
     ]
     const csv = myAsinRowsToCsv(rows)
-    const lines = csv.replace(/^\uFEFF/, '').trim().split('\r\n')
+    const lines = csv
+      .replace(/^\uFEFF/, '')
+      .trim()
+      .split('\r\n')
 
     expect(lines[0]).toContain('站点')
     expect(lines[0]).toContain('ACoS(%)')
@@ -240,7 +250,11 @@ describe('errorMessage', () => {
   it('优先展示服务端中文原因，缺失时用兜底文案', () => {
     expect(
       errorMessage(
-        { response: { data: { message: '这个 ASIN 在目标站点已经有一条记录了。' } } },
+        {
+          response: {
+            data: { message: '这个 ASIN 在目标站点已经有一条记录了。' },
+          },
+        },
         '失败'
       )
     ).toContain('已经有一条记录')

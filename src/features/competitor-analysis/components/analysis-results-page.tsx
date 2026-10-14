@@ -1,11 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import {
-  ArrowLeftRight,
-  CalendarRange,
-  Clock,
-  ListChecks,
-} from 'lucide-react'
+import { ArrowLeftRight, CalendarRange, Clock, ListChecks } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { AnswerBlocks } from '@/features/ai-agent/components/answer-blocks'
@@ -15,18 +10,21 @@ import {
   fetchAnalysisSnapshot,
 } from '../api'
 import {
+  isComparisonTableBlock,
+  transposeComparisonTable,
+} from '../comparison-table'
+import {
   FINDING_LEVEL_LABELS,
   FINDING_LEVEL_VARIANTS,
   formatDateTime,
 } from '../format'
 import {
-  isComparisonTableBlock,
-  transposeComparisonTable,
-} from '../comparison-table'
-import { buildProductViewItems, splitPublicProductBlocks } from '../product-view'
+  buildProductViewItems,
+  splitPublicProductBlocks,
+} from '../product-view'
 import { applyRowTones } from '../role-rows'
-import { ProductView } from './product-cards'
 import { FindingsSections } from './findings-panel'
+import { ProductView } from './product-cards'
 import { SnapshotShell, SnapshotStateCard } from './snapshot-shell'
 
 /**
@@ -82,7 +80,8 @@ export function AnalysisResultsPage({ analysisId }: AnalysisResultsPageProps) {
     enabled: !hasId,
   })
 
-  const latestItem = (latest.data ?? []).find((item) => item.hasSnapshot) ?? null
+  const latestItem =
+    (latest.data ?? []).find((item) => item.hasSnapshot) ?? null
   /** 实际展示哪条记录：URL 参数优先，其次最近一次可回看的分析。 */
   const effectiveId = hasId ? analysisId : (latestItem?.id ?? null)
 
@@ -112,7 +111,10 @@ export function AnalysisResultsPage({ analysisId }: AnalysisResultsPageProps) {
     return (
       <SnapshotShell>
         <SnapshotStateCard
-          description={apiErrorMessage(latest.error, '读取分析历史失败，请稍后重试。')}
+          description={apiErrorMessage(
+            latest.error,
+            '读取分析历史失败，请稍后重试。'
+          )}
           title='读取分析历史失败'
         />
       </SnapshotShell>
@@ -145,7 +147,10 @@ export function AnalysisResultsPage({ analysisId }: AnalysisResultsPageProps) {
     return (
       <SnapshotShell analysisId={effectiveId ?? undefined}>
         <SnapshotStateCard
-          description={apiErrorMessage(snapshot.error, '读取这条分析记录失败，请稍后重试。')}
+          description={apiErrorMessage(
+            snapshot.error,
+            '读取这条分析记录失败，请稍后重试。'
+          )}
           title='打不开这次分析'
         />
       </SnapshotShell>
@@ -228,7 +233,7 @@ export function AnalysisResultsPage({ analysisId }: AnalysisResultsPageProps) {
             >
               {FINDING_LEVEL_LABELS[result.findingLevel]}
             </Badge>
-            <span className='shrink-0 whitespace-nowrap text-xs text-muted-foreground'>
+            <span className='shrink-0 text-xs whitespace-nowrap text-muted-foreground'>
               共 {result.findings.length} 条
             </span>
           </div>
@@ -237,8 +242,13 @@ export function AnalysisResultsPage({ analysisId }: AnalysisResultsPageProps) {
             徽章一律 `shrink-0 whitespace-nowrap` —— 紧凑标签折行后会被读成两段信息。
           */}
           <div className='flex flex-wrap items-center gap-x-2 gap-y-1.5'>
-            <span className='text-sm font-medium'>{result.asins.join('、')}</span>
-            <Badge className='shrink-0 whitespace-nowrap font-normal' variant='secondary'>
+            <span className='text-sm font-medium'>
+              {result.asins.join('、')}
+            </span>
+            <Badge
+              className='shrink-0 font-normal whitespace-nowrap'
+              variant='secondary'
+            >
               {result.marketplace} 站
             </Badge>
             {!hasId && (
@@ -254,7 +264,8 @@ export function AnalysisResultsPage({ analysisId }: AnalysisResultsPageProps) {
           <div className='flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground'>
             <span className='inline-flex items-center gap-1.5'>
               <CalendarRange className='size-3.5' aria-hidden='true' />
-              统计区间 {result.startDate} ~ {result.endDate}（{result.windowDays} 天）
+              统计区间 {result.startDate} ~ {result.endDate}（
+              {result.windowDays} 天）
             </span>
             <span className='inline-flex items-center gap-1.5'>
               <ArrowLeftRight className='size-3.5' aria-hidden='true' />
@@ -273,7 +284,7 @@ export function AnalysisResultsPage({ analysisId }: AnalysisResultsPageProps) {
             一句话结论是这张卡的主视觉：用**左侧竖条引用**呈现 —— 与下面每条结论同一种视觉语言
             （"竖条 = 这是判断"），不再是一段和别处没区别的正文。
           */}
-          <p className='max-w-3xl border-l-2 border-l-primary/60 pl-3 text-sm font-medium leading-relaxed text-pretty'>
+          <p className='max-w-3xl border-l-2 border-l-primary/60 pl-3 text-sm leading-relaxed font-medium text-pretty'>
             {result.headline}
           </p>
 
@@ -312,7 +323,8 @@ export function AnalysisResultsPage({ analysisId }: AnalysisResultsPageProps) {
               )}
               {missingProducts > 0 && (
                 <span>
-                  其中 {missingProducts} 个 ASIN 卖家精灵未收录，「—」不代表数值为 0。
+                  其中 {missingProducts} 个 ASIN
+                  卖家精灵未收录，「—」不代表数值为 0。
                 </span>
               )}
             </p>
@@ -332,7 +344,7 @@ export function AnalysisResultsPage({ analysisId }: AnalysisResultsPageProps) {
               </p>
             )}
             {result.publicData && result.publicData.errors.length > 0 && (
-              <p className='max-w-3xl text-destructive text-pretty'>
+              <p className='max-w-3xl text-pretty text-destructive'>
                 部分公开数据未取到：
                 {result.publicData.errors
                   .map(

@@ -37,7 +37,9 @@ describe('dashboardShortcuts', () => {
   })
 
   it('默认顺序与入口定义顺序一致', () => {
-    expect(defaultShortcutIds).toEqual(dashboardShortcuts.map((item) => item.id))
+    expect(defaultShortcutIds).toEqual(
+      dashboardShortcuts.map((item) => item.id)
+    )
   })
 })
 
@@ -114,11 +116,9 @@ describe('normalizeShortcutIds', () => {
 
 describe('orderShortcuts', () => {
   it('把 ID 顺序映射回入口定义', () => {
-    expect(orderShortcuts(['my-notes', 'competitor']).map((i) => i.id)).toEqual([
-      'my-notes',
-      'competitor',
-      'ai-chat',
-    ])
+    expect(orderShortcuts(['my-notes', 'competitor']).map((i) => i.id)).toEqual(
+      ['my-notes', 'competitor', 'ai-chat']
+    )
   })
 
   it('每个映射结果都能拿到渲染所需的字段', () => {

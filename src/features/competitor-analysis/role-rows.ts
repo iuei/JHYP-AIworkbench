@@ -58,9 +58,7 @@ export function applyRowTones(block: AnswerBlock): AnswerBlock {
   }
 
   // 超过 5 个 ASIN 时循环用色（`toneClass` 只认 1~5，越界不加色）
-  const toneByAsin = new Map(
-    order.map((key, index) => [key, (index % 5) + 1])
-  )
+  const toneByAsin = new Map(order.map((key, index) => [key, (index % 5) + 1]))
 
   return {
     ...block,

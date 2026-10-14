@@ -32,7 +32,8 @@ import { cn } from '@/lib/utils'
 
 const REMARK_PLUGINS = [remarkGfm, remarkBreaks]
 
-const HEADING_BASE = 'mt-4 mb-1.5 text-sm font-semibold text-foreground first:mt-0'
+const HEADING_BASE =
+  'mt-4 mb-1.5 text-sm font-semibold text-foreground first:mt-0'
 
 const COMPONENTS = {
   // 规范禁止一级标题；真收到时按卡片内的二级标题渲染，避免与页面 h1 抢大纲
@@ -139,7 +140,7 @@ function MarkdownContentBase({ content, className }: MarkdownContentProps) {
   return (
     <div
       className={cn(
-        'wrap-anywhere text-sm leading-relaxed text-foreground',
+        'text-sm leading-relaxed wrap-anywhere text-foreground',
         className
       )}
     >

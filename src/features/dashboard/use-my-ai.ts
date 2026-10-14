@@ -77,7 +77,6 @@ export function useMyAiSummary(): MyAiSummary {
     pendingTotal: pendingTotal.data ?? 0,
     isLoading:
       conversations.isLoading || notesTotal.isLoading || pendingTotal.isLoading,
-    failed:
-      conversations.isError || notesTotal.isError || pendingTotal.isError,
+    failed: conversations.isError || notesTotal.isError || pendingTotal.isError,
   }
 }

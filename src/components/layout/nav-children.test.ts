@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { findNavChildren } from './nav-children'
 import { adminAiNavItems, sidebarData } from './data/sidebar-data'
+import { findNavChildren } from './nav-children'
 import { isNavUrlActive } from './nav-match'
 import type { NavItem } from './types'
 
@@ -52,7 +52,9 @@ describe('findNavChildren', () => {
     且「提示词广场」的路径要与它的一级类目身份对齐。
   */
   it('「我的 ASIN」已升为一级类目，不再出现在「AI 助手」子项里', () => {
-    const childUrls = findNavChildren(sidebarData.navItems, 'AI 助手').map((i) => i.url)
+    const childUrls = findNavChildren(sidebarData.navItems, 'AI 助手').map(
+      (i) => i.url
+    )
     expect(childUrls).not.toContain('/ai-agent/asin-watchlists')
     expect(
       sidebarData.navItems.some(
@@ -74,18 +76,15 @@ describe('findNavChildren', () => {
     侧边栏与命令菜单都到不了。它现在是导航里的真实子项，这条断言守住这个形态。
   */
   it('「竞品分析」是折叠类目，「分析」与「分析结果」各有真实路径', () => {
-    expect(findNavChildren(sidebarData.navItems, '竞品分析').map((i) => i.url)).toEqual([
-      '/competitor-analysis',
-      '/competitor-analysis/results',
-    ])
+    expect(
+      findNavChildren(sidebarData.navItems, '竞品分析').map((i) => i.url)
+    ).toEqual(['/competitor-analysis', '/competitor-analysis/results'])
   })
 
   it('「产品开发」是折叠类目，三个子页各有真实路径', () => {
-    expect(findNavChildren(sidebarData.navItems, '产品开发').map((i) => i.url)).toEqual([
-      '/product-dev',
-      '/product-dev/compare',
-      '/product-dev/market',
-    ])
+    expect(
+      findNavChildren(sidebarData.navItems, '产品开发').map((i) => i.url)
+    ).toEqual(['/product-dev', '/product-dev/compare', '/product-dev/market'])
   })
 
   /*
@@ -94,13 +93,17 @@ describe('findNavChildren', () => {
     三个治理入口各自平铺为一级项 —— 这条断言守住"不再有同名折叠类目"。
   */
   it('治理入口是「系统管理」分组下平铺的一级项，不再套同名折叠类目', () => {
-    const managed = sidebarData.navItems.filter((item) => item.section === '系统管理')
+    const managed = sidebarData.navItems.filter(
+      (item) => item.section === '系统管理'
+    )
     expect(managed.map((item) => item.title)).toEqual([
       'AI 治理',
       '用户管理',
       '公告管理',
     ])
-    expect(managed.every((item) => item.items === undefined && item.url)).toBe(true)
+    expect(managed.every((item) => item.items === undefined && item.url)).toBe(
+      true
+    )
     expect(findNavChildren(sidebarData.navItems, '系统管理')).toEqual([])
   })
 
@@ -141,12 +144,9 @@ describe('findNavChildren', () => {
     expect(domainOf('AI 治理')).toBe('系统管理')
 
     // 域的先后顺序 = 侧边栏渲染顺序（分组标题按"第一次出现"渲染）
-    expect([...new Set(sidebarData.navItems.map((item) => item.section))]).toEqual([
-      '工作台',
-      '业务运营',
-      'AI 工作台',
-      '系统管理',
-    ])
+    expect([
+      ...new Set(sidebarData.navItems.map((item) => item.section)),
+    ]).toEqual(['工作台', '业务运营', 'AI 工作台', '系统管理'])
   })
 
   /*
@@ -155,11 +155,19 @@ describe('findNavChildren', () => {
     2026-09-20 任务中心下线后，真实数据里带该字段的是「AI 治理」（下辖 `/admin/ai/*` 四个子页）。
   */
   it('带 matchPrefix 的入口在子路径下也保持高亮', () => {
-    const adminAi = sidebarData.navItems.find((item) => item.title === 'AI 治理')
+    const adminAi = sidebarData.navItems.find(
+      (item) => item.title === 'AI 治理'
+    )
     expect(adminAi?.matchPrefix).toBe(true)
     expect(
-      isNavUrlActive('/admin/ai/datasources', adminAi?.url, adminAi?.matchPrefix)
+      isNavUrlActive(
+        '/admin/ai/datasources',
+        adminAi?.url,
+        adminAi?.matchPrefix
+      )
     ).toBe(true)
-    expect(isNavUrlActive('/admin/ai', adminAi?.url, adminAi?.matchPrefix)).toBe(true)
+    expect(
+      isNavUrlActive('/admin/ai', adminAi?.url, adminAi?.matchPrefix)
+    ).toBe(true)
   })
 })

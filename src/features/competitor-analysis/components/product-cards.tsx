@@ -210,7 +210,8 @@ function ProductCard({ item, analysisId }: ProductCardProps) {
             className='line-clamp-2 text-sm font-medium'
             title={product?.title ?? undefined}
           >
-            {product?.title ?? (product ? '未提供标题' : '卖家精灵未收录该 ASIN')}
+            {product?.title ??
+              (product ? '未提供标题' : '卖家精灵未收录该 ASIN')}
           </p>
           <p className='text-xs text-muted-foreground'>
             {product?.brand ?? TABLE_EMPTY_VALUE}
@@ -232,10 +233,7 @@ function ProductCard({ item, analysisId }: ProductCardProps) {
             }
           />
           <Metric label='BSR' value={formatNumber(product?.bsrRank)} />
-          <Metric
-            label='卖家数'
-            value={formatNumber(product?.sellers)}
-          />
+          <Metric label='卖家数' value={formatNumber(product?.sellers)} />
         </dl>
 
         <p className='text-xs text-muted-foreground'>
@@ -285,7 +283,13 @@ function ProductCard({ item, analysisId }: ProductCardProps) {
  * 主图。加载失败与"没有链接"走同一个占位：卖家精灵有时给的是失效图床。
  * 导出是因为竞品详情页要用同一套占位与 `object-contain`（白底主图不能裁切）。
  */
-export function ProductImage({ url, alt }: { url: string | null; alt: string }) {
+export function ProductImage({
+  url,
+  alt,
+}: {
+  url: string | null
+  alt: string
+}) {
   const [failed, setFailed] = useState(false)
 
   if (!url || failed) {

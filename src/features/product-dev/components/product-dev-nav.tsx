@@ -1,7 +1,7 @@
 import { Link, useRouterState } from '@tanstack/react-router'
 import { cn } from '@/lib/utils'
-import { findNavChildren } from '@/components/layout/nav-children'
 import { sidebarData } from '@/components/layout/data/sidebar-data'
+import { findNavChildren } from '@/components/layout/nav-children'
 
 /** 与侧边栏子项同一个 url：用它判断"这一项是不是对比页"，避免按文案匹配。 */
 const COMPARE_PATH = '/product-dev/compare'

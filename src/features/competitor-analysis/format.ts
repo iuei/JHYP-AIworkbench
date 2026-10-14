@@ -131,10 +131,14 @@ const DIMENSION_CALLS_PER_ASIN: Record<string, number> = {
  *
  * 只是**预估**：真实消耗以服务端返回的 `publicData.calls` 为准（命中缓存的 ASIN 不消耗额度）。
  */
-export function estimatePublicCalls(dimensions: string[], asinCount: number): number {
+export function estimatePublicCalls(
+  dimensions: string[],
+  asinCount: number
+): number {
   const count = Math.max(1, asinCount)
   return dimensions.reduce(
-    (sum, dimension) => sum + (DIMENSION_CALLS_PER_ASIN[dimension] ?? 0) * count,
+    (sum, dimension) =>
+      sum + (DIMENSION_CALLS_PER_ASIN[dimension] ?? 0) * count,
     0
   )
 }

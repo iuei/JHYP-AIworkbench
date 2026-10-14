@@ -2,9 +2,9 @@ import { Link, useRouterState } from '@tanstack/react-router'
 import { ShieldCheck } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
+import { sidebarData } from '@/components/layout/data/sidebar-data'
 import { findNavChildren } from '@/components/layout/nav-children'
 import { filterNavItemsByRole } from '@/components/layout/nav-filter'
-import { sidebarData } from '@/components/layout/data/sidebar-data'
 
 type AgentNavProps = {
   isAdmin: boolean
@@ -42,10 +42,7 @@ export function AgentNav({ isAdmin, toolCount, demoMode }: AgentNavProps) {
     // 单行布局：本组件渲染在全局 Header 的中段槽位里，不能换行（槽位是固定高度）。
     <div className='flex items-center gap-2'>
       {items.length > 0 && (
-        <nav
-          aria-label='AI 助手功能导航'
-          className='flex items-center gap-1'
-        >
+        <nav aria-label='AI 助手功能导航' className='flex items-center gap-1'>
           {items.map((item) => {
             const active = pathname === item.url
             const Icon = item.icon

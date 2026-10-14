@@ -18,7 +18,17 @@ describe('parseCompetitorAnalysisSearch', () => {
   })
 
   it('非法 analysisId 一律忽略，不抛错', () => {
-    for (const value of ['abc', '-1', '0', '1.5', '', null, undefined, {}, []]) {
+    for (const value of [
+      'abc',
+      '-1',
+      '0',
+      '1.5',
+      '',
+      null,
+      undefined,
+      {},
+      [],
+    ]) {
       expect(parseCompetitorAnalysisSearch({ analysisId: value })).toEqual({})
     }
   })
@@ -46,7 +56,17 @@ describe('parseSnapshotSearch', () => {
   })
 
   it('缺少或非法 analysisId 时返回空对象（页面据此提示"从卡片进入"）', () => {
-    for (const value of [undefined, null, '', 'abc', '0', '-3', '2.5', {}, []]) {
+    for (const value of [
+      undefined,
+      null,
+      '',
+      'abc',
+      '0',
+      '-3',
+      '2.5',
+      {},
+      [],
+    ]) {
       expect(parseSnapshotSearch({ analysisId: value })).toEqual({})
     }
     expect(parseSnapshotSearch({})).toEqual({})

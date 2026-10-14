@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { useMutation } from '@tanstack/react-query'
 import { isAxiosError } from 'axios'
+import { useMutation } from '@tanstack/react-query'
 import { AlertCircle, Download, Upload } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
@@ -33,12 +33,22 @@ function apiErrorMessage(error: unknown, fallback: string) {
 }
 
 /** 四分类统计的一行。数字为 0 时仍然显示 —— "本次没有重复"也是有信息量的结论。 */
-function CountItem({ label, value, hint }: { label: string; value: number; hint?: string }) {
+function CountItem({
+  label,
+  value,
+  hint,
+}: {
+  label: string
+  value: number
+  hint?: string
+}) {
   return (
     <div className='rounded-md border border-border px-3 py-2'>
       <p className='text-xs text-muted-foreground'>{label}</p>
       <p className='text-lg font-semibold tabular-nums'>{value}</p>
-      {hint ? <p className='mt-0.5 text-xs text-muted-foreground'>{hint}</p> : null}
+      {hint ? (
+        <p className='mt-0.5 text-xs text-muted-foreground'>{hint}</p>
+      ) : null}
     </div>
   )
 }
@@ -120,7 +130,9 @@ export function CandidateImportDialog({
   })
 
   const canPreview =
-    !previewMutation.isPending && ((mode === 'file' && Boolean(file)) || (mode === 'text' && text.trim().length > 0))
+    !previewMutation.isPending &&
+    ((mode === 'file' && Boolean(file)) ||
+      (mode === 'text' && text.trim().length > 0))
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -128,7 +140,8 @@ export function CandidateImportDialog({
         <DialogHeader>
           <DialogTitle>导入候选产品</DialogTitle>
           <DialogDescription>
-            支持 CSV / XLSX 文件，或直接从 Excel 复制一大片区域粘贴。单次最多 {maxImportRows} 行。
+            支持 CSV / XLSX 文件，或直接从 Excel 复制一大片区域粘贴。单次最多{' '}
+            {maxImportRows} 行。
           </DialogDescription>
         </DialogHeader>
 
@@ -160,7 +173,10 @@ export function CandidateImportDialog({
               }}
             />
             <div className='flex flex-wrap items-center gap-2 text-xs text-muted-foreground'>
-              <span>表头建议使用：产品名称 / ASIN / 类目 / 目标售价 / 站点 / 阶段 / 备注；其余列会作为附加维度保存。</span>
+              <span>
+                表头建议使用：产品名称 / ASIN / 类目 / 目标售价 / 站点 / 阶段 /
+                备注；其余列会作为附加维度保存。
+              </span>
               <Button
                 type='button'
                 variant='link'
@@ -189,7 +205,9 @@ export function CandidateImportDialog({
                 setText(event.target.value)
                 setPreview(null)
               }}
-              placeholder={'可以直接从 Excel 复制整片区域粘进来（含表头）\n也可以一行一个产品名称或 ASIN'}
+              placeholder={
+                '可以直接从 Excel 复制整片区域粘进来（含表头）\n也可以一行一个产品名称或 ASIN'
+              }
               rows={8}
               spellCheck={false}
             />
@@ -200,16 +218,29 @@ export function CandidateImportDialog({
           <div className='space-y-4'>
             <div className='grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5'>
               <CountItem label='会新增' value={preview.counts.added} />
-              <CountItem label='池里已有' value={preview.counts.duplicated} hint='跳过，不重复写入' />
-              <CountItem label='本次重复' value={preview.counts.repeated} hint='同一份内容里重复出现' />
-              <CountItem label='无法识别' value={preview.counts.invalid} hint='带行号，可在原表里核对' />
+              <CountItem
+                label='池里已有'
+                value={preview.counts.duplicated}
+                hint='跳过，不重复写入'
+              />
+              <CountItem
+                label='本次重复'
+                value={preview.counts.repeated}
+                hint='同一份内容里重复出现'
+              />
+              <CountItem
+                label='无法识别'
+                value={preview.counts.invalid}
+                hint='带行号，可在原表里核对'
+              />
               <CountItem label='空行' value={preview.counts.emptyRows} />
             </div>
 
             <div className='rounded-md border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground'>
               {preview.headerRecognized ? (
                 <>
-                  识别到表头：{preview.columns.filter(Boolean).join(' / ') || '（无）'}
+                  识别到表头：
+                  {preview.columns.filter(Boolean).join(' / ') || '（无）'}
                   {preview.extraColumns.length > 0
                     ? `；其中「${preview.extraColumns.join('、')}」会作为附加维度保存。`
                     : '；没有额外的附加维度列。'}
@@ -217,17 +248,21 @@ export function CandidateImportDialog({
               ) : (
                 <>
                   未识别到表头，因此
-                  <span className='font-medium text-foreground'>只读取了第 1 列</span>
-                  （是 ASIN 就当 ASIN，否则当产品名称），
-                  其余列一律不导入 —— 猜错列会把无关数据写进价格等字段。如果第 1 列不是产品名称或 ASIN，
-                  请补一行表头后重新粘贴。
+                  <span className='font-medium text-foreground'>
+                    只读取了第 1 列
+                  </span>
+                  （是 ASIN 就当 ASIN，否则当产品名称）， 其余列一律不导入 ——
+                  猜错列会把无关数据写进价格等字段。如果第 1 列不是产品名称或
+                  ASIN， 请补一行表头后重新粘贴。
                 </>
               )}
             </div>
 
             {preview.preview.length > 0 && (
               <div className='space-y-2'>
-                <p className='text-sm font-medium'>前 {preview.preview.length} 条样例</p>
+                <p className='text-sm font-medium'>
+                  前 {preview.preview.length} 条样例
+                </p>
                 <div className='overflow-x-auto rounded-md border border-border'>
                   <table className='w-full text-xs'>
                     <thead className='bg-muted/50 text-muted-foreground'>
@@ -245,11 +280,15 @@ export function CandidateImportDialog({
                     <tbody>
                       {preview.preview.map((row) => (
                         <tr key={row.line} className='border-t border-border'>
-                          <td className='px-2 py-1.5 tabular-nums text-muted-foreground'>
+                          <td className='px-2 py-1.5 text-muted-foreground tabular-nums'>
                             {row.line}
                           </td>
-                          <td className='px-2 py-1.5'>{row.product_name || '—'}</td>
-                          <td className='px-2 py-1.5 font-mono'>{row.asin ?? '—'}</td>
+                          <td className='px-2 py-1.5'>
+                            {row.product_name || '—'}
+                          </td>
+                          <td className='px-2 py-1.5 font-mono'>
+                            {row.asin ?? '—'}
+                          </td>
                           <td className='px-2 py-1.5'>{row.category || '—'}</td>
                           <td className='px-2 py-1.5 tabular-nums'>
                             {row.target_price === null ? '—' : row.target_price}
@@ -297,7 +336,8 @@ export function CandidateImportDialog({
                   目标售价没能读出数字（{preview.priceUnparsed.length}）
                 </p>
                 <p className='text-xs text-muted-foreground'>
-                  价格区间（如 12.99-15.99）与文字描述无法在不猜测的前提下变成数字，
+                  价格区间（如
+                  12.99-15.99）与文字描述无法在不猜测的前提下变成数字，
                   因此这些行的目标售价会留空，其余字段照常导入。
                 </p>
                 <ul className='space-y-1 text-xs text-muted-foreground'>
@@ -343,13 +383,19 @@ export function CandidateImportDialog({
             </Button>
           ) : (
             <>
-              <Button type='button' variant='outline' onClick={() => handleOpenChange(false)}>
+              <Button
+                type='button'
+                variant='outline'
+                onClick={() => handleOpenChange(false)}
+              >
                 取消
               </Button>
               {preview ? (
                 <Button
                   type='button'
-                  disabled={importMutation.isPending || preview.counts.added === 0}
+                  disabled={
+                    importMutation.isPending || preview.counts.added === 0
+                  }
                   onClick={() => importMutation.mutate()}
                 >
                   <Upload aria-hidden='true' />
@@ -372,7 +418,8 @@ export function CandidateImportDialog({
 
         {preview && preview.counts.added === 0 && (
           <p className='text-xs text-muted-foreground'>
-            <Badge variant='outline'>提示</Badge> 本次没有可新增的行，确认按钮已禁用。
+            <Badge variant='outline'>提示</Badge>{' '}
+            本次没有可新增的行，确认按钮已禁用。
           </p>
         )}
       </DialogContent>

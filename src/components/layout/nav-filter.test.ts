@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { filterNavItemsByRole } from './nav-filter'
 import { sidebarData } from './data/sidebar-data'
+import { filterNavItemsByRole } from './nav-filter'
 
 /**
  * 侧边栏按角色过滤的护栏（2026-09-16 阶段 D 补）。
@@ -15,7 +15,9 @@ import { sidebarData } from './data/sidebar-data'
  */
 describe('filterNavItemsByRole', () => {
   it('普通账号看不到任何治理入口（改名、扁平化前后都不暴露）', () => {
-    const titles = filterNavItemsByRole(sidebarData.navItems, false).map((i) => i.title)
+    const titles = filterNavItemsByRole(sidebarData.navItems, false).map(
+      (i) => i.title
+    )
     expect(titles).not.toContain('系统管理')
     expect(titles).not.toContain('用户管理')
     expect(titles).not.toContain('公告管理')
@@ -25,7 +27,9 @@ describe('filterNavItemsByRole', () => {
 
   it('普通账号看不到任何治理子项', () => {
     const visible = filterNavItemsByRole(sidebarData.navItems, false)
-    const childTitles = visible.flatMap((item) => item.items ?? []).map((sub) => sub.title)
+    const childTitles = visible
+      .flatMap((item) => item.items ?? [])
+      .map((sub) => sub.title)
     expect(childTitles).not.toContain('用户管理')
     expect(childTitles).not.toContain('公告管理')
     expect(childTitles).not.toContain('AI 治理')
@@ -46,9 +50,9 @@ describe('filterNavItemsByRole', () => {
       '/admin/users',
       '/admin/announcements',
     ])
-    expect(managed.every((item) => item.adminOnly && item.items === undefined)).toBe(
-      true
-    )
+    expect(
+      managed.every((item) => item.adminOnly && item.items === undefined)
+    ).toBe(true)
   })
 
   it('普通账号仍看得到业务类目与它们的子页（过滤只针对 adminOnly）', () => {
@@ -64,11 +68,9 @@ describe('filterNavItemsByRole', () => {
       '提示词广场',
       '知识库',
     ])
-    expect(visible.find((i) => i.title === '产品开发')?.items?.map((s) => s.url)).toEqual([
-      '/product-dev',
-      '/product-dev/compare',
-      '/product-dev/market',
-    ])
+    expect(
+      visible.find((i) => i.title === '产品开发')?.items?.map((s) => s.url)
+    ).toEqual(['/product-dev', '/product-dev/compare', '/product-dev/market'])
   })
 
   /*
@@ -79,7 +81,9 @@ describe('filterNavItemsByRole', () => {
   it('产品开发带「开发中」徽标（两种角色下都不丢）', () => {
     for (const isAdmin of [true, false]) {
       const items = filterNavItemsByRole(sidebarData.navItems, isAdmin)
-      expect(items.find((item) => item.title === '产品开发')?.badge).toBe('开发中')
+      expect(items.find((item) => item.title === '产品开发')?.badge).toBe(
+        '开发中'
+      )
     }
   })
 })

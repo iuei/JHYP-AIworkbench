@@ -1,5 +1,5 @@
-import { api } from '@/api/client'
 import { isAxiosError } from 'axios'
+import { api } from '@/api/client'
 import type {
   CompetitorAnalysisResult,
   FindingDisposition,
@@ -60,9 +60,12 @@ export async function runCompetitorAnalysis(
 }
 
 export async function fetchAnalysisHistory(limit = 10): Promise<HistoryItem[]> {
-  const { data } = await api.get<{ items: HistoryItem[] }>('/competitor-analyses', {
-    params: { limit },
-  })
+  const { data } = await api.get<{ items: HistoryItem[] }>(
+    '/competitor-analyses',
+    {
+      params: { limit },
+    }
+  )
   return data.items
 }
 
@@ -107,7 +110,10 @@ export async function clearFindingDisposition(params: {
   code: string
   target: string
 }): Promise<void> {
-  await api.delete(`/competitor-analyses/${params.analysisId}/findings/disposition`, {
-    params: { code: params.code, target: params.target },
-  })
+  await api.delete(
+    `/competitor-analyses/${params.analysisId}/findings/disposition`,
+    {
+      params: { code: params.code, target: params.target },
+    }
+  )
 }

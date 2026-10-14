@@ -154,8 +154,11 @@ export function useSaveMyAsinMetricOverride() {
     mutationFn: ({
       itemId,
       ...payload
-    }: { itemId: number; startDate: string; endDate: string } & ManualMetricInput) =>
-      saveMyAsinMetricOverride(itemId, payload),
+    }: {
+      itemId: number
+      startDate: string
+      endDate: string
+    } & ManualMetricInput) => saveMyAsinMetricOverride(itemId, payload),
     onSuccess: () => invalidate(),
   })
 }
@@ -167,8 +170,11 @@ export function useRemoveMyAsinMetricOverride() {
     mutationFn: ({
       itemId,
       ...period
-    }: { itemId: number; startDate: string; endDate: string }) =>
-      removeMyAsinMetricOverride(itemId, period),
+    }: {
+      itemId: number
+      startDate: string
+      endDate: string
+    }) => removeMyAsinMetricOverride(itemId, period),
     onSuccess: () => invalidate(),
   })
 }

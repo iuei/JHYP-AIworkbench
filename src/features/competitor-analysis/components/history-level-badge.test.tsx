@@ -87,7 +87,12 @@ describe('HistoryLevelBadge', () => {
   it('没有销账时不显示「已销账」（不能用含 info 的总数减出正数）', async () => {
     await render(
       <HistoryLevelBadge
-        item={itemOf({ level: 'medium', openLevel: 'medium', openFindingCount: 2, clearedFindingCount: 0 })}
+        item={itemOf({
+          level: 'medium',
+          openLevel: 'medium',
+          openFindingCount: 2,
+          clearedFindingCount: 0,
+        })}
       />
     )
 

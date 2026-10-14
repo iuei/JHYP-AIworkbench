@@ -2,9 +2,9 @@ import { useQuery } from '@tanstack/react-query'
 import { LogOut } from 'lucide-react'
 import { api } from '@/api/client'
 import useDialogState from '@/hooks/use-dialog-state'
-import { SignOutDialog } from '@/components/sign-out-dialog'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import { SignOutDialog } from '@/components/sign-out-dialog'
 import { ContentSection } from '../components/content-section'
 import { roleLabel } from '../user-labels'
 import type { CurrentUserProfile } from './types'
@@ -49,7 +49,8 @@ export function SettingsProfile() {
               基本信息
             </h4>
             <p className='text-sm text-muted-foreground'>
-              姓名、部门和角色由管理员在「设置 → 用户管理」中统一配置，如需修改请联系管理员。
+              姓名、部门和角色由管理员在「设置 →
+              用户管理」中统一配置，如需修改请联系管理员。
             </p>
           </div>
 

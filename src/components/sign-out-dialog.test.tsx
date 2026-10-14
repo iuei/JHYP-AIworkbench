@@ -1,7 +1,7 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-react'
 import { userEvent } from 'vitest/browser'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { SignOutDialog } from './sign-out-dialog'
 
 const navigate = vi.fn()
@@ -10,7 +10,9 @@ const reset = vi.fn()
 const MOCK_HREF = 'https://app.test/dashboard?tab=1'
 
 function renderDialog() {
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  })
   return render(
     <QueryClientProvider client={queryClient}>
       <SignOutDialog open onOpenChange={vi.fn()} />

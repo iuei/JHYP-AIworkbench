@@ -24,7 +24,8 @@ export type ListLayout = 'card' | 'table'
  * 代价（有意接受）：内容最多的那张决定整页行高 —— 因此各列表的卡片都**不展开正文**，
  * 完整内容交给详情弹窗。
  */
-export const CARD_GRID = 'grid auto-rows-fr gap-3 sm:grid-cols-2 2xl:grid-cols-3'
+export const CARD_GRID =
+  'grid auto-rows-fr gap-3 sm:grid-cols-2 2xl:grid-cols-3'
 
 /**
  * 读取上次选择的展示方式，默认卡片。

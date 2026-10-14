@@ -86,7 +86,9 @@ describe('applyRowTones', () => {
   })
 
   it('只有一行 / 不是表格块时原样返回', () => {
-    const single = keywordBlock([{ asin: 'B0PRIMARY1', role: '本品', keyword: 'a' }])
+    const single = keywordBlock([
+      { asin: 'B0PRIMARY1', role: '本品', keyword: 'a' },
+    ])
     expect(applyRowTones(single)).toBe(single)
     const metrics: AnswerBlock = { kind: 'metrics', items: [] }
     expect(applyRowTones(metrics)).toBe(metrics)

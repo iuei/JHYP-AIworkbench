@@ -74,7 +74,7 @@ export function NavGroup({ items }: { items: NavItem[] }) {
           const key = `${item.title}-${item.url}`
           const showSection = Boolean(
             item.section &&
-              (index === 0 || items[index - 1]?.section !== item.section)
+            (index === 0 || items[index - 1]?.section !== item.section)
           )
           const domain = item.section ? domains.get(item.section) : undefined
           /** 域名 = 域里唯一的项名：省略分组小字，只留分隔线。 */
@@ -92,7 +92,7 @@ export function NavGroup({ items }: { items: NavItem[] }) {
                  * 压到 32px 后既保留了"换了一个业务域"的视觉停顿，又不再比它统辖的入口还占地方。
                  * 字号/字距不动 —— 它是 11px 的小字，再小就只剩色块感了。
                  */
-                <SidebarGroupLabel className='mt-2 h-6 px-2 text-[11px] uppercase tracking-wide text-sidebar-foreground/50 first:mt-0'>
+                <SidebarGroupLabel className='mt-2 h-6 px-2 text-[11px] tracking-wide text-sidebar-foreground/50 uppercase first:mt-0'>
                   {item.section}
                 </SidebarGroupLabel>
               )}
@@ -364,7 +364,7 @@ function checkIsActive(href: string, item: NavItem, mainNav = false) {
   const url = typeof item.url === 'string' ? item.url : undefined
   return (
     isNavUrlActive(path, url, item.matchPrefix) ||
-    !!item.items && !!findActiveNavChild(path, item.items) ||
+    (!!item.items && !!findActiveNavChild(path, item.items)) ||
     (mainNav &&
       path.split('/')[1] !== '' &&
       path.split('/')[1] === url?.split('/')[1])

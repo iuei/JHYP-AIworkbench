@@ -32,7 +32,9 @@ export function ProductDevLayout() {
   const [endDate, setEndDate] = useState<Date | undefined>(undefined)
   const [result, setResult] = useState<ComparisonResult | null>(null)
   const [fromHistory, setFromHistory] = useState(false)
-  const [activeComparisonId, setActiveComparisonId] = useState<number | null>(null)
+  const [activeComparisonId, setActiveComparisonId] = useState<number | null>(
+    null
+  )
 
   const selectedList = useMemo(() => [...selected.values()], [selected])
 

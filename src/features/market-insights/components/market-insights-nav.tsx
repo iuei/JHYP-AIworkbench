@@ -1,5 +1,5 @@
-import { FileClock, LayoutGrid } from 'lucide-react'
 import { Link, useRouterState } from '@tanstack/react-router'
+import { FileClock, LayoutGrid } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const items = [
@@ -8,7 +8,9 @@ const items = [
 ]
 
 export function MarketInsightsNav() {
-  const pathname = useRouterState({ select: (state) => state.location.pathname })
+  const pathname = useRouterState({
+    select: (state) => state.location.pathname,
+  })
 
   return (
     <nav aria-label='市场洞察功能导航' className='flex items-center gap-1'>

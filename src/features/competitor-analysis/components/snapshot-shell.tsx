@@ -1,6 +1,6 @@
+import type { ReactNode } from 'react'
 import { Link } from '@tanstack/react-router'
 import { ArrowLeft } from 'lucide-react'
-import type { ReactNode } from 'react'
 import { TABLE_CELL_MONO } from '@/lib/table-styles'
 import { Button } from '@/components/ui/button'
 import {

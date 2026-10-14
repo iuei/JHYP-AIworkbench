@@ -15,11 +15,11 @@ export function Otp() {
     <AuthLayout>
       <Card className='max-w-md gap-4'>
         <CardHeader>
-          <CardTitle className='text-base tracking-tight'>
-            双因素认证
-          </CardTitle>
+          <CardTitle className='text-base tracking-tight'>双因素认证</CardTitle>
           <CardDescription>
-            请输入验证码。<br />我们已将验证码发送到你的邮箱。
+            请输入验证码。
+            <br />
+            我们已将验证码发送到你的邮箱。
           </CardDescription>
         </CardHeader>
         <CardContent>

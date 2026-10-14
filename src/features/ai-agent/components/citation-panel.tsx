@@ -129,7 +129,7 @@ export function CitationList({ citations }: { citations: Citation[] }) {
                     {open && (
                       /* 依据已移入回答卡片（2026-09-15 取消右栏）：片段里的长 URL / 无空格长串
                          同样会溢出被裁，必须允许任意位置断行 */
-                      <p className='wrap-anywhere mt-1 rounded-md bg-background/70 p-2 text-xs whitespace-pre-wrap text-muted-foreground'>
+                      <p className='mt-1 rounded-md bg-background/70 p-2 text-xs wrap-anywhere whitespace-pre-wrap text-muted-foreground'>
                         {citation.snippet}
                       </p>
                     )}

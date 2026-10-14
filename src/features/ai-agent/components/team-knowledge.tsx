@@ -10,6 +10,7 @@ import {
   TABLE_SEARCH_INPUT,
 } from '@/lib/table-styles'
 import { cn } from '@/lib/utils'
+import { useDebouncedValue } from '@/hooks/use-debounced-value'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -24,7 +25,6 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { TableCell, TableHead, TableRow } from '@/components/ui/table'
 import { DataTable } from '@/components/data-table'
 import { TablePagination } from '@/components/table-pagination'
-import { useDebouncedValue } from '@/hooks/use-debounced-value'
 import { usePublicKnowledgeDocuments } from '../api/queries'
 import { SOURCE_LABELS, formatDate } from '../format'
 import type { KnowledgeDocument } from '../types'
@@ -78,9 +78,8 @@ export function TeamKnowledge() {
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE)
   const [layout, setLayout] = useListLayout(LAYOUT_STORAGE_KEY)
-  const [chunksDocument, setChunksDocument] = useState<KnowledgeDocument | null>(
-    null
-  )
+  const [chunksDocument, setChunksDocument] =
+    useState<KnowledgeDocument | null>(null)
 
   const documents = usePublicKnowledgeDocuments({
     page,
@@ -167,7 +166,9 @@ export function TeamKnowledge() {
         </div>
 
         <p className='text-xs text-muted-foreground'>
-          {filtering ? `找到 ${total} 篇生效中的文档。` : `共 ${total} 篇生效中的文档。`}
+          {filtering
+            ? `找到 ${total} 篇生效中的文档。`
+            : `共 ${total} 篇生效中的文档。`}
           过期文档会自动失效并停止被引用，因此不会出现在这里。
         </p>
 
@@ -248,7 +249,9 @@ export function TeamKnowledge() {
                   </Badge>
                 </TableCell>
                 <TableCell className={TABLE_CELL_META}>
-                  {document.expiresAt ? formatDate(document.expiresAt) : '长期有效'}
+                  {document.expiresAt
+                    ? formatDate(document.expiresAt)
+                    : '长期有效'}
                 </TableCell>
                 <TableCell className={TABLE_CELL_NUMERIC}>
                   {document.chunkCount}
@@ -343,7 +346,8 @@ function DocumentCard({
 
       <div className='mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground'>
         <span>
-          有效期 {document.expiresAt ? formatDate(document.expiresAt) : '长期有效'}
+          有效期{' '}
+          {document.expiresAt ? formatDate(document.expiresAt) : '长期有效'}
         </span>
         <span aria-hidden>·</span>
         <span>切片 {document.chunkCount}</span>

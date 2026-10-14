@@ -20,7 +20,9 @@ export function GeneralError({
         )}
         <span className='font-medium'>抱歉，出现了一些问题 {`:')`}</span>
         <p className='text-center text-muted-foreground'>
-          给你带来不便很抱歉。<br />请稍后重试。
+          给你带来不便很抱歉。
+          <br />
+          请稍后重试。
         </p>
         {!minimal && (
           <div className='mt-6 flex gap-4'>

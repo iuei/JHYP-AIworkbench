@@ -1,8 +1,14 @@
 import * as React from 'react'
-import { cn } from '@/lib/utils'
 import { TABLE_DENSITY_CLASS, type TableDensity } from '@/lib/table-styles'
+import { cn } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Table, TableBody, TableCell, TableHeader, TableRow } from '@/components/ui/table'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 import { TablePagination } from '@/components/table-pagination'
 
 export type DataTablePagination = {
@@ -135,7 +141,9 @@ export function DataTable({
               stickyScrollerClass
             )}
           >
-            <Table className={cn(TABLE_DENSITY_CLASS[density], stickyTableClass)}>
+            <Table
+              className={cn(TABLE_DENSITY_CLASS[density], stickyTableClass)}
+            >
               <TableHeader
                 className={
                   stickyHeader ? 'sticky top-0 z-10 bg-background' : undefined

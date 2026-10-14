@@ -67,8 +67,13 @@ export function useCreateAnnouncement() {
 export function useUpdateAnnouncement() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async ({ id, input }: { id: number; input: AnnouncementInput }) =>
-      (await api.patch<Announcement>(`/announcements/${id}`, input)).data,
+    mutationFn: async ({
+      id,
+      input,
+    }: {
+      id: number
+      input: AnnouncementInput
+    }) => (await api.patch<Announcement>(`/announcements/${id}`, input)).data,
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: announcementKeys.all }),
   })
@@ -83,7 +88,9 @@ export function useSetAnnouncementStatus() {
     }: {
       id: number
       status: AnnouncementStatus
-    }) => (await api.post<Announcement>(`/announcements/${id}/status`, { status })).data,
+    }) =>
+      (await api.post<Announcement>(`/announcements/${id}/status`, { status }))
+        .data,
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: announcementKeys.all }),
   })
@@ -124,8 +131,11 @@ export function usePendingAnnouncements(loginAt: number) {
     staleTime: Infinity,
     refetchOnWindowFocus: false,
     queryFn: async () =>
-      (await api.get<{ items: PendingAnnouncement[] }>('/announcements/pending'))
-        .data.items,
+      (
+        await api.get<{ items: PendingAnnouncement[] }>(
+          '/announcements/pending'
+        )
+      ).data.items,
   })
 }
 

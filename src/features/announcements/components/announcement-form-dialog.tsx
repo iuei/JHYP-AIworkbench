@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { toast } from 'sonner'
-import { MarkdownContent } from '@/components/markdown-content'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -15,16 +14,18 @@ import { Label } from '@/components/ui/label'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
+import { MarkdownContent } from '@/components/markdown-content'
 import {
   announcementErrorMessage,
   useCreateAnnouncement,
   useUpdateAnnouncement,
 } from '../api'
-import {
-  fromDateTimeLocalValue,
-  toDateTimeLocalValue,
-} from '../format'
-import type { Announcement, AnnouncementDisplayMode, AnnouncementInput } from '../types'
+import { fromDateTimeLocalValue, toDateTimeLocalValue } from '../format'
+import type {
+  Announcement,
+  AnnouncementDisplayMode,
+  AnnouncementInput,
+} from '../types'
 
 type AnnouncementFormDialogProps = {
   /** null 表示新建；有值时编辑该条。 */
@@ -164,7 +165,9 @@ export function AnnouncementFormDialog({
               <Textarea
                 id='announcement-body'
                 className='min-h-40'
-                placeholder={'支持 Markdown：**加粗**、- 列表、[链接](https://…)'}
+                placeholder={
+                  '支持 Markdown：**加粗**、- 列表、[链接](https://…)'
+                }
                 value={form.body}
                 onChange={(event) =>
                   setForm({ ...form, body: event.target.value })
@@ -189,7 +192,10 @@ export function AnnouncementFormDialog({
               className='gap-2'
               value={form.displayMode}
               onValueChange={(value) =>
-                setForm({ ...form, displayMode: value as AnnouncementDisplayMode })
+                setForm({
+                  ...form,
+                  displayMode: value as AnnouncementDisplayMode,
+                })
               }
             >
               <div className='flex items-start gap-2'>
@@ -240,7 +246,9 @@ export function AnnouncementFormDialog({
                   setForm({ ...form, publishAt: event.target.value })
                 }
               />
-              <p className='text-xs text-muted-foreground'>留空表示立即生效。</p>
+              <p className='text-xs text-muted-foreground'>
+                留空表示立即生效。
+              </p>
             </div>
             <div className='space-y-2'>
               <Label htmlFor='announcement-expire-at'>失效时间</Label>
@@ -252,7 +260,9 @@ export function AnnouncementFormDialog({
                   setForm({ ...form, expireAt: event.target.value })
                 }
               />
-              <p className='text-xs text-muted-foreground'>留空表示长期有效。</p>
+              <p className='text-xs text-muted-foreground'>
+                留空表示长期有效。
+              </p>
             </div>
           </div>
           {scheduleInverted && (

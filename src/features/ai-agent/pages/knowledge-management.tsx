@@ -38,7 +38,6 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Skeleton } from '@/components/ui/skeleton'
 import {
   Select,
   SelectContent,
@@ -46,10 +45,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Skeleton } from '@/components/ui/skeleton'
 import { TableCell, TableHead, TableRow } from '@/components/ui/table'
 import { Textarea } from '@/components/ui/textarea'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { DataTable } from '@/components/data-table'
+import { TablePagination } from '@/components/table-pagination'
 import {
   useBatchDocuments,
   useCorrectionFeedback,
@@ -66,12 +67,11 @@ import {
   DocumentChunksDialog,
   DocumentExpiryDialog,
 } from '../components/document-dialogs'
+import { LayoutToggle } from '../components/layout-toggle'
+import { CARD_GRID, useListLayout } from '../components/list-layout'
 import { MetricStrip } from '../components/metric-strip'
 import { PageShell } from '../components/page-shell'
 import { RowAction } from '../components/row-action'
-import { LayoutToggle } from '../components/layout-toggle'
-import { CARD_GRID, useListLayout } from '../components/list-layout'
-import { TablePagination } from '@/components/table-pagination'
 import { formatDate, SOURCE_LABELS } from '../format'
 import type { KnowledgeDocument } from '../types'
 
@@ -294,7 +294,8 @@ export function KnowledgeManagement() {
           toast.success(
             next === 'inactive' ? '文档已下线，不再被引用' : '文档已重新启用'
           ),
-        onError: () => toast.error(next === 'inactive' ? '下线失败' : '启用失败'),
+        onError: () =>
+          toast.error(next === 'inactive' ? '下线失败' : '启用失败'),
       }
     )
   }
@@ -548,197 +549,202 @@ export function KnowledgeManagement() {
               </>
             )
           ) : (
-          <DataTable
-            columns={8}
-            emptyText='还没有知识文档，先上传一份制度或 SOP 文档试试。'
-            errorText='文档列表加载失败，请稍后重试。'
-            isEmpty={rows.length === 0}
-            isError={documents.isError}
-            isLoading={documents.isLoading}
-            pagination={pagination}
-            toolbar={
-              /*
+            <DataTable
+              columns={8}
+              emptyText='还没有知识文档，先上传一份制度或 SOP 文档试试。'
+              errorText='文档列表加载失败，请稍后重试。'
+              isEmpty={rows.length === 0}
+              isError={documents.isError}
+              isLoading={documents.isLoading}
+              pagination={pagination}
+              toolbar={
+                /*
                 批量操作条只在有选中项时出现：常驻会让表格上方多一行无用控件，
                 而"选中后能做什么"恰恰是选中时才需要回答的问题。
               */
-              selectedIds.size > 0 ? (
-                <div className='flex flex-wrap items-center justify-between gap-2 rounded-md border border-primary/40 bg-primary/5 px-3 py-2'>
-                  <span className='text-sm'>
-                    已选 <strong>{selectedIds.size}</strong> 篇文档
-                  </span>
-                  <div className='flex flex-wrap items-center gap-2'>
-                    <Button
-                      className='gap-1.5'
-                      disabled={batchDocuments.isPending}
-                      size='sm'
-                      variant='outline'
-                      onClick={() => runBatch('offline')}
-                    >
-                      <PowerOff className='size-3.5' />
-                      批量下线
-                    </Button>
-                    <Button
-                      className='gap-1.5'
-                      disabled={batchDocuments.isPending}
-                      size='sm'
-                      variant='outline'
-                      onClick={() => runBatch('online')}
-                    >
-                      <RotateCcw className='size-3.5' />
-                      批量启用
-                    </Button>
-                    <Button
-                      className='gap-1.5 text-destructive'
-                      disabled={batchDocuments.isPending}
-                      size='sm'
-                      variant='outline'
-                      onClick={() => setBatchDeleteOpen(true)}
-                    >
-                      <Trash2 className='size-3.5' />
-                      批量删除
-                    </Button>
-                    <Button size='sm' variant='ghost' onClick={clearSelection}>
-                      取消选择
-                    </Button>
-                  </div>
-                </div>
-              ) : undefined
-            }
-            header={
-              <TableRow>
-                <TableHead className='w-10'>
-                  <Checkbox
-                    aria-label='全选本页文档'
-                    checked={
-                      allSelected
-                        ? true
-                        : partiallySelected
-                          ? 'indeterminate'
-                          : false
-                    }
-                    onCheckedChange={(checked) =>
-                      toggleAllOnPage(checked === true)
-                    }
-                  />
-                </TableHead>
-                <TableHead>名称</TableHead>
-                <TableHead className='w-28'>来源</TableHead>
-                <TableHead className='w-24'>状态</TableHead>
-                <TableHead className='w-32'>有效期</TableHead>
-                <TableHead className={cn('w-24', TABLE_HEAD_NUMERIC)}>
-                  切片数
-                </TableHead>
-                <TableHead className='w-32'>更新时间</TableHead>
-                <TableHead className={cn('w-44', TABLE_HEAD_ACTIONS)}>
-                  操作
-                </TableHead>
-              </TableRow>
-            }
-          >
-            {rows.map((document) => (
-              <TableRow
-                data-state={
-                  selectedIds.has(document.id) ? 'selected' : undefined
-                }
-                key={document.id}
-              >
-                <TableCell>
-                  <Checkbox
-                    aria-label={`选择文档 ${document.title}`}
-                    checked={selectedIds.has(document.id)}
-                    onCheckedChange={(checked) =>
-                      toggleOne(document.id, checked === true)
-                    }
-                  />
-                </TableCell>
-                <TableCell>
-                  <div className='flex flex-col'>
-                    <span className='font-medium'>{document.title}</span>
-                    <span className='text-xs text-muted-foreground'>
-                      v{document.docVersion}
-                      {document.category ? ` · ${document.category}` : ''}
-                      {document.createdByName
-                        ? ` · ${document.createdByName}`
-                        : ''}
+                selectedIds.size > 0 ? (
+                  <div className='flex flex-wrap items-center justify-between gap-2 rounded-md border border-primary/40 bg-primary/5 px-3 py-2'>
+                    <span className='text-sm'>
+                      已选 <strong>{selectedIds.size}</strong> 篇文档
                     </span>
+                    <div className='flex flex-wrap items-center gap-2'>
+                      <Button
+                        className='gap-1.5'
+                        disabled={batchDocuments.isPending}
+                        size='sm'
+                        variant='outline'
+                        onClick={() => runBatch('offline')}
+                      >
+                        <PowerOff className='size-3.5' />
+                        批量下线
+                      </Button>
+                      <Button
+                        className='gap-1.5'
+                        disabled={batchDocuments.isPending}
+                        size='sm'
+                        variant='outline'
+                        onClick={() => runBatch('online')}
+                      >
+                        <RotateCcw className='size-3.5' />
+                        批量启用
+                      </Button>
+                      <Button
+                        className='gap-1.5 text-destructive'
+                        disabled={batchDocuments.isPending}
+                        size='sm'
+                        variant='outline'
+                        onClick={() => setBatchDeleteOpen(true)}
+                      >
+                        <Trash2 className='size-3.5' />
+                        批量删除
+                      </Button>
+                      <Button
+                        size='sm'
+                        variant='ghost'
+                        onClick={clearSelection}
+                      >
+                        取消选择
+                      </Button>
+                    </div>
                   </div>
-                </TableCell>
-                <TableCell>
-                  <Badge className='font-normal' variant='outline'>
-                    {SOURCE_LABELS[document.sourceType] ?? document.sourceType}
-                  </Badge>
-                </TableCell>
-                <TableCell>
-                  <Badge
-                    className='font-normal'
-                    variant={
-                      document.status === 'active' ? 'secondary' : 'outline'
-                    }
-                  >
-                    {document.status === 'active' ? '生效中' : '已下线'}
-                  </Badge>
-                </TableCell>
-                <TableCell className={TABLE_CELL_META}>
-                  {document.expiresAt
-                    ? formatDate(document.expiresAt)
-                    : '长期有效'}
-                </TableCell>
-                <TableCell className={TABLE_CELL_NUMERIC}>
-                  {document.chunkCount}
-                </TableCell>
-                <TableCell className={TABLE_CELL_META}>
-                  {formatDate(document.updatedAt)}
-                </TableCell>
-                <TableCell className={TABLE_CELL_ACTIONS}>
-                  {/*
+                ) : undefined
+              }
+              header={
+                <TableRow>
+                  <TableHead className='w-10'>
+                    <Checkbox
+                      aria-label='全选本页文档'
+                      checked={
+                        allSelected
+                          ? true
+                          : partiallySelected
+                            ? 'indeterminate'
+                            : false
+                      }
+                      onCheckedChange={(checked) =>
+                        toggleAllOnPage(checked === true)
+                      }
+                    />
+                  </TableHead>
+                  <TableHead>名称</TableHead>
+                  <TableHead className='w-28'>来源</TableHead>
+                  <TableHead className='w-24'>状态</TableHead>
+                  <TableHead className='w-32'>有效期</TableHead>
+                  <TableHead className={cn('w-24', TABLE_HEAD_NUMERIC)}>
+                    切片数
+                  </TableHead>
+                  <TableHead className='w-32'>更新时间</TableHead>
+                  <TableHead className={cn('w-44', TABLE_HEAD_ACTIONS)}>
+                    操作
+                  </TableHead>
+                </TableRow>
+              }
+            >
+              {rows.map((document) => (
+                <TableRow
+                  data-state={
+                    selectedIds.has(document.id) ? 'selected' : undefined
+                  }
+                  key={document.id}
+                >
+                  <TableCell>
+                    <Checkbox
+                      aria-label={`选择文档 ${document.title}`}
+                      checked={selectedIds.has(document.id)}
+                      onCheckedChange={(checked) =>
+                        toggleOne(document.id, checked === true)
+                      }
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <div className='flex flex-col'>
+                      <span className='font-medium'>{document.title}</span>
+                      <span className='text-xs text-muted-foreground'>
+                        v{document.docVersion}
+                        {document.category ? ` · ${document.category}` : ''}
+                        {document.createdByName
+                          ? ` · ${document.createdByName}`
+                          : ''}
+                      </span>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <Badge className='font-normal' variant='outline'>
+                      {SOURCE_LABELS[document.sourceType] ??
+                        document.sourceType}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Badge
+                      className='font-normal'
+                      variant={
+                        document.status === 'active' ? 'secondary' : 'outline'
+                      }
+                    >
+                      {document.status === 'active' ? '生效中' : '已下线'}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className={TABLE_CELL_META}>
+                    {document.expiresAt
+                      ? formatDate(document.expiresAt)
+                      : '长期有效'}
+                  </TableCell>
+                  <TableCell className={TABLE_CELL_NUMERIC}>
+                    {document.chunkCount}
+                  </TableCell>
+                  <TableCell className={TABLE_CELL_META}>
+                    {formatDate(document.updatedAt)}
+                  </TableCell>
+                  <TableCell className={TABLE_CELL_ACTIONS}>
+                    {/*
                           操作列此前是 4 个文字按钮，在 w-60 的窄列里折成两行、行高被撑到 80px 以上。
                           现在：低频的「查看片段 / 有效期 / 删除」用图标 + Tooltip（可访问名不变），
                           只有"下线 / 启用"保留文字 —— 它是唯一改变文档生效状态的按钮，
                           图标表达不了"当前会往哪个方向变"。
                         */}
-                  <div className='flex items-center justify-end gap-0.5'>
-                    <RowAction
-                      icon={ListTree}
-                      label='查看片段'
-                      onClick={() => setChunkDocId(document)}
-                    />
-                    <RowAction
-                      icon={CalendarClock}
-                      label='设置有效期'
-                      onClick={() => setExpiryDoc(document)}
-                    />
-                    {document.status === 'active' ? (
-                      <Button
-                        className='h-8 gap-1 px-2 text-xs'
-                        size='sm'
-                        variant='ghost'
-                        onClick={() => toggleStatus(document)}
-                      >
-                        <PowerOff className='size-3.5' />
-                        下线
-                      </Button>
-                    ) : (
-                      <Button
-                        className='h-8 gap-1 px-2 text-xs'
-                        size='sm'
-                        variant='ghost'
-                        onClick={() => toggleStatus(document)}
-                      >
-                        <RotateCcw className='size-3.5' />
-                        启用
-                      </Button>
-                    )}
-                    <RowAction
-                      destructive
-                      icon={Trash2}
-                      label='删除文档'
-                      onClick={() => setPendingDelete(document)}
-                    />
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-          </DataTable>
+                    <div className='flex items-center justify-end gap-0.5'>
+                      <RowAction
+                        icon={ListTree}
+                        label='查看片段'
+                        onClick={() => setChunkDocId(document)}
+                      />
+                      <RowAction
+                        icon={CalendarClock}
+                        label='设置有效期'
+                        onClick={() => setExpiryDoc(document)}
+                      />
+                      {document.status === 'active' ? (
+                        <Button
+                          className='h-8 gap-1 px-2 text-xs'
+                          size='sm'
+                          variant='ghost'
+                          onClick={() => toggleStatus(document)}
+                        >
+                          <PowerOff className='size-3.5' />
+                          下线
+                        </Button>
+                      ) : (
+                        <Button
+                          className='h-8 gap-1 px-2 text-xs'
+                          size='sm'
+                          variant='ghost'
+                          onClick={() => toggleStatus(document)}
+                        >
+                          <RotateCcw className='size-3.5' />
+                          启用
+                        </Button>
+                      )}
+                      <RowAction
+                        destructive
+                        icon={Trash2}
+                        label='删除文档'
+                        onClick={() => setPendingDelete(document)}
+                      />
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </DataTable>
           )}
         </CardContent>
       </Card>
@@ -968,7 +974,8 @@ function ManagedDocumentCard({
 
       <div className='mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground'>
         <span>
-          有效期 {document.expiresAt ? formatDate(document.expiresAt) : '长期有效'}
+          有效期{' '}
+          {document.expiresAt ? formatDate(document.expiresAt) : '长期有效'}
         </span>
         <span aria-hidden>·</span>
         <span>切片 {document.chunkCount}</span>

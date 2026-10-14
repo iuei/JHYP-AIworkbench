@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import type { HistoryItem } from '@/features/competitor-analysis/types'
 import {
   ATTENTION_DISPLAY_LIMIT,
   RECENT_DISPLAY_LIMIT,
@@ -6,7 +7,6 @@ import {
   pickAttentionAnalyses,
   takeRecentAnalyses,
 } from './analyses'
-import type { HistoryItem } from '@/features/competitor-analysis/types'
 
 function item(overrides: Partial<HistoryItem>): HistoryItem {
   return {

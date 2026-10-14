@@ -16,8 +16,8 @@ import {
 import { TableCell, TableHead, TableRow } from '@/components/ui/table'
 import { DataTable } from '@/components/data-table'
 import { compareLabelOf, formatDateTime } from '../format'
-import { HistoryLevelBadge } from './history-level-badge'
 import type { HistoryItem } from '../types'
+import { HistoryLevelBadge } from './history-level-badge'
 
 /** 列数：判定 / 结论 / ASIN / 站点 / 区间 / 时间 / 操作。 */
 const HISTORY_COLUMNS = 7
@@ -74,7 +74,8 @@ export function HistoryPanel({
           </Button>
         </div>
         <CardDescription>
-          最近 10 条；点「回看」打开那次分析的数据明细（读当时的快照，不用今天的数据重算）
+          最近 10
+          条；点「回看」打开那次分析的数据明细（读当时的快照，不用今天的数据重算）
         </CardDescription>
       </CardHeader>
 

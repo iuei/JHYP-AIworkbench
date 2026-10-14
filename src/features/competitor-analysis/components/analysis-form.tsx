@@ -1,13 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { Search } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Textarea } from '@/components/ui/textarea'
-import { DatePicker } from '@/components/date-picker'
-import { cn } from '@/lib/utils'
 import {
   Select,
   SelectContent,
@@ -15,6 +12,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Textarea } from '@/components/ui/textarea'
+import { DatePicker } from '@/components/date-picker'
 import {
   COMPARE_OPTIONS,
   MARKETPLACE_OPTIONS,
@@ -105,13 +105,17 @@ export function AnalysisForm({
   const missingAsin = asin.trim().length === 0
   /** 超出调用上限（只有调用方传了 `callLimit` 才可能发生）。 */
   const overLimit = callLimit !== undefined && estimatedCalls > callLimit
-  const canSubmit = !missingAsin && rangeError === null && !pending && !overLimit
+  const canSubmit =
+    !missingAsin && rangeError === null && !pending && !overLimit
   /** 按钮为什么点不动：把原因写出来（此前只是把按钮变灰，用户不知道还要改哪里）。 */
-  const asinBlocker = missingAsin && asinTouched ? '请输入要分析的 ASIN。' : null
+  const asinBlocker =
+    missingAsin && asinTouched ? '请输入要分析的 ASIN。' : null
   const limitBlocker = overLimit
     ? `预估 ${estimatedCalls} 次卖家精灵调用，超过单任务上限 ${callLimit} 次。请减少 ASIN 数量或公开数据维度后再提交（可以分批提交）。`
     : null
-  const disabledReason = pending ? null : (asinBlocker ?? rangeError ?? limitBlocker)
+  const disabledReason = pending
+    ? null
+    : (asinBlocker ?? rangeError ?? limitBlocker)
 
   // 首页「新建分析」深链进来时聚焦输入框：落页即可输入，不用再点一次
   useEffect(() => {
@@ -150,15 +154,21 @@ export function AnalysisForm({
                 setAsin(event.target.value)
                 setAsinTouched(true)
               }}
-              placeholder={'例如：B0C1D2E3F4\nB0C5D6E7F8\n也可粘贴亚马逊商品链接'}
+              placeholder={
+                '例如：B0C1D2E3F4\nB0C5D6E7F8\n也可粘贴亚马逊商品链接'
+              }
               rows={2}
               autoComplete='off'
               spellCheck={false}
             />
             <p className='text-xs text-muted-foreground'>
-              多个 ASIN 一行一个（换行）或逗号、顿号分隔，最多 5 个；支持粘贴 /dp/、/d/、/gp/product/ 链接。
+              多个 ASIN 一行一个（换行）或逗号、顿号分隔，最多 5 个；支持粘贴
+              /dp/、/d/、/gp/product/ 链接。
               {asinCount === 1 && (
-                <> 当前只识别出 1 个 ASIN：本次只分析本品，结果里不会有对比对象。</>
+                <>
+                  {' '}
+                  当前只识别出 1 个 ASIN：本次只分析本品，结果里不会有对比对象。
+                </>
               )}
             </p>
           </div>
@@ -237,11 +247,19 @@ export function AnalysisForm({
             <div className='flex flex-wrap items-end gap-3'>
               <div className='space-y-2'>
                 <Label>开始日期</Label>
-                <DatePicker selected={startDate} onSelect={setStartDate} placeholder='开始日期' />
+                <DatePicker
+                  selected={startDate}
+                  onSelect={setStartDate}
+                  placeholder='开始日期'
+                />
               </div>
               <div className='space-y-2'>
                 <Label>结束日期</Label>
-                <DatePicker selected={endDate} onSelect={setEndDate} placeholder='结束日期' />
+                <DatePicker
+                  selected={endDate}
+                  onSelect={setEndDate}
+                  placeholder='结束日期'
+                />
               </div>
               {/*
                 日期未选齐时**不在这里提醒**：原因统一显示在开始分析按钮下方
@@ -276,7 +294,9 @@ export function AnalysisForm({
                     }
                   />
                   <span className='min-w-0 space-y-0.5'>
-                    <span className='block font-medium leading-tight'>{option.label}</span>
+                    <span className='block leading-tight font-medium'>
+                      {option.label}
+                    </span>
                     <span className='block text-xs leading-snug text-muted-foreground'>
                       {option.hint}
                     </span>
@@ -297,10 +317,12 @@ export function AnalysisForm({
                   {competitorCount > 0 ? (
                     <>
                       {' '}
-                      + 竞品 <b>{competitorCount}</b> 个 × <b>{callsPerAsin}</b> 次
+                      + 竞品 <b>{competitorCount}</b> 个 × <b>{callsPerAsin}</b>{' '}
+                      次
                     </>
                   ) : null}{' '}
-                  ＝ 预估 <b>{estimatedCalls}</b> 次调用；同一 ASIN 在 24 小时内已拉取过则走缓存、
+                  ＝ 预估 <b>{estimatedCalls}</b> 次调用；同一 ASIN 在 24
+                  小时内已拉取过则走缓存、
                   <b>不消耗额度</b>（结果里会显示实际消耗）。
                 </>
               )}
@@ -309,7 +331,9 @@ export function AnalysisForm({
               <label className='flex cursor-pointer items-center gap-2 text-xs text-muted-foreground'>
                 <Checkbox
                   checked={refreshPublic}
-                  onCheckedChange={(checked) => setRefreshPublic(checked === true)}
+                  onCheckedChange={(checked) =>
+                    setRefreshPublic(checked === true)
+                  }
                 />
                 忽略缓存重新拉取（用于确认最新数据，会正常消耗额度）
               </label>
@@ -323,7 +347,8 @@ export function AnalysisForm({
                 {pending ? pendingLabel : submitLabel}
               </Button>
               <p className='text-xs text-muted-foreground'>
-                分析基于已导入的 Amazon 广告日报与业务报告，数据为人工导出后导入，非实时数据；
+                分析基于已导入的 Amazon
+                广告日报与业务报告，数据为人工导出后导入，非实时数据；
                 未指定站点与区间时按本品最新数据自动推导。
               </p>
             </div>

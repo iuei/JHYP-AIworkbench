@@ -62,7 +62,9 @@ export function describeSchedule(
   expireAt: string | null
 ): string {
   if (!publishAt && !expireAt) return '立即生效 · 长期有效'
-  if (publishAt && !expireAt) return `${formatDateTime(publishAt)} 起 · 长期有效`
-  if (!publishAt && expireAt) return `立即生效 · ${formatDateTime(expireAt)} 截止`
+  if (publishAt && !expireAt)
+    return `${formatDateTime(publishAt)} 起 · 长期有效`
+  if (!publishAt && expireAt)
+    return `立即生效 · ${formatDateTime(expireAt)} 截止`
   return `${formatDateTime(publishAt)} 起 · ${formatDateTime(expireAt)} 截止`
 }

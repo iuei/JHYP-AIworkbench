@@ -1,4 +1,7 @@
-import type { FindingLevel, HistoryItem } from '@/features/competitor-analysis/types'
+import type {
+  FindingLevel,
+  HistoryItem,
+} from '@/features/competitor-analysis/types'
 
 /** 首页一次拉取的分析条数：既要支撑「最近分析」展示，也要作为「需处理」的扫描范围。 */
 export const ATTENTION_SCAN_LIMIT = 20

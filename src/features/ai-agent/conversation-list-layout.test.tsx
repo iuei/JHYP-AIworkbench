@@ -1,10 +1,10 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { page } from 'vitest/browser'
-import { render } from 'vitest-browser-react'
 // 布局断言必须让 Tailwind 真正生效：不导入全局样式时 `hidden lg:flex` / `flex-1` / `truncate`
 // 全是空类，量出来的宽度与真实页面无关（踩过：不导入时怎么量都不复现溢出）
 import '@/styles/index.css'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { render } from 'vitest-browser-react'
+import { page } from 'vitest/browser'
 import { ChatWorkbench } from './pages/chat-workbench'
 import type { AiMessage, Conversation } from './types'
 
@@ -131,8 +131,8 @@ function rowTrigger(title: string) {
 }
 
 function loadMoreButton() {
-  return [...document.querySelectorAll<HTMLElement>('aside button')].find((button) =>
-    button.textContent?.includes('加载更早')
+  return [...document.querySelectorAll<HTMLElement>('aside button')].find(
+    (button) => button.textContent?.includes('加载更早')
   )
 }
 
@@ -209,7 +209,9 @@ describe('左栏收窄：行内操作与「加载更早的会话」不能被裁�
         expect(loadMore!.getBoundingClientRect().right).toBeLessThanOrEqual(
           aside().getBoundingClientRect().right + 0.5
         )
-        expect(loadMore!.scrollWidth).toBeLessThanOrEqual(loadMore!.clientWidth + 1)
+        expect(loadMore!.scrollWidth).toBeLessThanOrEqual(
+          loadMore!.clientWidth + 1
+        )
       },
       { timeout: 5000 }
     )

@@ -250,7 +250,7 @@ function TableBlock({ block }: { block: AnswerBlock }) {
             {hasGroups && (
               <TableRow>
                 <TableHead
-                  className='whitespace-nowrap align-bottom'
+                  className='align-bottom whitespace-nowrap'
                   rowSpan={2}
                 >
                   {primaryColumnLabel}
@@ -259,7 +259,7 @@ function TableBlock({ block }: { block: AnswerBlock }) {
                   <TableHead
                     className={cn(
                       TABLE_HEAD_NUMERIC,
-                      'whitespace-nowrap border-s text-center',
+                      'border-s text-center whitespace-nowrap',
                       toneClass(TONE_GROUP_HEAD_CLASS, group.tone)
                     )}
                     colSpan={group.span}
@@ -271,51 +271,51 @@ function TableBlock({ block }: { block: AnswerBlock }) {
               </TableRow>
             )}
             {table.getHeaderGroups().map((headerGroup) => (
-          <TableRow key={headerGroup.id}>
-            {headerGroup.headers.map((header, headerIndex) => {
-              // 有分组表头时，首列已由上一行的 rowSpan 占住，这一行不能再渲染它
-              if (hasGroups && headerIndex === 0) return null
-              const headerMeta = header.column.columnDef.meta as
-                | { align?: string; tone?: number }
-                | undefined
-              const align = headerMeta?.align
-              return (
-                <TableHead
-                  className={cn(
-                    'whitespace-nowrap',
-                    align === 'right' && TABLE_HEAD_NUMERIC,
-                    hasGroups && headerIndex > 0 && 'border-s',
-                    toneClass(TONE_FIELD_HEAD_CLASS, headerMeta?.tone)
-                  )}
-                  key={header.id}
-                >
-                  {header.column.getCanSort() ? (
-                    <button
-                      className='inline-flex items-center gap-1 hover:text-foreground'
-                      type='button'
-                      onClick={header.column.getToggleSortingHandler()}
+              <TableRow key={headerGroup.id}>
+                {headerGroup.headers.map((header, headerIndex) => {
+                  // 有分组表头时，首列已由上一行的 rowSpan 占住，这一行不能再渲染它
+                  if (hasGroups && headerIndex === 0) return null
+                  const headerMeta = header.column.columnDef.meta as
+                    | { align?: string; tone?: number }
+                    | undefined
+                  const align = headerMeta?.align
+                  return (
+                    <TableHead
+                      className={cn(
+                        'whitespace-nowrap',
+                        align === 'right' && TABLE_HEAD_NUMERIC,
+                        hasGroups && headerIndex > 0 && 'border-s',
+                        toneClass(TONE_FIELD_HEAD_CLASS, headerMeta?.tone)
+                      )}
+                      key={header.id}
                     >
-                      {flexRender(
-                        header.column.columnDef.header,
-                        header.getContext()
+                      {header.column.getCanSort() ? (
+                        <button
+                          className='inline-flex items-center gap-1 hover:text-foreground'
+                          type='button'
+                          onClick={header.column.getToggleSortingHandler()}
+                        >
+                          {flexRender(
+                            header.column.columnDef.header,
+                            header.getContext()
+                          )}
+                          {header.column.getIsSorted() === 'asc' && (
+                            <ArrowUp className='size-3' />
+                          )}
+                          {header.column.getIsSorted() === 'desc' && (
+                            <ArrowDown className='size-3' />
+                          )}
+                        </button>
+                      ) : (
+                        flexRender(
+                          header.column.columnDef.header,
+                          header.getContext()
+                        )
                       )}
-                      {header.column.getIsSorted() === 'asc' && (
-                        <ArrowUp className='size-3' />
-                      )}
-                      {header.column.getIsSorted() === 'desc' && (
-                        <ArrowDown className='size-3' />
-                      )}
-                    </button>
-                  ) : (
-                    flexRender(
-                      header.column.columnDef.header,
-                      header.getContext()
-                    )
-                  )}
-                </TableHead>
-              )
-            })}
-          </TableRow>
+                    </TableHead>
+                  )
+                })}
+              </TableRow>
             ))}
           </>
         }
@@ -328,7 +328,8 @@ function TableBlock({ block }: { block: AnswerBlock }) {
            * 读 `row.original` 而不是索引：排序后行序会变，颜色必须跟着行走。
            * 列自身的 `tone` 优先（列归属比行归属更具体）。
            */
-          const rowTone = (row.original as { __tone?: number } | undefined)?.__tone
+          const rowTone = (row.original as { __tone?: number } | undefined)
+            ?.__tone
           return (
             <TableRow key={row.id}>
               {row.getVisibleCells().map((cell) => {

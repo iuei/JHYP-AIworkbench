@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { useAuthStore } from '@/stores/auth-store'
-import { MarkdownContent } from '@/components/markdown-content'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -10,6 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { MarkdownContent } from '@/components/markdown-content'
 import { useAcknowledgeAnnouncement, usePendingAnnouncements } from '../api'
 import {
   ackIdForDismiss,
