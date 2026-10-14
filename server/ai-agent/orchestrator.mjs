@@ -14,6 +14,7 @@ import * as repo from './conversations.mjs'
 import { loadSettings } from './knowledge.mjs'
 import {
   BLOCKED_ANSWER,
+  KNOWLEDGE_GUARD_NOTICE,
   MODEL_ERROR_ANSWER,
   NO_RESULT_ANSWER,
   TURN_LIMIT_ANSWER,
@@ -23,6 +24,7 @@ import {
   detectInjectionSignals,
   enforcePermissionWording,
   ensureFreshnessDeclaration,
+  looksLikeNoResultClaim,
   toolFailureAnswer,
   toolRejectionOutcome,
   wrapReferenceData,
@@ -495,6 +497,93 @@ export async function runChat(
     } else {
       status = CHAT_STATUS.error
       answer = MODEL_ERROR_ANSWER
+      streamDelta(answer)
+    }
+  }
+
+  // ── 知识库强制检索护栏（2026-10-14）
+  /*
+   * 现象（用户报障）：知识库里明明写着作息时间，问「作息」却回"知识库中未找到相关内容"。
+   * 根因：用户只发来一个词时，模型判定"信息不足"，既没有调用 search_knowledge，
+   * 又照抄系统提示词里的 NO_RESULT_ANSWER —— 实测《规章制度》里「作息」coverage=1.0 可命中。
+   *
+   * 处理：模型声称"没找到"、本轮却一次成功的工具调用都没有时，服务端自己补一次真实检索：
+   * 命中就降级返回原文，确实为空才输出统一文案。把"涉知识问题必须先检索"从模型自觉
+   * 变成服务端保证（与下面的权限措辞护栏同一个思路：不依赖模型自觉）。
+   */
+  if (
+    status === CHAT_STATUS.ok &&
+    answer &&
+    looksLikeNoResultClaim(answer) &&
+    !toolRuns.some((run) => run.status === 'ok') &&
+    registeredTools.some((tool) => tool.name === 'search_knowledge')
+  ) {
+    const guardParams = { query: question, topK: retrievalTopK, sourceType: 'all' }
+    emit(EVENT.status, {
+      data: {
+        step: 'tools',
+        state: 'running',
+        toolName: 'search_knowledge',
+        label: `正在${toolLabel('search_knowledge')}…`,
+      },
+    })
+    // 审计口径与模型主动调用完全一致：pending → 终态，审计台可查
+    const guardRunId = await deps.startRun({
+      messageId: userMessage.id,
+      userId: user.id,
+      toolName: 'search_knowledge',
+      params: guardParams,
+    })
+    const guardResult = await deps.executeTool({
+      user,
+      registeredTools,
+      toolName: 'search_knowledge',
+      params: guardParams,
+      ctx: { conversationId: conversation.id, messageId: userMessage.id, retrievalTopK, ip },
+    })
+    await deps.finishRun(guardRunId, {
+      status: guardResult.status,
+      resultSummary: guardResult.status === 'ok' ? guardResult.summary : guardResult.error,
+      rowCount: guardResult.rowCount ?? null,
+      error: guardResult.status === 'ok' ? null : guardResult.error,
+      latencyMs: guardResult.latencyMs ?? null,
+    })
+    toolRuns.push({
+      id: guardRunId,
+      toolName: 'search_knowledge',
+      params: guardResult.params ?? guardParams,
+      status: guardResult.status,
+      summary: guardResult.summary ?? '',
+      error: guardResult.error ?? null,
+      reason: guardResult.reason ?? null,
+      rowCount: guardResult.rowCount ?? 0,
+      latencyMs: guardResult.latencyMs ?? null,
+    })
+    emit(EVENT.status, {
+      data: {
+        step: 'tools',
+        state: guardResult.status === 'ok' ? 'done' : 'failed',
+        toolName: 'search_knowledge',
+        label:
+          guardResult.status === 'ok'
+            ? `✓ 已${toolLabel('search_knowledge')}`
+            : `✕ ${toolLabel('search_knowledge')}失败`,
+        summary: guardResult.summary ?? '',
+      },
+    })
+
+    // 补检索本身失败/被拦截时保留模型原话：此时没有可靠数据可依据，不能假装"确实为空"
+    if (guardResult.status === 'ok') {
+      const guardRows = Array.isArray(guardResult.rows) ? guardResult.rows : []
+      referenceRows.push(...guardRows)
+      citations = dedupeCitations([...citations, ...(guardResult.citations ?? [])])
+      if (guardResult.dataFreshness) freshnessList.push(guardResult.dataFreshness)
+      answer =
+        guardRows.length > 0
+          ? buildDegradedAnswer(guardRows, { note: KNOWLEDGE_GUARD_NOTICE })
+          : NO_RESULT_ANSWER
+      // 模型那段"未找到"已经流式显示过：先让前端清空，再补发服务端结果
+      emit(EVENT.reset, { data: { reason: 'knowledge_guard' } })
       streamDelta(answer)
     }
   }

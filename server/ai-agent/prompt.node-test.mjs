@@ -8,12 +8,14 @@ import {
   ensureFreshnessDeclaration,
   INJECTION_GUARD,
   INVALID_PARAMS_ANSWER,
+  KNOWLEDGE_GUARD_NOTICE,
   NO_RESULT_ANSWER,
   buildDegradedAnswer,
   buildMessages,
   buildSystemPrompt,
   detectInjectionSignals,
   flattenSnippetText,
+  looksLikeNoResultClaim,
   sanitizeHistory,
   sourceLabel,
   toolRejectionOutcome,
@@ -55,6 +57,40 @@ test('系统提示词要求失败不编造并禁止泄露权限结构', () => {
   assert.ok(prompt.includes('不得凭空生成流程或制度'))
   assert.ok(prompt.includes('无权数据统一回答'))
   assert.ok(prompt.includes('禁止假设存在其他工具或数据源'))
+})
+
+test('系统提示词要求单词提问也必须先检索（2026-10-14 修"作息"漏检索）', () => {
+  const prompt = buildSystemPrompt({ user: operator })
+  assert.ok(prompt.includes('用户只发来一个词或短语'))
+  assert.ok(prompt.includes('同样必须先检索'))
+  assert.ok(prompt.includes('不得在没有调用工具的情况下声称'))
+  // 未找到文案只能在检索为空时使用，不能让模型把它当成"不知道"时的通用兜底话术
+  assert.ok(prompt.includes('只有在 search_knowledge 返回空结果时'))
+})
+
+test('looksLikeNoResultClaim 识别模型声称知识库无结果的话术', () => {
+  assert.equal(looksLikeNoResultClaim(NO_RESULT_ANSWER), true)
+  assert.equal(looksLikeNoResultClaim('## 结论\n\n知识库中未找到相关内容。\n\n## 说明\n\n…'), true)
+  // 2026-10-14 线上实测原文：模型没调工具却声称"已检索"
+  assert.equal(
+    looksLikeNoResultClaim('我按「作息」相关关键词检索了知识库，没有匹配到任何制度、流程或经验类文档。'),
+    true
+  )
+  assert.equal(looksLikeNoResultClaim('知识库中没有找到对应的流程文档。'), true)
+  assert.equal(looksLikeNoResultClaim('未检索到相关的制度内容。'), true)
+})
+
+test('looksLikeNoResultClaim 不误伤业务数据类回答与正常回答', () => {
+  assert.equal(looksLikeNoResultClaim(''), false)
+  assert.equal(looksLikeNoResultClaim(null), false)
+  assert.equal(looksLikeNoResultClaim('没查到该 ASIN 的广告数据，请确认日期区间。'), false)
+  assert.equal(looksLikeNoResultClaim('SKU 采用四段式结构：品类代码 + 品牌缩写 + 系列号 + 变体代码。'), false)
+  assert.equal(looksLikeNoResultClaim('库存不足，需要补货。'), false)
+})
+
+test('KNOWLEDGE_GUARD_NOTICE 如实说明补检索降级，不复用"模型未返回"的文案', () => {
+  assert.ok(KNOWLEDGE_GUARD_NOTICE.includes('服务端已自动补做检索'))
+  assert.ok(KNOWLEDGE_GUARD_NOTICE.includes('未经过知识库检索'))
 })
 
 test('wrapReferenceData 用 reference-data 标签包裹检索内容', () => {

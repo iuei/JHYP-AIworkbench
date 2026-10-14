@@ -116,6 +116,8 @@ export function MyAiCard({ className }: { className?: string }) {
           ) : (
             <Link
               to='/knowledge'
+              // 知识库的默认子页是「团队知识库」，本卡片的语义是个人沉淀 —— 必须显式指定
+              search={{ view: 'mine' }}
               className='flex items-center justify-between gap-3 rounded-md py-2.5 transition-colors hover:bg-muted/40'
             >
               <span className='text-sm'>

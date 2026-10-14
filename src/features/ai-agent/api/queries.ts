@@ -80,6 +80,8 @@ export const aiQueryKeys = {
   auditLogs: (params: Record<string, unknown>) =>
     ['ai', 'audit-logs', params] as const,
   usage: (days: number) => ['ai', 'usage', days] as const,
+  /** 顶栏待办（管理员）：服务端五项 count 的聚合结果 */
+  todos: ['ai', 'todos'] as const,
   settings: ['ai', 'settings'] as const,
   notes: (params: Record<string, unknown>) => ['ai', 'notes', params] as const,
   mySkill: ['ai', 'notes', 'skill'] as const,
@@ -476,6 +478,8 @@ export function useMarkFeedbackHandled() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: aiQueryKeys.feedback })
+      // 顶栏待办含"纠错反馈待处理"：标记已处理后它就该从待办里消失
+      queryClient.invalidateQueries({ queryKey: aiQueryKeys.todos })
     },
   })
 }
@@ -761,7 +765,9 @@ export function useTestModelConnection() {
 export function useUpdateAiSettings() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async (payload: Partial<AiSettings> & { mcpSecret?: string | null }) => {
+    mutationFn: async (
+      payload: Partial<AiSettings> & { mcpSecret?: string | null }
+    ) => {
       const { data } = await api.patch<{ settings: AiSettings }>(
         '/ai/settings',
         payload
@@ -783,7 +789,10 @@ export function useUpdateAiSettings() {
  */
 export function useTestMcpConnection() {
   return useMutation({
-    mutationFn: async (payload: { mcpSecret?: string; mcpEndpoint?: string }) => {
+    mutationFn: async (payload: {
+      mcpSecret?: string
+      mcpEndpoint?: string
+    }) => {
       const { data } = await api.post<McpConnectionTestResult>(
         '/ai/settings/mcp/test',
         payload
@@ -1131,6 +1140,8 @@ export function useReviewNote() {
       queryClient.invalidateQueries({ queryKey: ['ai', 'distill'] })
       queryClient.invalidateQueries({ queryKey: ['ai', 'documents'] })
       queryClient.invalidateQueries({ queryKey: ['ai', 'freshness'] })
+      // 顶栏待办含"沉淀待审核"：审核后立刻从待办里去掉，而不是等 30s 轮询
+      queryClient.invalidateQueries({ queryKey: aiQueryKeys.todos })
     },
   })
 }
@@ -1158,6 +1169,8 @@ export function useBatchDistillNotes() {
       queryClient.invalidateQueries({ queryKey: ['ai', 'distill'] })
       queryClient.invalidateQueries({ queryKey: ['ai', 'documents'] })
       queryClient.invalidateQueries({ queryKey: ['ai', 'freshness'] })
+      // 顶栏待办含"沉淀待审核"：审核后立刻从待办里去掉，而不是等 30s 轮询
+      queryClient.invalidateQueries({ queryKey: aiQueryKeys.todos })
     },
   })
 }
@@ -1219,6 +1232,8 @@ function useInvalidatePrompts() {
   return () => {
     queryClient.invalidateQueries({ queryKey: ['ai', 'prompts'] })
     queryClient.invalidateQueries({ queryKey: ['ai', 'distill', 'prompts'] })
+    // 顶栏待办含"提示词待审核"：通过 / 驳回后徽章数字要立刻跟着变，不能等轮询
+    queryClient.invalidateQueries({ queryKey: aiQueryKeys.todos })
   }
 }
 
@@ -1370,5 +1385,54 @@ export function useReviewPrompt() {
       return data.prompt
     },
     onSuccess: invalidate,
+  })
+}
+
+/**
+ * 顶栏待办清单里的一项。
+ *
+ * 服务端**只返回计数大于 0 的类型**，且五类查询一律只算"未处理"
+ * （`status='pending'` / `handled=false` / 尚未过期），因此列表本身不含已办事项。
+ * 跳转目标不在这里 —— 前端按 `key` 映射路由（服务端不掺和前端路由）。
+ */
+export type TodoItem = {
+  key: string
+  label: string
+  hint: string
+  count: number
+}
+
+export type TodoSummary = {
+  todos: TodoItem[]
+  /** 徽章数字：所有待办条数之和 */
+  total: number
+  /** "文档即将过期"的预警窗口天数，由服务端下发以便界面解释口径 */
+  windowDays: number
+}
+
+/**
+ * 顶栏待办（管理员）。
+ *
+ * `enabled` 由调用方按角色传入：员工面刻意不出现治理词汇（见 dashboard 的守护断言），
+ * 因此非管理员**连请求都不发**，而不是"发了再隐藏"。
+ *
+ * **刷新策略（两道保险，保证"已处理的不再显示"）**：服务端口径只算未处理，但
+ * "处理完"与"待办刷新"是两件事 —— 审核沉淀、审核提示词、开通账号、标记反馈处理
+ * 散在不同模块，不可能要求每处都记得让待办失效。因此：
+ *   1) `refetchOnMount: 'always'` —— 每次打开面板都拉最新，而不是吃缓存；
+ *   2) 30s 轮询 + 窗口聚焦刷新 —— 停在页面上不操作也会自己收敛，
+ *      同时保证"同事刚提交的申请"不必手动刷新就能出现。
+ */
+export function useTodos({ enabled = true }: { enabled?: boolean } = {}) {
+  return useQuery({
+    queryKey: aiQueryKeys.todos,
+    queryFn: async () => {
+      const { data } = await api.get<TodoSummary>('/ai/todos')
+      return data
+    },
+    enabled,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
+    refetchInterval: 30_000,
   })
 }

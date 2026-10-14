@@ -36,13 +36,13 @@ import {
   useSubmitPrompt,
   useWithdrawPrompt,
 } from '../api/queries'
-import { PageShell } from '../components/page-shell'
 import { LayoutToggle } from '../components/layout-toggle'
 import {
   CARD_GRID,
   useListLayout,
   type ListLayout,
 } from '../components/list-layout'
+import { PageShell } from '../components/page-shell'
 import {
   PromptDetailDialog,
   PromptEditorDialog,
@@ -85,12 +85,15 @@ const PROMPT_TABLE_COLUMNS = 8
 /**
  * 提示词广场：把反复输入的提问沉淀成可复用模板。
  *
- * **两个子页**（「我的提示词」｜「共享提示词」）由顶栏的 `PromptSquareNav` 承载，
+ * **两个子页**（「共享提示词」｜「我的提示词」）由顶栏的 `PromptSquareNav` 承载，
  * 本页按 search 参数 `view` 只渲染当前那一个 —— 两块的取数范围完全不同，
  * 纵向堆叠会让用户一路下滚才看到"同事共享的那块"，而它才是本页的公共资产。
  * 分工必须说清楚，否则用户会以为"我共享的那条怎么没出现在共享区"：
- * - 「我的提示词」= 自己的全部条目（含待审、已驳回、已共享，用徽标区分状态）；
- * - 「共享提示词」= **其他同事**共享出来的，自己的另一个子页里，不重复展示。
+ * - 「共享提示词」= **其他同事**共享出来的，自己的另一个子页里，不重复展示；
+ * - 「我的提示词」= 自己的全部条目（含待审、已驳回、已共享，用徽标区分状态）。
+ *
+ * **默认子页 = 共享提示词（2026-10-14）**：按用户口径"点击提示词广场时默认页面从我的提示词
+ * 改为共享提示词页面"，`view` 缺省即共享池（对应路由 `prompts/index.tsx` 只认 `view=mine`）。
  *
  * 搜索走服务端（与 /ai/conversations 同一考虑）：本地过滤在条目变多后会
  * 出现"明明有却搜不到"。搜索词只对当前子页生效（切子页时保留，便于对比着找）。
@@ -98,7 +101,7 @@ const PROMPT_TABLE_COLUMNS = 8
 export function PromptSquare() {
   // 页面已迁到 /prompts（2026-09-16 阶段 C：一级类目不再住在二级路径里）
   const { view } = useSearch({ from: '/_authenticated/prompts/' })
-  const current = view ?? 'mine'
+  const current = view ?? 'shared'
   const [keyword, setKeyword] = useState('')
   const debouncedKeyword = useDebouncedValue(keyword)
   const [editorOpen, setEditorOpen] = useState(false)

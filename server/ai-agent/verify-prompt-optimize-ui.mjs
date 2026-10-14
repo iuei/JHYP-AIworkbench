@@ -134,46 +134,66 @@ try {
 
   const mineTab = header.getByRole('link', { name: '我的提示词' })
   const sharedTab = header.getByRole('link', { name: '共享提示词' })
+  /*
+   * 2026-10-14：默认子页由「我的提示词」改为「共享提示词」（用户口径"点击提示词广场时
+   * 默认页面从我的提示词改为共享提示词页面"）。默认页 URL 保持干净，非默认页（我的）带参数。
+   */
   check(
-    '默认落在「我的提示词」子页',
-    (await mineTab.getAttribute('aria-current')) === 'page',
-    String(await mineTab.getAttribute('aria-current'))
-  )
-
-  await sharedTab.click()
-  await page.waitForURL((url) => url.searchParams.get('view') === 'shared', {
-    timeout: 10000,
-  })
-  await page.waitForTimeout(800)
-  check(
-    '切到「共享提示词」：URL 带 view=shared',
-    page.url().includes('view=shared'),
-    page.url()
+    '默认落「共享提示词」子页（URL 不带参数）',
+    (await sharedTab.getAttribute('aria-current')) === 'page' &&
+      !new URL(page.url()).searchParams.get('view'),
+    `${String(await sharedTab.getAttribute('aria-current'))} · ${page.url()}`
   )
   check(
-    '「共享提示词」子页高亮切过去',
-    (await sharedTab.getAttribute('aria-current')) === 'page'
-  )
-  check(
-    '页面内只剩共享那一块（不再纵向堆叠两块）',
+    '默认页是共享那一块（不纵向堆叠我的块）',
     (await page.locator('text=同事共享出来的提示词').count()) > 0 &&
       (await page.locator('text=只有你自己可以用').count()) === 0
   )
   await shot('23-prompt-square-shared')
 
   await mineTab.click()
-  await page.waitForURL((url) => !url.searchParams.get('view'), { timeout: 10000 })
-  await page.waitForTimeout(500)
+  await page.waitForURL((url) => url.searchParams.get('view') === 'mine', {
+    timeout: 10000,
+  })
+  await page.waitForTimeout(800)
   check(
-    '切回「我的提示词」：URL 参数被清掉',
-    !page.url().includes('view=shared'),
+    '切到「我的提示词」：URL 带 view=mine',
+    page.url().includes('view=mine'),
     page.url()
   )
   check(
-    '页面内只剩我的那一块',
+    '「我的提示词」子页高亮切过去',
+    (await mineTab.getAttribute('aria-current')) === 'page'
+  )
+  check(
+    '页面内只剩我的那一块（不再纵向堆叠两块）',
     (await page.locator('text=只有你自己可以用').count()) > 0 &&
       (await page.locator('text=同事共享出来的提示词').count()) === 0
   )
+
+  await sharedTab.click()
+  await page.waitForURL((url) => !url.searchParams.get('view'), { timeout: 10000 })
+  await page.waitForTimeout(500)
+  check(
+    '切回「共享提示词」：URL 参数被清掉',
+    !page.url().includes('view='),
+    page.url()
+  )
+  check(
+    '又回到共享那一块',
+    (await page.locator('text=同事共享出来的提示词').count()) > 0 &&
+      (await page.locator('text=只有你自己可以用').count()) === 0
+  )
+
+  /*
+   * 2b-2 之前的"我的提示词"子页：展示方式与卡片字段的断言都在**我的**列表上取数
+   * （验收账号自己的条目），默认页翻转后需要显式切回去。
+   */
+  await mineTab.click()
+  await page.waitForURL((url) => url.searchParams.get('view') === 'mine', {
+    timeout: 10000,
+  })
+  await page.waitForTimeout(800)
 
   /*
    * 2b-2. 展示方式（2026-09-17 更新）：提示词广场**默认卡片网格**，数据表格保留为可切换视图。

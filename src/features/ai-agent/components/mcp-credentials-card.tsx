@@ -20,7 +20,11 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
-import { useSyncMcpTools, useTestMcpConnection, useUpdateAiSettings } from '../api/queries'
+import {
+  useSyncMcpTools,
+  useTestMcpConnection,
+  useUpdateAiSettings,
+} from '../api/queries'
 import { apiErrorMessage, formatTime } from '../format'
 import { splitEndpointSecret } from '../mcp-endpoint'
 import type { AiSettings } from '../types'
@@ -67,7 +71,10 @@ export function McpCredentialsCard({
   const [prefix, setPrefix] = useState(savedPrefix)
   const [timeoutMs, setTimeoutMs] = useState(String(savedTimeoutMs))
   const [advancedOpen, setAdvancedOpen] = useState(false)
-  const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null)
+  const [testResult, setTestResult] = useState<{
+    ok: boolean
+    message: string
+  } | null>(null)
 
   const update = useUpdateAiSettings()
   const test = useTestMcpConnection()
@@ -87,7 +94,8 @@ export function McpCredentialsCard({
         setSecret('')
         setTestResult(null)
       },
-      onError: (error) => toast.error(apiErrorMessage(error, '保存失败，请稍后重试')),
+      onError: (error) =>
+        toast.error(apiErrorMessage(error, '保存失败，请稍后重试')),
     })
   }
 
@@ -107,7 +115,7 @@ export function McpCredentialsCard({
         mcpTimeoutMs: Number(timeoutMs),
         ...(secretDirty ? { mcpSecret: secret.trim() } : {}),
       },
-      'MCP 配置已保存并即时生效'
+      'MCP 配置已保存'
     )
   }
 
@@ -131,7 +139,10 @@ export function McpCredentialsCard({
           if (result.ok) toast.success(result.message)
         },
         onError: (error) =>
-          setTestResult({ ok: false, message: apiErrorMessage(error, '测试失败') }),
+          setTestResult({
+            ok: false,
+            message: apiErrorMessage(error, '测试失败'),
+          }),
       }
     )
   }
@@ -139,7 +150,8 @@ export function McpCredentialsCard({
   const runSync = () => {
     sync.mutate(undefined, {
       onSuccess: (result) => toast.success(result.message),
-      onError: (error) => toast.error(apiErrorMessage(error, '同步失败，请稍后重试')),
+      onError: (error) =>
+        toast.error(apiErrorMessage(error, '同步失败，请稍后重试')),
     })
   }
 
@@ -148,11 +160,16 @@ export function McpCredentialsCard({
       <div className='flex flex-wrap items-center gap-2 text-xs'>
         <span className='text-muted-foreground'>当前状态：</span>
         <Badge variant={settings.mcpReady ? 'secondary' : 'outline'}>
-          {settings.mcpReady ? '已就绪' : settings.mcpEnabled ? '未就绪' : '未启用'}
+          {settings.mcpReady
+            ? '已就绪'
+            : settings.mcpEnabled
+              ? '未就绪'
+              : '未启用'}
         </Badge>
         <Badge className='font-normal' variant='outline'>
           密钥来源：
-          {KEY_SOURCE_LABELS[settings.mcpKeySource ?? 'none'] ?? settings.mcpKeySource}
+          {KEY_SOURCE_LABELS[settings.mcpKeySource ?? 'none'] ??
+            settings.mcpKeySource}
         </Badge>
         {toolCounts.total > 0 && (
           <Badge className='font-normal' variant='outline'>
@@ -196,8 +213,8 @@ export function McpCredentialsCard({
           onChange={(event) => setEndpoint(event.target.value)}
         />
         <p className='text-xs text-muted-foreground'>
-          卖家精灵的 Streamable HTTP 地址，默认已填好。注意<b>不要加结尾斜杠</b>
-          （带斜杠会 404），它是 POST 接口，不是 SSE 长连接。
+          卖家精灵的 Streamable HTTP 地址（POST 接口，结尾不要加斜杠，带斜杠会
+          404）。
         </p>
       </div>
 
@@ -217,10 +234,15 @@ export function McpCredentialsCard({
         />
         <p className='flex items-start gap-1.5 text-xs text-muted-foreground'>
           <KeyRound className='mt-0.5 size-3.5 shrink-0' />
-          在卖家精灵开放平台「我的密钥」创建（<b>MCP 密钥与 API Key 是两套</b>
-          ，别拿错）。密钥以 AES-256-GCM 加密存储，接口不回传明文，审计只记录掩码与指纹。
+          在卖家精灵开放平台「我的密钥」创建（MCP 密钥与 API Key
+          是两套，别拿错）；密钥加密存储、只显示掩码。
         </p>
       </div>
+
+      {/* 关键差异放在按钮**之前**：此前这段在按钮组下方，用户点完才看到"还差一步" */}
+      <p className='text-xs text-muted-foreground'>
+        「测试连接」只验证密钥与端点；工具要能被模型调用，必须再点「同步工具」。
+      </p>
 
       <div className='flex flex-wrap items-center gap-2'>
         <Button
@@ -230,12 +252,26 @@ export function McpCredentialsCard({
           {update.isPending && <Loader2 className='animate-spin' />}
           保存配置
         </Button>
-        <Button disabled={test.isPending} variant='outline' onClick={runTest}>
+        <Button
+          disabled={test.isPending}
+          title='只验证密钥与端点是否可用：不发业务请求、不消耗卖家精灵额度、不写库。'
+          variant='outline'
+          onClick={runTest}
+        >
           {test.isPending ? <Loader2 className='animate-spin' /> : <PlugZap />}
           测试连接
         </Button>
-        <Button disabled={sync.isPending} variant='outline' onClick={runSync}>
-          {sync.isPending ? <Loader2 className='animate-spin' /> : <RefreshCw />}
+        <Button
+          disabled={sync.isPending}
+          title='把远端工具清单写入工具注册表：远端已下线的工具会被移除，你在「工具开关」里的启停设置不受影响。'
+          variant='outline'
+          onClick={runSync}
+        >
+          {sync.isPending ? (
+            <Loader2 className='animate-spin' />
+          ) : (
+            <RefreshCw />
+          )}
           同步工具
         </Button>
         {settings.mcpSecretConfigured && (
@@ -249,12 +285,6 @@ export function McpCredentialsCard({
           </Button>
         )}
       </div>
-
-      <p className='text-xs text-muted-foreground'>
-        「测试连接」只验证密钥与端点（不发业务请求）；工具要能被模型调用，
-        必须再点「同步工具」把清单写入工具注册表。每次同步会把远端已下线的工具一并移除，
-        但<b>不会改动你在「工具开关」里的启停设置</b>。
-      </p>
 
       {testResult && (
         <p
@@ -279,7 +309,10 @@ export function McpCredentialsCard({
           >
             <span className='inline-flex items-center gap-1.5'>
               <ChevronDown
-                className={cn('size-3.5 transition-transform', advancedOpen && 'rotate-180')}
+                className={cn(
+                  'size-3.5 transition-transform',
+                  advancedOpen && 'rotate-180'
+                )}
               />
               高级设置
             </span>
@@ -299,7 +332,8 @@ export function McpCredentialsCard({
             />
             <p className='text-xs text-muted-foreground'>
               远端工具会以 <code>{savedPrefix}__工具名</code>{' '}
-              的形式注册，避免与内置工具重名。<b>改前缀后必须重新同步工具</b>，否则旧工具名会失效。
+              的形式注册，避免与内置工具重名。<b>改前缀后必须重新同步工具</b>
+              ，否则旧工具名会失效。
             </p>
           </div>
           <div className='space-y-2'>
@@ -343,8 +377,10 @@ export function McpCredentialsCard({
       </div>
 
       <p className='text-xs text-muted-foreground'>
-        注意：卖家精灵《密钥使用规范》约定 MCP 授权「个人使用」，并限制同一密钥被多主体、
-        多客户端共享。请按其最新条款使用（如需多人共享，官方指引是改用 API 服务）。
+        注意：卖家精灵《密钥使用规范》约定 MCP
+        授权「个人使用」，并限制同一密钥被多主体、
+        多客户端共享。请按其最新条款使用（如需多人共享，官方指引是改用 API
+        服务）。
       </p>
     </div>
   )

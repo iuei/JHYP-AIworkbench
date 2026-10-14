@@ -1,7 +1,6 @@
-import { useQuery } from '@tanstack/react-query'
-import { api } from '@/api/client'
 import { useAuthStore } from '@/stores/auth-store'
 import { useLayout } from '@/context/layout-provider'
+import { useCurrentUser } from '@/hooks/use-current-user'
 import {
   Sidebar,
   SidebarContent,
@@ -15,31 +14,17 @@ import { NavGroup } from './nav-group'
 import { NavUser } from './nav-user'
 import { TeamSwitcher } from './team-switcher'
 
-/** `/auth/me` 里本组件用到的字段（与「用户信息」页同一接口、同一 query key）。 */
-type CurrentUser = {
-  login: string
-  name: string
-}
-
 export function AppSidebar() {
   const { collapsible, variant } = useLayout()
   const { auth } = useAuthStore()
   const isAdmin = auth.user?.role.includes('admin') ?? false
   const navItems = filterNavItemsByRole(sidebarData.navItems, isAdmin)
   /*
-   * 底部用户区展示**当前登录的人**：
-   * - 以 `/auth/me` 为准（query key 与「用户信息」页一致，缓存共享、不额外发请求），
-   *   这样管理员改了姓名后侧边栏会跟着更新，不会出现"页面里是新姓名、侧边栏还是旧的"；
-   * - 接口没回来之前先用登录态里的值（登录响应本来就带 name）避免闪烁；
-   * - 老会话 cookie 里没有 name 时退化成账号，绝不回退到任何占位假名。
+   * 底部用户区的取数口径统一在 `useCurrentUser()`（2026-10-14 从本组件内联逻辑抽出）：
+   * `/auth/me` 为准、登录态兜底、旧会话 cookie 没有 name 时退化成账号，绝不回退占位假名。
+   * 顶部头像（`ProfileDropdown`）用的是同一个 hook —— 同一份数据不再各查各的。
    */
-  const profile = useQuery<CurrentUser>({
-    queryKey: ['current-user'],
-    queryFn: async () => (await api.get('/auth/me')).data,
-    enabled: Boolean(auth.user),
-  })
-  const accountNo = profile.data?.login ?? auth.user?.accountNo ?? ''
-  const name = profile.data?.name || auth.user?.name || accountNo
+  const user = useCurrentUser()
 
   return (
     <Sidebar collapsible={collapsible} variant={variant}>
@@ -50,7 +35,12 @@ export function AppSidebar() {
         <NavGroup items={navItems} />
       </SidebarContent>
       <SidebarFooter>
-        <NavUser accountNo={accountNo} name={name} />
+        <NavUser
+          accountNo={user.accountNo}
+          name={user.name}
+          department={user.department}
+          role={user.role}
+        />
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>

@@ -16,6 +16,14 @@ export type DashboardShortcut = {
   icon: LucideIcon
   /** 使用字面量联合而不是 string，保证传给 TanStack Router 的 Link 时仍受路由类型约束。 */
   to: '/ai-agent' | '/competitor-analysis' | '/knowledge'
+  /**
+   * 目标路由的 search 参数。
+   *
+   * **只有 `/knowledge` 会用到**：知识库的默认子页是「团队知识库」（2026-10-14 起），
+   * 而首页「个人知识库」入口的语义没变，必须显式带 `?view=mine`，
+   * 否则点"个人知识库"会落到团队库上。
+   */
+  search?: { view: 'mine' }
 }
 
 /**

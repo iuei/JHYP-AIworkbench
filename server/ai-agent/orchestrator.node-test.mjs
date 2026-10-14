@@ -46,7 +46,12 @@ function createFakeRepo({ turns = 0, history = [] } = {}) {
   }
 }
 
-function createFakeProvider({ toolCalls = [], answer = '结论：测试回答', failOnCall = null } = {}) {
+function createFakeProvider({
+  toolCalls = [],
+  answer = '结论：测试回答',
+  firstContent = '',
+  failOnCall = null,
+} = {}) {
   let calls = 0
   return {
     name: 'fake',
@@ -57,7 +62,8 @@ function createFakeProvider({ toolCalls = [], answer = '结论：测试回答', 
       if (failOnCall && calls === failOnCall) throw new Error('模型服务炸了')
       const hasToolResult = messages.some((message) => message?.role === 'tool')
       if (!hasToolResult) {
-        return { content: '', toolCalls, tokensIn: 3, tokensOut: 0 }
+        // firstContent 用于复现"模型既不调工具、又直接作答"的场景（如只发来一个词时的偷懒回答）
+        return { content: firstContent, toolCalls, tokensIn: 3, tokensOut: 0 }
       }
       if (typeof onDelta === 'function') onDelta(answer)
       return { content: answer, toolCalls: [], tokensIn: 0, tokensOut: 10 }
@@ -117,6 +123,13 @@ function createHarness({
       audits.push(entry)
     },
     resolveProvider: () => provider,
+    /*
+     * 必须 mock：编排层每次 runChat 都会读"数据覆盖范围"进提示词，真实实现
+     * `datasetCoverageSummary()` 会查数据库 —— 单测连库不只违反"单元测试不碰外部依赖"，
+     * 还会让 pg 连接池建连接，进程被它的 `idleTimeoutMillis: 30000` 吊住：
+     * 实测这个文件从 **30.2s → 0.2s**（`node --test` 要等事件循环清空才退出）。
+     */
+    loadDatasetCoverage: async () => [],
   }
 
   return { deps, repo, events, runs, finished, audits, onEvent: (event) => events.push(event) }
@@ -437,6 +450,109 @@ test('检索无结果：明确回答未找到，不编造流程', async () => {
   )
 
   assert.equal(result.status, CHAT_STATUS.ok)
+  assert.equal(result.answer, '知识库中未找到相关内容。')
+})
+
+test('模型没检索却答"未找到"：服务端强制补检索并返回原文（2026-10-14 修「作息」）', async () => {
+  const harness = createHarness({
+    // 复现线上 msg 1339/1340：用户只发一个词，模型跳过工具、直接照抄提示词里的固定文案
+    provider: createFakeProvider({
+      toolCalls: [],
+      firstContent: '## 结论\n\n知识库中未找到相关内容。',
+    }),
+  })
+
+  const result = await runChat(
+    { user: operator, content: '作息', onEvent: harness.onEvent },
+    harness.deps
+  )
+
+  assert.equal(result.status, CHAT_STATUS.ok)
+  assert.equal(harness.runs.length, 1, '护栏必须补一次 search_knowledge')
+  assert.equal(harness.runs[0].toolName, 'search_knowledge')
+  assert.equal(harness.runs[0].params.query, '作息')
+  assert.equal(harness.finished[0].status, 'ok')
+  assert.equal(result.toolRuns.length, 1)
+  // 补检索有命中：不能用"未找到"糊弄，要给出检索到的原文
+  assert.notEqual(result.answer, '知识库中未找到相关内容。')
+  assert.match(result.answer, /亚马逊断货补货流程/)
+  assert.match(result.answer, /服务端已自动补做检索/)
+  // 前端已经渲染过模型那段"未找到"，必须先 reset 再补发
+  assert.ok(
+    harness.events.some((event) => event.type === EVENT.reset && event.data?.reason === 'knowledge_guard')
+  )
+})
+
+test('服务端补检索确实为空时才回答未找到', async () => {
+  const harness = createHarness({
+    provider: createFakeProvider({
+      toolCalls: [],
+      firstContent: '我按「假期」相关关键词检索了知识库，没有匹配到任何制度文档。',
+    }),
+    execute: async ({ toolName, params }) => ({
+      status: 'ok',
+      toolName,
+      params,
+      rows: [],
+      rowCount: 0,
+      summary: '未检索到相关片段',
+      citations: [],
+      dataFreshness: { dataset: 'knowledge', label: '知识库', importedAt: null },
+      latencyMs: 2,
+    }),
+  })
+
+  const result = await runChat(
+    { user: operator, content: '假期', onEvent: harness.onEvent },
+    harness.deps
+  )
+
+  assert.equal(result.status, CHAT_STATUS.ok)
+  assert.equal(harness.runs.length, 1)
+  assert.equal(result.answer, '知识库中未找到相关内容。')
+})
+
+test('模型没声称未找到时，知识库护栏不介入', async () => {
+  const harness = createHarness({
+    provider: createFakeProvider({ toolCalls: [], firstContent: '## 结论\n\n你好，我可以查制度与经营数据。' }),
+  })
+
+  const result = await runChat({ user: operator, content: '你好', onEvent: harness.onEvent }, harness.deps)
+
+  assert.equal(result.answer, '## 结论\n\n你好，我可以查制度与经营数据。')
+  assert.equal(harness.runs.length, 0, '不该凭空多调一次检索')
+})
+
+test('本轮已有成功的工具调用时护栏不介入（不误伤业务数据回答）', async () => {
+  const harness = createHarness({
+    provider: createFakeProvider({
+      toolCalls: [{ id: 'call_1', name: 'search_knowledge', arguments: { query: '补货' } }],
+      answer: '## 结论\n\n知识库中未找到补货相关的制度文档，请补充场景。',
+    }),
+  })
+
+  const result = await runChat(
+    { user: operator, content: '补货流程', onEvent: harness.onEvent },
+    harness.deps
+  )
+
+  // 模型这一轮确实检索过（虽然结果被它说成"没找到"），不做二次检索
+  assert.equal(harness.runs.length, 1)
+  assert.match(result.answer, /请补充场景/)
+})
+
+test('用户无 search_knowledge 权限时护栏不越权补检索', async () => {
+  const harness = createHarness({
+    registeredTools: [],
+    provider: createFakeProvider({ toolCalls: [], firstContent: '知识库中未找到相关内容。' }),
+  })
+
+  const result = await runChat(
+    { user: operator, content: '作息', onEvent: harness.onEvent },
+    harness.deps
+  )
+
+  assert.equal(harness.runs.length, 0)
   assert.equal(result.answer, '知识库中未找到相关内容。')
 })
 

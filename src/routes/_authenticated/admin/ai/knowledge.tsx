@@ -11,11 +11,14 @@ import { createFileRoute, redirect } from '@tanstack/react-router'
  * 用户的书签、历史记录与部分验收脚本都指向它 —— 保留后它们全部落到真实页面上，
  * 不会掉进 `notFoundComponent`（与 `/admin/ai` 索引路由同一条口径）。
  *
+ * **2026-10-14**：知识库的默认子页改为「团队知识库」，本跳转不再需要显式 `?view=team`，
+ * 直接落到 `/knowledge`（默认页）即可。
+ *
  * 旧的 `staticData.title`（「知识库」）随之移除：本路由不再渲染页面，
  * 页签名与面包屑末级由目标路由（`/knowledge` 的「知识库」）提供。
  */
 export const Route = createFileRoute('/_authenticated/admin/ai/knowledge')({
   beforeLoad: () => {
-    throw redirect({ to: '/knowledge', search: { view: 'team' } })
+    throw redirect({ to: '/knowledge' })
   },
 })

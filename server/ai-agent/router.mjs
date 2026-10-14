@@ -21,6 +21,7 @@ import { createNotesRouter } from './notes-routes.mjs'
 import { createPromptLibraryRouter } from './prompt-library-routes.mjs'
 import { createMyAsinRouter } from './my-asin-routes.mjs'
 import { isEnabledAdmin } from './permissions.mjs'
+import { createTodoRouter } from './todo-routes.mjs'
 import { query } from '../db.mjs'
 
 export function createIdentityGuard() {
@@ -81,6 +82,7 @@ export function createAiAgentRouter({ requireUser }) {
   router.use(createPromptLibraryRouter({ adminGuard }))
   router.use(createMyAsinRouter())
   router.use(createAuditRouter({ adminGuard }))
+  router.use(createTodoRouter({ adminGuard }))
 
   return router
 }

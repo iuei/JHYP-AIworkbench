@@ -490,7 +490,8 @@ describe('Dashboard', () => {
       .toHaveAttribute('href', '/ai-agent?conversationId=21')
     await expect
       .element(screen.getByRole('link', { name: /共 5 条/ }))
-      .toHaveAttribute('href', '/knowledge')
+      // 知识库默认子页是「团队知识库」，个人沉淀入口必须显式带 view=mine
+      .toHaveAttribute('href', '/knowledge?view=mine')
     await expect.element(screen.getByText('2 条待审核')).toBeVisible()
 
     // 依赖假进度的 work_items 卡片已下线：文案与 65% 这类占位数字都不应再出现。

@@ -26,14 +26,17 @@ export const dashboardShortcuts: DashboardShortcut[] = [
     /*
      * `my-notes` 这个 id **刻意不改**：它是用户拖拽顺序的持久化键，
      * 改名会让已保存的顺序被重置（`normalizeShortcutIds` 只认识当前有效 id）。
-     * 2026-09-18 起它的落脚点是「知识库 → 个人知识库」（`/knowledge`），
+     * 2026-09-18 起它的落脚点是「知识库 → 个人知识库」，
      * 标题随之与侧边栏入口逐字一致 —— 同一件东西在侧边栏、顶栏、首页叫同一个名字。
+     * 2026-10-14 起知识库的**默认**子页是「团队知识库」，这里显式带 `?view=mine`
+     * 才能保持"个人知识库"这个语义不变。
      */
     id: 'my-notes',
     title: '个人知识库',
     description: '查看个人知识沉淀',
     icon: NotebookPen,
     to: '/knowledge',
+    search: { view: 'mine' },
   },
 ]
 

@@ -68,6 +68,8 @@
 - **真实 IP 与代理**：默认**不信任** `X-Forwarded-For`（审计 IP 取直连地址，该请求头客户端可随意伪造）；部署在反向代理之后时设 `TRUST_PROXY=true`，届时采信转发头并取链尾一跳。
 - **用户迁移 3 新增 `users.token_version`**：JWT 里带 `ver` 声明，`requireUser` 与 AI 模块的 `identityGuard` 都比对，重置密码时 `+1` → 旧 token 立即失效。**这两处守卫必须同时改**：AI 路由挂在独立 router 上、不共用 `requireUser`，漏一处旧 token 仍能访问 `/api/ai/*`。
 - **`test:server` 的覆盖范围**：脚本显式列出 `server/*.node-test.mjs`、`server/ai-agent/*.node-test.mjs`、`server/ai-agent/providers/*.node-test.mjs`。**新增子目录测试时必须同步加进去** —— 此前 `providers/` 被漏掉，那 24 项 provider 测试长期没有执行过。
+- **日常只跑相关测试（2026-10-14）**：`pnpm run test:server:changed`（`server/verify-changed.mjs`）按 git 变更自动选测试 —— 扫 `server/**/*.mjs` 的 import 关系，取**反向依赖 ≤ 2 跳**内的 `*.node-test.mjs`；契约 / 装配层（`index.mjs`、`*-migrations.mjs`、`dev.mjs`、`setup.mjs`）与"选不出测试"两种情况**自动回退全量**并打印原因。**深度必须限制**：无限制时改 `knowledge.mjs` 会顺 `knowledge → tools → routes` 把十几个语义无关的测试拉进来（import 图 ≠ 行为相关），更深的下游交给 CI 全量。常用参数：`--dry-run`（只看选中项）、`--all`（强制全量）、`--depth=N`。
+- **单测不许连数据库（2026-10-14 踩过的坑）**：`orchestrator.node-test.mjs` 此前没 mock `loadDatasetCoverage`，每次 `runChat` 都走真实 `datasetCoverageSummary()` 查库。后果不是"测试慢"，而是**进程退出被吊住**：pg 连接池建了连接，`node --test` 要等事件循环清空，被池子的 `idleTimeoutMillis: 30000` 拖满 30 秒 —— 全量 30.5s 里有 30.2s 是白等（测试本身 0.2s）。**新增依赖时先看 harness 的 deps 是否都 mock 了**；`server/verify-changed.mjs` 另加了 `--test-force-exit`（Node ≥ 22）兜底，但那只是防回归，根因要修。
 - **批量写入**：数据集导入按 500 行、文档切片按 200 片分批 `INSERT`（`datasets.mjs` / `knowledge.mjs`）。不要退回逐行 `client.query` —— 那是"一行一次往返"，且全程占着同一事务与连接。
 - **局域网访问开发服务（2026-09-14 起）**：`vite.config.ts` 设了 `server.host: true` 与 `/api` 代理，并新增 `.env.development`（`VITE_API_BASE_URL=/api`）；内网机器访问 `http://<本机内网IP>:5173` 即可（Vite 启动日志会打印 `Network:` 行）。
   - **为什么用相对路径 + 代理**：浏览器侧变成同源请求，不必把每个访问来源加进 `CORS_ORIGIN` 白名单（白名单不含来源时预检会直接失败），换网络/IP 也不用改配置；代理是服务端行为，所以内网访问时后端仍然可达。改回绝对地址会同时踩到"跨域"和"内网机器请求打到它自己的 localhost"两个坑。
@@ -88,12 +90,13 @@
 
 ## 约束
 
-- 验证要求：`pnpm run lint`、`pnpm run build`、`pnpm run test:server`（`node --test` 跑服务端测试），并验证 `5173` 前端与 `8787/api` 可访问。
+- 验证要求（**默认只跑相关测试**，口径见 `AGENTS.md` 第 7 节）：`pnpm run test:server:changed`（后端相关，亚秒级）+ `pnpm run test:web:changed`（前端改动时）+ `pnpm run lint`；全量 `pnpm run test:server` / `pnpm run test` 与 `pnpm run build` 只在提交前、契约层改动或 CI 跑（CI 已同时跑前端与后端全量）。功能验证：`5173` 前端与 `8787/api` 可访问。
 
 ## 历史变更
 
 | 日期 | 变更内容 | 修改人 / AI |
 | --- | --- | --- |
+| 2026-10-14 | **测试策略优化：默认只跑相关测试；顺手修掉全量里"白等 30 秒"的根因**。① 新增 `server/verify-changed.mjs` + `pnpm run test:server:changed`：按 git 变更（含未跟踪）扫 import 图，只跑**反向依赖 ≤ 2 跳**内的 `*.node-test.mjs`；契约/装配层与"选不出测试"自动回退全量并打印原因；`--dry-run` / `--all` / `--depth=N` 可选。② 新增 `pnpm run test:web:changed` / `test:web:changed:chrome`（vitest `--changed`）。③ **CI 补上后端全量**（`.github/workflows/ci.yml` 新增 `pnpm run test:server`）——此前 CI 只跑前端全量，本地一旦"只跑相关测试"就失去兜底。④ `AGENTS.md` 第 7 节改为分级验证（默认相关测试；全量只在共享行为/契约层/提交前/CI 四种时机）。⑤ **根因修复**：`orchestrator.node-test.mjs` 未 mock `loadDatasetCoverage` → 单测连库 → pg 池 idle 超时把进程吊住，`pnpm run test:server` 实测 **30.5s → 0.6s**（662/662 不变），相关测试自动模式 207 项 **0.22s**。**未改**任何 API 契约、权限规则与数据库结构。 | AI |
 | 2026-10-14 | **新增 macOS launchd 常驻运行方案**（`deploy/macos-service.sh`、`deploy/com.jhyp.{api,web,logrotate}.plist`、`deploy/rotate-logs.sh`，配套 `docs/部署与运维.md` 第 15 节）：取代手工 `nohup pnpm run dev:all`，实现登录自启 + 崩溃自动重启 + 日志落 `logs/` 并每日轮转。API 与 Vite 拆成两个 Label 各自自愈（`dev.mjs` 在子进程死掉时自己不退出，`KeepAlive` 不触发）；API 侧固定 `SERVE_STATIC=false` 避免抢 5173。同时移除历史遗留的 `launchctl submit` 服务 `jhyp-dev-all`（其 Vite 曾漂移到 5174 空转，API 子进程因端口被占静默退出）。实测 `kill -9` 前后端均能自动恢复。未改任何 API 契约、权限规则与数据库结构。 | AI |
 | 2026-09-17 | **竞品分析新增 4 个结论处置接口，`POST` 落库后多一步台账核验**（配套 `docs/modules/竞品分析.md` 的「结论的处置闭环」）：`GET /api/competitor-analyses` 增加未销账口径字段 `openLevel`/`openFindingCount`；`GET /:id` 的快照结论带当前处置状态；新增 `PUT /:id/findings/disposition`（`claimed` / `ignored`，`ignored` 必填原因，`code`+`target` 必须属于该次分析否则 400）与 `DELETE /:id/findings/disposition`（撤销即删行）。四个路由与既有三个竞品路由一样**内联在 `server/index.mjs`**，业务逻辑在新增的 `server/finding-dispositions.mjs`（纯函数 + SQL，单测 16 项）；任务中心执行器（`task-center-runner.mjs`）落库后同样调核验。迁移 **202** 新增 `competitor_analyses.finding_keys` 列与 `competitor_finding_dispositions` 表。 | AI |
 | 2026-07-17 | 建立服务端 API 与开发启动责任田；开发模式禁用静态站点监听以避免端口冲突。 | AI |

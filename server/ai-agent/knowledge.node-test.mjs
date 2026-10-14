@@ -7,6 +7,7 @@ import {
   estimateTokenCount,
   extractDocumentText,
   extractQueryTokens,
+  expandQueryTokens,
   parsePositiveInt,
 } from './knowledge.mjs'
 
@@ -80,6 +81,24 @@ test('extractQueryTokens 去重、限制数量、处理空输入', () => {
   assert.ok(tokens.length <= 12, `实际 ${tokens.length}`)
   assert.equal(new Set(tokens).size, tokens.length)
   assert.deepEqual(extractQueryTokens('很长的内容', { max: 1 }).length, 1)
+})
+
+test('expandQueryTokens 为口语化提问补领域同义词，且不回吐原词', () => {
+  const tokens = extractQueryTokens('考勤')
+  assert.deepEqual(tokens, ['考勤'])
+  const expanded = expandQueryTokens(tokens, '考勤')
+  assert.ok(expanded.includes('工作时间'), expanded.join(','))
+  assert.ok(!expanded.includes('考勤'), '扩展词里不应重复原词')
+})
+
+test('expandQueryTokens 对整词查询也能扩展（双字切分拿不到整词）', () => {
+  const expanded = expandQueryTokens(extractQueryTokens('作息时间'), '作息时间')
+  assert.ok(expanded.includes('工作时间'), expanded.join(','))
+})
+
+test('expandQueryTokens 不给表外词乱扩展，避免把相关性下限刷掉', () => {
+  assert.deepEqual(expandQueryTokens(extractQueryTokens('星际飞船停放规定'), '星际飞船停放规定'), [])
+  assert.deepEqual(expandQueryTokens([], ''), [])
 })
 
 test('extractDocumentText 支持文本类格式并去掉 BOM', () => {

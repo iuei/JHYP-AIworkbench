@@ -35,6 +35,9 @@ export const MAX_TOP_K = 20
  *
  * 接入真实文档后必须用 eval/compare-retrieval.mjs 在该语料上重新标定；
  * 可用环境变量 AI_RETRIEVAL_MIN_COVERAGE 覆盖。
+ *
+ * 本阈值只约束**原词**命中比例；同义词扩展词（见 `QUERY_SYNONYMS`）只在原词覆盖率不达标
+ * 且同义词命中 ≥ 2 个时兜底放行，不参与分子分母，避免用扩展词把覆盖率刷高后误召。
  */
 export const MIN_QUERY_COVERAGE = Number(process.env.AI_RETRIEVAL_MIN_COVERAGE ?? 0.2)
 export const SUPPORTED_DATASETS = [
@@ -152,6 +155,75 @@ export function extractQueryTokens(searchText, { max = 12 } = {}) {
   }
 
   return tokens.slice(0, max)
+}
+
+/**
+ * 领域同义词扩展表（2026-10-14 新增，治「库里有内容却检索不到」）。
+ *
+ * 为什么必须有：库里的原文写的是「作息时间 / 工作时间 / 午餐时间」，员工问的是
+ * 「考勤」「上班时间」「午休」——中文双字切分 + 子串匹配下这些说法一个也命中不了。
+ * 实测（本机库《规章制度》doc 122 含 1.作息时间 / 2.出勤）：
+ *   「作息」   → 命中；「考勤」→ 0 条；「上下班时间」→ 命中但靠巧合（「时间」二字）；
+ *   「员工每天几点上班，中午休息多久？」→ 0 条（12 个 bigram 只命中「员工」，覆盖率 0.083 < 0.2）。
+ *
+ * 两条使用约束（违反任何一条都会把 A9「不编造」的防线拆掉）：
+ * 1. **只收强指向的领域词**，绝不收「公司」「规定」「流程」这类高频通用词 ——
+ *    通用词进表等于废掉 MIN_QUERY_COVERAGE 的相关性下限，负样本会立刻误召；
+ * 2. 同义词命中**不计入覆盖率的分子分母**，只在原词覆盖率不达标、且**同义词命中 ≥ 2 个**时兜底放行
+ *    （见 searchKnowledge 的 SQL 条件）。门槛取 2 而不是 1 的原因：单个扩展词（如「审批」）
+ *    可能只是一篇无关文档里的偶然用词，实测「请假」在去掉该条件后会多召回报关/补货两篇噪声。
+ *
+ * key 一律小写；拉丁词（sku 等）与 CJK 双字词共用同一张表。
+ */
+const QUERY_SYNONYMS = {
+  作息: ['工作时间', '上下班', '考勤', '午餐时间', '午休'],
+  作息时间: ['工作时间', '上下班', '考勤', '午餐时间', '午休'],
+  上班: ['工作时间', '考勤', '出勤'],
+  下班: ['工作时间', '考勤'],
+  出勤: ['考勤', '工作时间', '缺勤'],
+  考勤: ['工作时间', '作息', '出勤', '迟到', '缺勤'],
+  打卡: ['考勤', '工作时间'],
+  迟到: ['考勤', '出勤'],
+  午休: ['午餐时间', '工作时间'],
+  请假: ['休假', '事假', '病假', '缺勤', '审批'],
+  休假: ['请假', '年假', '调休'],
+  假期: ['休假', '年假', '调休', '法定节假日'],
+  年假: ['休假', '假期', '调休'],
+  加班: ['调休', '工作时间'],
+  断货: ['补货', '备货'],
+  补货: ['断货', '备货'],
+  报关: ['清关', '一般贸易', '买单报关'],
+  命名: ['编码', 'sku'],
+  sku: ['命名', '商品编码'],
+}
+
+/**
+ * 生成同义词扩展词（**不含**原词；原词由 extractQueryTokens 负责）。
+ *
+ * 除逐 token 查表外，还对查询里的 CJK 连续串取整词与前 2 字查表：
+ * 双字切分后「作息时间」只剩 bigram，整词进不了表，必须单独补一次。
+ */
+export function expandQueryTokens(tokens, searchText, { max = 12 } = {}) {
+  const core = Array.isArray(tokens) ? tokens : []
+  const seen = new Set(core)
+  const expanded = []
+  const add = (token) => {
+    if (!token || seen.has(token) || expanded.length >= max) return
+    seen.add(token)
+    expanded.push(token)
+  }
+  const lookup = (value) => {
+    for (const synonym of QUERY_SYNONYMS[value] ?? []) add(synonym)
+  }
+
+  for (const token of core) lookup(token)
+  const text = String(searchText ?? '').toLowerCase()
+  for (const run of text.match(/[\u4e00-\u9fff]{2,}/g) ?? []) {
+    lookup(run)
+    if (run.length > 2) lookup(run.slice(0, 2))
+  }
+  for (const word of text.match(/[a-z0-9][a-z0-9._-]*/g) ?? []) lookup(word)
+  return expanded
 }
 
 /** 粗略估算 token 数（审计与成本统计用途，非计费依据）。 */
@@ -322,9 +394,11 @@ export async function ingestDocument({
  *    只匹配正文会漏召回；
  * 2. 设有**相关性下限**（命中关键词数 / 关键词总数 ≥ MIN_QUERY_COVERAGE）——
  *    中文双字切分下「公司」「规定」这类高频词几乎每篇文档都有，只判断"命中数 > 0"
- *    会把不相关文档捞回来，进而让模型基于无关片段编造制度（违反 A9）。
+ *    会把不相关文档捞回来，进而让模型基于无关片段编造制度（违反 A9）；
+ * 3. 2026-10-14 增补：原词命中不足时（员工问「考勤」、文档写「工作时间」），
+ *    由 `QUERY_SYNONYMS` 的同义词扩展词兜底召回（命中 ≥ 2 个才放行），覆盖率仍只按原词算。
  *
- * 返回 { rows, tokens, dataFreshness }，rows 供工具回灌模型与引用面板使用。
+ * 返回 { rows, tokens, expandedTokens, dataFreshness }，rows 供工具回灌模型与引用面板使用。
  */
 export async function searchKnowledge({
   user,
@@ -337,16 +411,23 @@ export async function searchKnowledge({
   const target = String(searchText ?? '').trim()
   const limit = parsePositiveInt(topK, { fallback: 5, min: 1, max: MAX_TOP_K })
   const tokens = extractQueryTokens(target)
+  const expandedTokens = expandQueryTokens(tokens, target)
   const freshness = await knowledgeFreshness(user)
 
   if (!target) throw new KnowledgeValidationError('检索关键词不能为空。')
   const coverageFloor = Number.isFinite(Number(minCoverage)) ? Number(minCoverage) : MIN_QUERY_COVERAGE
   if (tokens.length === 0) {
-    return { rows: [], tokens, dataFreshness: freshness, minCoverage: coverageFloor }
+    return {
+      rows: [],
+      tokens,
+      expandedTokens,
+      dataFreshness: freshness,
+      minCoverage: coverageFloor,
+    }
   }
 
   const scope = documentScopeSql(user, '$1')
-  const params = [scope.param, tokens, target, limit, tokens.length, coverageFloor]
+  const params = [scope.param, tokens, target, limit, tokens.length, coverageFloor, expandedTokens]
   let sourceClause = ''
   if (sourceType && sourceType !== 'all') {
     if (!['feishu', 'upload', 'experience'].includes(sourceType)) {
@@ -362,6 +443,7 @@ export async function searchKnowledge({
             d.source_ref, d.expires_at, d.updated_at,
             u.name AS submitter,
             hits.hit_count,
+            syns.syn_count,
             (hits.hit_count::float / $5) AS coverage,
             similarity(c.content, $3) AS trgm_score
        FROM ai_chunks c
@@ -375,11 +457,18 @@ export async function searchKnowledge({
           WHERE c.content ILIKE '%' || token || '%'
              OR d.title ILIKE '%' || token || '%'
        ) hits
+       -- 同义词扩展词的命中数：只用于「原词零命中」时兜底召回，不参与覆盖率
+       CROSS JOIN LATERAL (
+         SELECT COUNT(*)::int AS syn_count
+           FROM unnest($7::text[]) AS token
+          WHERE c.content ILIKE '%' || token || '%'
+             OR d.title ILIKE '%' || token || '%'
+       ) syns
       WHERE ${scope.clause}
         ${sourceClause}
-        AND (hits.hit_count > 0 OR c.content % $3)
-        AND (hits.hit_count::float / $5) >= $6
-      ORDER BY coverage DESC, hits.hit_count DESC, trgm_score DESC,
+        AND (hits.hit_count > 0 OR syns.syn_count > 0 OR c.content % $3)
+        AND ((hits.hit_count::float / $5) >= $6 OR syns.syn_count >= 2)
+      ORDER BY coverage DESC, hits.hit_count DESC, syns.syn_count DESC, trgm_score DESC,
                d.updated_at DESC, c.chunk_index ASC
       LIMIT $4`,
     params
@@ -399,11 +488,13 @@ export async function searchKnowledge({
       expiresAt: row.expires_at,
       updatedAt: row.updated_at,
       submitter: row.source_type === 'experience' ? row.submitter : null,
-      score: Number(row.hit_count) * 10 + Number(row.trgm_score ?? 0),
+      score: Number(row.hit_count) * 10 + Number(row.syn_count ?? 0) * 4 + Number(row.trgm_score ?? 0),
       hitCount: Number(row.hit_count),
+      synonymHitCount: Number(row.syn_count ?? 0),
       coverage: Number(Number(row.coverage ?? 0).toFixed(3)),
     })),
     tokens,
+    expandedTokens,
     dataFreshness: freshness,
     minCoverage: coverageFloor,
   }

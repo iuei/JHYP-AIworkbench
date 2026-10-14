@@ -9,10 +9,11 @@ import { createFileRoute, redirect } from '@tanstack/react-router'
  * （员工只读，管理员在该页的管理视图里做治理）。
  *
  * 老书签、聊天里粘过的链接都还指向这里，沿用项目既有的 `beforeLoad` + `redirect` 模式。
- * 个人知识库是默认子页，不需要带参数。
+ * **2026-10-14 起必须显式带 `?view=mine`**：知识库的默认子页已改为「团队知识库」，
+ * 而这里的语义是**个人知识库**（原「我的沉淀」），不带参数会被落到团队库上。
  */
 export const Route = createFileRoute('/_authenticated/ai-agent/notes')({
   beforeLoad: () => {
-    throw redirect({ to: '/knowledge' })
+    throw redirect({ to: '/knowledge', search: { view: 'mine' } })
   },
 })

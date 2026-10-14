@@ -43,5 +43,10 @@ jobs:
       - name: Run tests
         run: pnpm test
 
+      # 后端全量测试（node:test）此前不在 CI 里跑，本地一旦"只跑相关测试"就会失去兜底，
+      # 因此把全量后端测试固定在这里：本地按需跑 test:server:changed，全量交给 CI 与提交前。
+      - name: Run server tests
+        run: pnpm run test:server
+
       - name: Build the project
         run: pnpm build

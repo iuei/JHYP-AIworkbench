@@ -1,11 +1,11 @@
-# Design
+# 设计基线
 
 ## Source of truth
 
 - Status: Active
 - Date: 2026-09-20
 - Product surfaces: 登录后内部工作台、侧边栏与顶部栏、业务页、认证页和错误页。
-- Evidence reviewed: `README.md`、`AGENTS.md`、`docs/modules/`、`docs/superpowers/specs/2026-08-29-quick-navigation-design.md`、`src/components/layout/`、`src/components/ui/`、`src/styles/theme.css` 以及现有业务页。
+- Evidence reviewed: `README.md`、`AGENTS.md`、`docs/modules/`、`docs/AI 开发手册.md`、`src/components/layout/`、`src/components/ui/`、`src/styles/theme.css` 以及现有业务页。
 
 ## Brand
 

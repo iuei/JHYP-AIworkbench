@@ -456,18 +456,17 @@ try {
   /*
     知识库治理 2026-09-18 并入「AI 工作台 → 知识库 → 团队知识库」：
     `/admin/ai/knowledge` 保留为纯跳转（老书签与历史记录都指向它），必须落到真实页面。
+    2026-10-14：知识库的默认子页就是「团队知识库」，跳转不再需要 `?view=team`，
+    URL 保持干净。
   */
   await page.goto(`${BASE}/admin/ai/knowledge`, { waitUntil: 'domcontentloaded' })
   const knowledgeLanded = await page
-    .waitForURL(
-      (url) => url.pathname === '/knowledge' && url.searchParams.get('view') === 'team',
-      { timeout: 8000 }
-    )
+    .waitForURL((url) => url.pathname === '/knowledge', { timeout: 8000 })
     .then(() => true)
     .catch(() => false)
   check(
     '旧链接 /admin/ai/knowledge 跳到「知识库 → 团队知识库」',
-    knowledgeLanded,
+    knowledgeLanded && !new URL(page.url()).searchParams.get('view'),
     page.url().replace(BASE, '')
   )
 
@@ -526,8 +525,8 @@ try {
     await page.locator("nav[aria-label='提示词广场功能导航'] a").allInnerTexts()
   ).map((t) => t.trim())
   check(
-    '提示词广场顶栏是它自己的两个子页',
-    JSON.stringify(promptNav) === JSON.stringify(['我的提示词', '共享提示词']),
+    '提示词广场顶栏是它自己的两个子页（共享在前，因为它是默认页）',
+    JSON.stringify(promptNav) === JSON.stringify(['共享提示词', '我的提示词']),
     promptNav.join(' ｜ ')
   )
   check(
@@ -543,25 +542,36 @@ try {
     (await page.locator("nav[aria-label='AI 助手功能导航']").count()) === 0
   )
 
-  await page
-    .locator("nav[aria-label='提示词广场功能导航'] a", { hasText: '共享提示词' })
-    .click()
-  await page.waitForTimeout(600)
+  /*
+    2026-10-14：默认子页由「我的提示词」改为「共享提示词」——无参数进页面即共享页。
+  */
   check(
-    '切到共享提示词写入 ?view=shared',
-    new URL(page.url()).pathname === '/prompts' &&
-      new URL(page.url()).searchParams.get('view') === 'shared',
+    '无参数进入默认落在「共享提示词」',
+    (await page
+      .locator("nav[aria-label='提示词广场功能导航'] a[aria-current='page']")
+      .innerText()).trim() === '共享提示词' && !new URL(page.url()).searchParams.get('view'),
     page.url().replace(BASE, '')
   )
 
-  await page.goto(`${BASE}/ai-agent/prompts?view=shared`, { waitUntil: 'domcontentloaded' })
+  await page
+    .locator("nav[aria-label='提示词广场功能导航'] a", { hasText: '我的提示词' })
+    .click()
+  await page.waitForTimeout(600)
+  check(
+    '切到「我的提示词」写入 ?view=mine',
+    new URL(page.url()).pathname === '/prompts' &&
+      new URL(page.url()).searchParams.get('view') === 'mine',
+    page.url().replace(BASE, '')
+  )
+
+  await page.goto(`${BASE}/ai-agent/prompts?view=mine`, { waitUntil: 'domcontentloaded' })
   await page
     .waitForURL((url) => url.pathname === '/prompts', { timeout: 8000 })
     .catch(() => {})
   check(
-    '旧链接 /ai-agent/prompts?view=shared 重定向并保留参数',
+    '旧链接 /ai-agent/prompts?view=mine 重定向并保留参数',
     new URL(page.url()).pathname === '/prompts' &&
-      new URL(page.url()).searchParams.get('view') === 'shared',
+      new URL(page.url()).searchParams.get('view') === 'mine',
     page.url().replace(BASE, '')
   )
   await shot('stage-c-prompts-and-my-asin')

@@ -306,6 +306,7 @@ function ShortcutCard({
         {/* 拖拽只从卡片主体发起，避免按住排序按钮时误触发拖动。 */}
         <Link
           to={shortcut.to}
+          search={shortcut.search}
           draggable
           onDragStart={(event) => {
             event.dataTransfer.setData('text/plain', shortcut.id)

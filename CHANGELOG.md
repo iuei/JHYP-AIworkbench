@@ -9,6 +9,49 @@
 >
 > **本项目变更记录**
 
+## 提示词广场 / 知识库：默认子页改为「共享 / 团队」（2026-10-14）
+
+### Change
+
+- **用户口径**：「用户点击提示词广场和知识库时默认页面从我的提示词改为共享提示词页面 知识库也是」。
+- **默认页翻转**（默认值 + 选项卡顺序 + URL 语义三处同步，**服务端 / 接口 / 数据零改动**）：
+  - `/prompts` 缺省 = **共享提示词**（`?view=mine` 才是「我的提示词」）；
+    `prompts/index.tsx` 的 `validateSearch` 由「只认 `view=shared`」改为「只认 `view=mine`」，
+    `PromptSquareSearch` 随之变为 `{ view?: 'mine' }`，`prompt-square.tsx` 的
+    `current = view ?? 'shared'`；
+  - `/knowledge` 缺省 = **团队知识库**（`?view=mine` 才是「个人知识库」）；
+    `knowledge/index.tsx` 的 `validateSearch` 由「只认 `view=team`」改为「只认 `view=mine`」，
+    `knowledge-base.tsx` 的分支由 `if (view !== 'team')` 改为 `if (view === 'mine')`
+    （缺省走团队视图，管理员仍是管理视图）；
+  - 两个页内导航（`prompt-square-nav.tsx` / `knowledge-nav.tsx`）把**默认页排在第一位**
+    （否则高亮落在第二枚按钮上像选错了），默认页链接不带参数。
+- **语义不变的入口显式带 `?view=mine`**（否则会落到团队库上）：旧入口 `/ai-agent/notes`
+  （个人沉淀）、首页快捷入口「个人知识库」（`shortcuts.ts` + `DashboardShortcut.search` +
+  `ShortcutCard` 透传）、首页「我的 AI」卡片的个人知识库入口（`my-ai-card.tsx`）。
+- **旧治理链接简化**：`/admin/ai/knowledge` 与 `/ai-agent/knowledge` 由
+  `/knowledge?view=team` 改为直接落 `/knowledge`；`/ai-agent/prompts` 的 `view` 透传改为只透 `mine`。
+- **顺带修掉一个真实的可访问性缺陷**（真实浏览器实测发现）：两枚选项卡 `to` 相同，Router `Link`
+  的 active 判定默认是"路径前缀 + search **部分**匹配"，无参数的 `search={}` 被判成
+  `{ view: 'mine' }` 的部分匹配 —— **两枚选项卡同时带 `aria-current='page'`**（读屏会读出两个
+  "当前页"）。两个页内导航统一加 `activeOptions={{ exact: true }}`。
+- **零改动**：服务端接口、数据库、权限模型、RAG 检索链路。
+
+### 验证
+
+- `pnpm run lint`、`tsc -b`、`pnpm run build` 全绿；
+  `src/features/dashboard` **38/38**、`src/features/ai-agent` + `src/components/layout` **147/147**；
+  新增 `src/features/ai-agent/components/sub-page-nav.test.tsx` **7/7** —— 用 mock 的 `Link` / `useSearch`
+  把"默认子页 = 共享 / 团队、默认页高亮且链接不带参数、非默认页带 `?view=mine`、默认页排第一位、
+  两枚都要求 exact active 判定"钉住。
+- **真实浏览器只读验收**（用户自己的 `localhost:5173` + 8787，新增脚本
+  `verify-artifacts/check-default-subpage.mjs`）**15/15**：子页顺序、默认高亮与干净 URL、
+  切换写 `?view=mine` 并清参数、旧值 `?view=team` 回落默认页、`/ai-agent/notes` → `/knowledge?view=mine`、
+  `/ai-agent/prompts?view=mine` 保留参数、`/ai-agent/knowledge` → `/knowledge`、
+  首页「个人知识库」→ `/knowledge?view=mine`、零控制台错误。
+- `server/verify-nav-ia.mjs`、`server/ai-agent/verify-prompt-optimize-ui.mjs`、`verify-ui.mjs`、
+  `verify-admin-simplify.mjs` 与 `verify-artifacts/knowledge-base.mjs` 中「默认子页 / 子页顺序 /
+  旧链接落点 / 首页入口 href」的断言已按新口径同步改写（**这几个脚本本轮未实跑**）。
+
 ## AI 助手：修「发送一条消息有时会展示出两条」（2026-09-22）
 
 ### Change

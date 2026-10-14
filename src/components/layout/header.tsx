@@ -5,6 +5,7 @@ import { SidebarTrigger } from '@/components/ui/sidebar'
 import { ProfileDropdown } from '@/components/profile-dropdown'
 import { Search } from '@/components/search'
 import { ThemeSwitch } from '@/components/theme-switch'
+import { TodoButton } from '@/components/todo-button'
 import { AppBreadcrumb } from './app-breadcrumb'
 import { useHeaderSlotRef } from './header-slot-context'
 
@@ -65,6 +66,11 @@ export function Header({ className, fixed, ...props }: HeaderProps) {
           className='no-scrollbar flex min-w-0 flex-1 items-center gap-1 overflow-x-auto'
         />
         <Search />
+        {/*
+          待办按钮紧跟搜索框：它与搜索同属"跨模块的快捷入口"，都放在模块二级导航槽位
+          之后、主题/账号等个性设置之前。仅管理员渲染（见 todo-button.tsx 的说明）。
+        */}
+        <TodoButton />
         <ThemeSwitch />
         <ProfileDropdown />
       </div>

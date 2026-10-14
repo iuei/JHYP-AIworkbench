@@ -593,12 +593,13 @@ try {
   await shot('17-admin-landing')
 
   // 旧 URL 兼容跳转（知识库的两个历史入口现在都落到「AI 工作台 → 知识库」）
+  // 2026-10-14：知识库默认子页就是「团队知识库」，跳转不再带 `?view=team`。
   await page.goto(`${BASE}/ai-agent/knowledge`, { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(1200)
   check(
     '旧入口 /ai-agent/knowledge 自动跳到「知识库 → 团队知识库」',
     new URL(page.url()).pathname === '/knowledge' &&
-      new URL(page.url()).searchParams.get('view') === 'team',
+      !new URL(page.url()).searchParams.get('view'),
     page.url().replace(BASE, '')
   )
   await shot('15-admin-ia')

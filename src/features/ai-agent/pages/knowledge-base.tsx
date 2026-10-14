@@ -7,8 +7,12 @@ import { NoteSpace } from './note-space'
 /**
  * 「知识库」页面（2026-09-18）：两个子页共用同一路由，用 `?view=` 区分。
  *
- * - `?view` 缺省 = **个人知识库**（原「我的沉淀」，`NoteSpace` 原样复用）；
- * - `?view=team` = **团队知识库**（公司已生效的知识文档）。
+ * - `?view` 缺省 = **团队知识库**（公司已生效的知识文档）；
+ * - `?view=mine` = **个人知识库**（原「我的沉淀」，`NoteSpace` 原样复用）。
+ *
+ * **默认子页 2026-10-14 由「个人知识库」改为「团队知识库」**：按用户口径"点击知识库时
+ * 默认页面…知识库也是（改为团队知识库）"。判定随之从"白名单 team"翻转为"只认 mine"：
+ * `if (view === 'mine') return <NoteSpace />`，缺省走团队分支。
  *
  * 两个子页刻意**不合并成一个组件**：它们的权限模型、数据来源与交互完全不同
  * （一个可写、一个只读），硬塞进一个组件只会让"哪些操作对哪一边可见"变成一堆条件分支。
@@ -31,6 +35,6 @@ export function KnowledgeBase() {
     (state) => state.auth.user?.role.includes('admin') ?? false
   )
 
-  if (view !== 'team') return <NoteSpace />
+  if (view === 'mine') return <NoteSpace />
   return isAdmin ? <KnowledgeManagement /> : <TeamKnowledge />
 }

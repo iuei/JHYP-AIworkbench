@@ -8,6 +8,7 @@ import {
   TABLE_HEAD_NUMERIC,
 } from '@/lib/table-styles'
 import { cn } from '@/lib/utils'
+import { useDebouncedValue } from '@/hooks/use-debounced-value'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -48,26 +49,61 @@ import { MetricStrip } from '../components/metric-strip'
 import { PageShell } from '../components/page-shell'
 import { formatTime } from '../format'
 
+/**
+ * 审计动作中文口径。
+ *
+ * 这张表同时承担两件事：**「管理动作」表格的动作列文案**与**动作筛选下拉的数据源**。
+ * 因此缺项不是"少一句翻译"——记录会把 `note_delete` 这类服务端常量直接摊给管理员，
+ * 且下拉里根本选不到，等于这些动作在审计台**不可读、不可筛**。
+ *
+ * 必须与服务端 `AUDIT_ACTIONS`（`server/ai-agent/audit.mjs`）逐项对齐。
+ * 2026-10-14 盘点：服务端 40 类，前端只有 20 类，缺的正是沉淀 / 提示词 / 公告 / 导入
+ * 这批会改变公司资产的高危动作（含"删除沉淀""公告发布"）。
+ */
 const ACTION_LABELS: Record<string, string> = {
+  // 登录
   login: '登录',
+  // 知识库文档
   doc_upload: '知识上传',
   doc_offline: '文档下线',
   doc_online: '文档启用',
   doc_delete: '文档删除',
   reindex: '重建索引',
-  audit_export: '审计导出',
+  // 数据接入与出境
+  import: '数据导入',
   dataset_export: '数据集导出',
+  audit_export: '审计导出',
+  // 知识沉淀（员工经验）
+  note_create: '新建沉淀',
+  note_update: '修改沉淀',
+  note_submit: '提报沉淀',
+  note_review: '审核沉淀',
+  note_archive: '归档沉淀',
+  note_delete: '删除沉淀',
+  note_export: '导出沉淀',
+  note_distill: '生成经验',
+  skill_config: '技能配置',
+  // 提示词广场（通过后即全员可用，属公司资产准入）
+  prompt_create: '新建提示词',
+  prompt_update: '修改提示词',
+  prompt_submit: '提报提示词',
+  prompt_review: '审核提示词',
+  prompt_delete: '删除提示词',
+  // 公告（发布即面向全公司广播）
+  announcement_create: '新建公告',
+  announcement_update: '修改公告',
+  announcement_publish: '公告上下线',
+  announcement_delete: '删除公告',
+  // 纠错反馈
   feedback: '纠错反馈',
+  feedback_handled: '纠错处理',
+  // 权限与风控
   tool_blocked: '越权拦截',
   forbidden: '越权访问',
   injection_detected: '注入痕迹',
   tool_toggle: '工具开关',
   settings_update: '模型配置变更',
-  /*
-   * 账号类管理动作：服务端 `AUDIT_ACTIONS` 早就在记（注册 / 开通 / 改角色 / 启停 / 重置密码），
-   * 但这里一直没有文案 —— 结果是审计台只能把 `user_create` 这类原文摊给管理员看，
-   * 连按动作筛选都选不到（下拉就是这张表的键）。删除账号是不可逆动作，更不能只留英文原文。
-   */
+  // 账号与凭据
   user_register: '注册申请',
   user_create: '开通账号',
   user_update: '修改账号',
@@ -75,6 +111,27 @@ const ACTION_LABELS: Record<string, string> = {
   user_reset_password: '重置密码',
   user_delete: '删除账号',
 }
+
+/**
+ * 每个视图的搜索字段由服务端决定，且**互不相同**：
+ * 会话轨迹搜消息正文、工具调用搜工具名与参数、管理动作搜详情与目标 ID。
+ * placeholder 必须跟着当前视图走 —— 在"管理动作"里按"搜索工具名"的提示去搜，
+ * 只会得到空结果，而审计场景下"以为没有这条记录"是危险误判。
+ */
+const TAB_PLACEHOLDER: Record<string, string> = {
+  runs: '搜索工具名或参数',
+  blocked: '搜索工具名或参数',
+  conversations: '搜索提问内容',
+  logs: '搜索动作详情或目标',
+}
+
+type AuditTab =
+  | 'runs'
+  | 'blocked-runs'
+  | 'blocked-logs'
+  | 'conversations'
+  | 'logs'
+type ExportType = 'runs' | 'logs' | 'conversations'
 
 function downloadCsv(filename: string, content: string) {
   const blob = new Blob([content], { type: 'text/csv;charset=utf-8' })
@@ -88,7 +145,33 @@ function downloadCsv(filename: string, content: string) {
   URL.revokeObjectURL(url)
 }
 
+/**
+ * 把审计记录里的 JSON 压成一行键值摘要。
+ *
+ * 直接 `JSON.stringify` 的后果实测过：8 行里有 6 行详情一模一样
+ * （`{"method":"GET","reason":"not_admin"}`），一列 40 个字符里 15 个是引号与花括号，
+ * 真正有价值的"谁在反复探测哪个接口"被标点冲掉。压缩成 `method=GET · reason=not_admin`
+ * 后同一屏能读到的信息量翻倍；完整原文仍在 `title` 里可查。
+ */
+function formatJsonSummary(value: unknown) {
+  if (value === null || value === undefined || value === '') return '—'
+  if (typeof value !== 'object') return String(value)
+  if (Array.isArray(value)) {
+    return value.length === 0 ? '—' : `[${value.length} 项]`
+  }
+  const entries = Object.entries(value as Record<string, unknown>)
+  if (entries.length === 0) return '—'
+  return entries
+    .map(([key, item]) => {
+      if (item === null || item === undefined) return `${key}=—`
+      if (typeof item === 'object') return `${key}=${JSON.stringify(item)}`
+      return `${key}=${String(item)}`
+    })
+    .join(' · ')
+}
+
 export function AuditConsole() {
+  const [tab, setTab] = useState<AuditTab>('runs')
   const [keyword, setKeyword] = useState('')
   const [runStatus, setRunStatus] = useState('all')
   const [logAction, setLogAction] = useState('all')
@@ -106,7 +189,13 @@ export function AuditConsole() {
   const [conversationPage, setConversationPage] = useState(1)
   const [conversationPageSize, setConversationPageSize] = useState(20)
 
-  const filters = { keyword: keyword.trim() || undefined }
+  /*
+   * 每次按键都触发 3 组带 count 的服务端查询，审计表体量大时输入明显卡顿。
+   * 走全站共享的防抖 hook（对话工作台、数据源行详情等处同款），300ms。
+   */
+  const debouncedKeyword = useDebouncedValue(keyword)
+  const filters = { keyword: debouncedKeyword.trim() || undefined }
+
   const conversations = useAuditConversations({
     ...filters,
     page: conversationPage,
@@ -131,9 +220,19 @@ export function AuditConsole() {
   const logRows = logs.data?.logs ?? []
   const conversationRows = conversations.data?.conversations ?? []
 
-  const runExport = (type: string) => {
+  /**
+   * 导出必须与列表共用同一组筛选。
+   *
+   * 此前只传了关键词：管理员在"工具调用明细"按「被拦截」筛完再导出，拿到的却是
+   * **全量**记录的 CSV —— 而导出的 CSV 是要归档留证的，内容与屏幕不一致就是错的。
+   * 服务端 `buildExport` 已支持 `status` / `action` / `keyword`，这里补齐。
+   */
+  const runExport = (type: ExportType) => {
+    const params: Record<string, unknown> = { ...filters }
+    if (type === 'runs' && runStatus !== 'all') params.status = runStatus
+    if (type === 'logs' && logAction !== 'all') params.action = logAction
     exportAudit.mutate(
-      { type, params: filters },
+      { type, params },
       {
         onSuccess: (csv) => {
           downloadCsv(`ai-${type}-${Date.now()}.csv`, csv)
@@ -150,7 +249,7 @@ export function AuditConsole() {
         <Input
           aria-label='按关键词搜索审计记录'
           className='w-full sm:w-72'
-          placeholder='搜索提问内容、工具名或参数'
+          placeholder={TAB_PLACEHOLDER[tab]}
           value={keyword}
           onChange={(event) => {
             setKeyword(event.target.value)
@@ -179,51 +278,60 @@ export function AuditConsole() {
             <DropdownMenuItem onSelect={() => runExport('logs')}>
               导出管理动作日志（CSV）
             </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => runExport('conversations')}>
+              导出会话清单（CSV）
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
 
       {/*
-        指标条取代三张统计卡（2026-09-15 简化）：本页的主体是四张审计表，
-        指标只是"当前筛选下有多少条"的定位信息，不需要三张 100px 高的卡片。
-        两个拦截类指标在大于 0 时仍标红（保留原有的告警语义）。
+        指标条从 Tabs **外部**移到内部（2026-10-14）：
+        原先它恒定显示"工具调用记录 / 被拦截调用 / 越权与拦截事件"三项，
+        切到「会话轨迹」或「管理动作」后数字纹丝不动 —— 实测截图里会话轨迹视图
+        顶部还挂着"工具调用记录 249"，而当前视图有多少条根本看不到。
+        现在每个视图各带自己的口径，管理动作视图才有"共多少条"这个最基本的定位信息。
       */}
-      <MetricStrip
-        items={[
-          {
-            label: '工具调用记录',
-            value: runs.isLoading ? null : (runs.data?.total ?? 0),
-          },
-          {
-            label: '被拦截调用',
-            value: runs.isLoading
-              ? null
-              : warnIfPositive(runs.data?.blockedTotal ?? 0),
-          },
-          {
-            label: '越权与拦截事件',
-            value: logs.isLoading
-              ? null
-              : warnIfPositive(logs.data?.blockedTotal ?? 0),
-          },
-        ]}
-      />
-
-      <Tabs defaultValue='runs'>
+      <Tabs value={tab} onValueChange={(value) => setTab(value as AuditTab)}>
         <TabsList>
           <TabsTrigger value='runs'>工具调用明细</TabsTrigger>
-          <TabsTrigger value='blocked'>拦截记录</TabsTrigger>
+          <TabsTrigger value='blocked-runs'>被拦截的工具调用</TabsTrigger>
+          <TabsTrigger value='blocked-logs'>越权与拦截事件</TabsTrigger>
           <TabsTrigger value='conversations'>会话轨迹</TabsTrigger>
           <TabsTrigger value='logs'>管理动作</TabsTrigger>
         </TabsList>
 
-        <TabsContent value='runs'>
+        <TabsContent value='runs' className='space-y-3'>
+          <MetricStrip
+            items={[
+              {
+                label: '工具调用记录',
+                value: runs.isLoading ? null : (runs.data?.total ?? 0),
+                hint:
+                  runStatus === 'all'
+                    ? '全部状态'
+                    : {
+                        ok: '仅成功',
+                        blocked: '仅被拦截',
+                        error: '仅失败',
+                        pending: '仅进行中',
+                      }[runStatus],
+              },
+              {
+                label: '被拦截调用',
+                value: runs.isLoading
+                  ? null
+                  : warnIfPositive(runs.data?.blockedTotal ?? 0),
+                hint: '全部账号',
+              },
+            ]}
+          />
           <Card>
             <CardHeader className='flex-row items-center justify-between gap-2'>
               <div>
                 <CardTitle className='text-base'>工具调用明细</CardTitle>
                 <CardDescription>
-                  包含成功、被拦截与失败的每一次调用。
+                  含成功、被拦截、失败与进行中的每次调用。
                 </CardDescription>
               </div>
               <Select
@@ -241,19 +349,26 @@ export function AuditConsole() {
                   <SelectItem value='ok'>成功</SelectItem>
                   <SelectItem value='blocked'>被拦截</SelectItem>
                   <SelectItem value='error'>失败</SelectItem>
+                  {/*
+                    服务端 RUN_STATUS 有 pending（进行中/卡住），此前下拉里没有它：
+                    这类记录会出现在列表里却筛不出来，而"卡住没返回的调用"恰恰最该盯。
+                  */}
+                  <SelectItem value='pending'>进行中</SelectItem>
                 </SelectContent>
               </Select>
             </CardHeader>
             <CardContent>
               <DataTable
+                bordered={false}
                 columns={7}
+                density='compact'
                 emptyText='没有匹配的调用记录。'
                 header={
                   <TableRow>
                     <TableHead className='w-36'>时间</TableHead>
-                    <TableHead className='w-32'>调用人</TableHead>
-                    <TableHead className='w-48'>工具</TableHead>
-                    <TableHead>参数</TableHead>
+                    <TableHead className='w-24'>调用人</TableHead>
+                    <TableHead className='w-44'>工具</TableHead>
+                    <TableHead>调用参数</TableHead>
                     <TableHead>返回摘要</TableHead>
                     <TableHead className='w-20'>状态</TableHead>
                     <TableHead className={cn('w-20', TABLE_HEAD_NUMERIC)}>
@@ -278,7 +393,7 @@ export function AuditConsole() {
               >
                 {runRows.map((run) => (
                   <TableRow key={run.id}>
-                    <TableCell className={TABLE_CELL_META}>
+                    <TableCell className={cn(TABLE_CELL_META, 'tabular-nums')}>
                       {formatTime(run.createdAt)}
                     </TableCell>
                     <TableCell className={TABLE_CELL_META}>
@@ -287,17 +402,17 @@ export function AuditConsole() {
                     <TableCell className={TABLE_CELL_MONO}>
                       <code>{run.toolName}</code>
                     </TableCell>
-                    <TableCell className={cn(TABLE_CELL_META, 'max-w-64')}>
+                    <TableCell className={cn(TABLE_CELL_META, 'max-w-56')}>
                       {/* 参数刻意用 `truncate` 而不是 `break-all`：整段 JSON 换行会把每行撑到 5~8 行高，
-                          一页 20 条就是"一次能看两条"。完整内容仍在 title 里，鼠标悬停即可见。 */}
+                          一页 20 条就是"一次能看两条"。完整原文仍在 title 里。 */}
                       <span
                         className='block truncate'
                         title={JSON.stringify(run.params)}
                       >
-                        {JSON.stringify(run.params)}
+                        {formatJsonSummary(run.params)}
                       </span>
                     </TableCell>
-                    <TableCell className={cn(TABLE_CELL_META, 'max-w-64')}>
+                    <TableCell className={cn(TABLE_CELL_META, 'max-w-72')}>
                       <span
                         className='block truncate'
                         title={run.error ?? run.summary ?? ''}
@@ -318,18 +433,38 @@ export function AuditConsole() {
           </Card>
         </TabsContent>
 
-        <TabsContent value='blocked'>
-          <BlockedPanel filters={filters} />
+        {/*
+          拦截记录的两个视角由「内层二级选项卡」拍平为**同级一级选项卡**（2026-10-14，
+          按用户口径：三个治理页与经验审核保持同一骨架，不再有嵌套）。
+          拍平后每个视角仍是独立组件，而 Radix 默认不渲染非激活的 TabsContent，
+          因此各自的分页状态与查询依然只在切过去时才发生。
+        */}
+        <TabsContent value='blocked-runs'>
+          {/* 关键词变化时重挂载，让分页回到第一页（否则改小结果集后可能停在越界页） */}
+          <BlockedRunsPanel filters={filters} key={filters.keyword ?? 'all'} />
         </TabsContent>
 
-        <TabsContent value='conversations'>
+        <TabsContent value='blocked-logs'>
+          <BlockedLogsPanel filters={filters} key={filters.keyword ?? 'all'} />
+        </TabsContent>
+
+        <TabsContent value='conversations' className='space-y-3'>
+          <MetricStrip
+            items={[
+              {
+                label: '会话数',
+                value: conversations.isLoading
+                  ? null
+                  : (conversations.data?.total ?? 0),
+                hint: '当前关键词下',
+              },
+            ]}
+          />
           <div className='grid gap-4 lg:grid-cols-[320px_1fr]'>
             <Card>
               <CardHeader>
                 <CardTitle className='text-base'>会话轨迹</CardTitle>
-                <CardDescription>
-                  点击查看完整问答与每一步工具调用。
-                </CardDescription>
+                <CardDescription>点击查看完整问答与工具调用。</CardDescription>
               </CardHeader>
               <CardContent>
                 <ScrollArea className='max-h-[520px]'>
@@ -345,7 +480,11 @@ export function AuditConsole() {
                           type='button'
                           onClick={() => setTraceId(item.id)}
                         >
-                          <span className='block truncate'>{item.title}</span>
+                          {/* 标题是列表唯一的辨识信息，截断必须给 title 兜底：
+                              实测两条会话都渲染成"亚马逊断货了怎么补货？流程是什么，有…"，无法区分 */}
+                          <span className='block truncate' title={item.title}>
+                            {item.title}
+                          </span>
                           <span className='text-xs text-muted-foreground'>
                             {item.user.name ?? item.user.login} ·{' '}
                             {formatTime(item.createdAt)} · {item.messageCount}{' '}
@@ -385,8 +524,7 @@ export function AuditConsole() {
                   完整轨迹
                 </CardTitle>
                 <CardDescription>
-                  谁 · 何时 · 问什么 · 调用了哪些工具 · 返回什么 · 答了什么 ·
-                  引用哪些文档 · 是否被拦截。
+                  提问、每一步工具调用、回答与引用。
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -450,7 +588,11 @@ export function AuditConsole() {
                               >
                                 工具 {run.toolName} · {run.status} · 行数{' '}
                                 {run.rowCount ?? 0} · {run.latencyMs ?? 0}ms
-                                <div>参数：{JSON.stringify(run.params)}</div>
+                                {/* 轨迹里也用同一套压缩口径：表格截断、轨迹全量展开会让同一条数据
+                                    两处长不一样，用户无法建立预期 */}
+                                <div title={JSON.stringify(run.params)}>
+                                  参数：{formatJsonSummary(run.params)}
+                                </div>
                                 <div>
                                   返回：{run.error ?? run.summary ?? '—'}
                                 </div>
@@ -465,13 +607,32 @@ export function AuditConsole() {
           </div>
         </TabsContent>
 
-        <TabsContent value='logs'>
+        <TabsContent value='logs' className='space-y-3'>
+          <MetricStrip
+            items={[
+              {
+                label: '管理动作',
+                value: logs.isLoading ? null : (logs.data?.total ?? 0),
+                hint:
+                  logAction === 'all'
+                    ? '全部动作'
+                    : (ACTION_LABELS[logAction] ?? logAction),
+              },
+              {
+                label: '越权与拦截事件',
+                value: logs.isLoading
+                  ? null
+                  : warnIfPositive(logs.data?.blockedTotal ?? 0),
+                hint: '越权访问 + 工具拦截',
+              },
+            ]}
+          />
           <Card>
             <CardHeader className='flex-row items-center justify-between gap-2'>
               <div>
                 <CardTitle className='text-base'>管理动作日志</CardTitle>
                 <CardDescription>
-                  登录、知识库变更、数据导入、审计导出等动作。
+                  账号、知识、沉淀、提示词、公告等 40 类管理动作。
                 </CardDescription>
               </div>
               <Select
@@ -496,14 +657,16 @@ export function AuditConsole() {
             </CardHeader>
             <CardContent>
               <DataTable
+                bordered={false}
                 columns={5}
+                density='compact'
                 emptyText='没有匹配的日志。'
                 header={
                   <TableRow>
                     <TableHead className='w-36'>时间</TableHead>
-                    <TableHead className='w-32'>操作人</TableHead>
-                    <TableHead className='w-28'>动作</TableHead>
-                    <TableHead className='w-32'>目标</TableHead>
+                    <TableHead className='w-24'>操作人</TableHead>
+                    <TableHead className='w-32'>动作</TableHead>
+                    <TableHead className='w-40'>目标</TableHead>
                     <TableHead>详情</TableHead>
                   </TableRow>
                 }
@@ -524,7 +687,7 @@ export function AuditConsole() {
               >
                 {logRows.map((log) => (
                   <TableRow key={log.id}>
-                    <TableCell className={TABLE_CELL_META}>
+                    <TableCell className={cn(TABLE_CELL_META, 'tabular-nums')}>
                       {formatTime(log.createdAt)}
                     </TableCell>
                     <TableCell className={TABLE_CELL_META}>
@@ -533,16 +696,16 @@ export function AuditConsole() {
                     <TableCell className='text-xs'>
                       {ACTION_LABELS[log.action] ?? log.action}
                     </TableCell>
-                    <TableCell className={TABLE_CELL_META}>
+                    <TableCell className={cn(TABLE_CELL_META, 'truncate')}>
                       {log.targetType ?? '—'}
                       {log.targetId ? ` #${log.targetId}` : ''}
                     </TableCell>
-                    <TableCell className={cn(TABLE_CELL_META, 'max-w-80')}>
+                    <TableCell className={cn(TABLE_CELL_META, 'max-w-96')}>
                       <span
                         className='block truncate'
                         title={JSON.stringify(log.detail)}
                       >
-                        {JSON.stringify(log.detail)}
+                        {formatJsonSummary(log.detail)}
                       </span>
                     </TableCell>
                   </TableRow>
@@ -557,19 +720,15 @@ export function AuditConsole() {
 }
 
 /**
- * 拦截记录面板（独立组件）。
+ * 「被拦截的工具调用」面板（2026-10-14 由 `BlockedPanel` 的内层选项卡拍平而来）。
  *
- * 单独拆出来是为了让这两个查询**只在切到该 tab 时才发起**：放在 AuditConsole 顶层会
- * 和「工具调用明细」一起打请求，而审计台默认只显示一个 tab。
- *
- * 两张表都走服务端分页：拦截记录的价值就在于"能翻到具体那一次"，
- * 只给最近 N 条等于把历史留痕藏起来。
+ * 拍平为一级选项卡后仍然**只在切到该 tab 时才发起查询**：Radix 默认不渲染非激活的
+ * `TabsContent`，而查询 hook 就在本组件里，未激活时它压根不挂载。
+ * 两张表的字段结构不同（工具调用视角 vs 审计日志视角），因此没有并成一张表。
  */
-function BlockedPanel({ filters }: { filters: { keyword?: string } }) {
+function BlockedRunsPanel({ filters }: { filters: { keyword?: string } }) {
   const [runPage, setRunPage] = useState(1)
   const [runPageSize, setRunPageSize] = useState(20)
-  const [logPage, setLogPage] = useState(1)
-  const [logPageSize, setLogPageSize] = useState(20)
 
   const blockedRuns = useAuditRuns({
     ...filters,
@@ -577,19 +736,21 @@ function BlockedPanel({ filters }: { filters: { keyword?: string } }) {
     page: runPage,
     pageSize: runPageSize,
   })
-  const blockedLogs = useAuditLogs({
-    ...filters,
-    // 多动作合并筛选：越权访问与工具拦截对管理员是同一类事
-    actions: 'tool_blocked,forbidden',
-    page: logPage,
-    pageSize: logPageSize,
-  })
-
   const runRows = blockedRuns.data?.runs ?? []
-  const logRows = blockedLogs.data?.logs ?? []
 
   return (
-    <div className='space-y-4'>
+    <div className='space-y-3'>
+      <MetricStrip
+        items={[
+          {
+            label: '被拦截的工具调用',
+            value: blockedRuns.isLoading
+              ? null
+              : (blockedRuns.data?.total ?? 0),
+            hint: '权限裁剪拦下',
+          },
+        ]}
+      />
       <Card>
         <CardHeader>
           <CardTitle className='flex items-center gap-2 text-base'>
@@ -597,18 +758,20 @@ function BlockedPanel({ filters }: { filters: { keyword?: string } }) {
             被拦截的工具调用
           </CardTitle>
           <CardDescription>
-            被权限裁剪拦下的请求最有审计价值。拦截文案对用户统一，避免权限探测。
+            被权限裁剪拦下的请求最有审计价值；拦截文案对用户统一，避免权限探测。
           </CardDescription>
         </CardHeader>
         <CardContent>
           <DataTable
+            bordered={false}
             columns={6}
+            density='compact'
             emptyText='没有匹配的拦截记录。'
             header={
               <TableRow>
                 <TableHead className='w-36'>时间</TableHead>
-                <TableHead className='w-32'>调用人</TableHead>
-                <TableHead className='w-48'>工具</TableHead>
+                <TableHead className='w-24'>调用人</TableHead>
+                <TableHead className='w-44'>工具</TableHead>
                 <TableHead>参数</TableHead>
                 <TableHead>拦截原因</TableHead>
                 <TableHead className={cn('w-20', TABLE_HEAD_NUMERIC)}>
@@ -633,7 +796,7 @@ function BlockedPanel({ filters }: { filters: { keyword?: string } }) {
           >
             {runRows.map((run) => (
               <TableRow key={run.id}>
-                <TableCell className={TABLE_CELL_META}>
+                <TableCell className={cn(TABLE_CELL_META, 'tabular-nums')}>
                   {formatTime(run.createdAt)}
                 </TableCell>
                 <TableCell className={TABLE_CELL_META}>
@@ -642,15 +805,15 @@ function BlockedPanel({ filters }: { filters: { keyword?: string } }) {
                 <TableCell className={TABLE_CELL_MONO}>
                   <code>{run.toolName}</code>
                 </TableCell>
-                <TableCell className={cn(TABLE_CELL_META, 'max-w-64')}>
+                <TableCell className={cn(TABLE_CELL_META, 'max-w-56')}>
                   <span
                     className='block truncate'
                     title={JSON.stringify(run.params)}
                   >
-                    {JSON.stringify(run.params)}
+                    {formatJsonSummary(run.params)}
                   </span>
                 </TableCell>
-                <TableCell className='max-w-64 text-xs text-destructive'>
+                <TableCell className={cn(TABLE_CELL_META, 'max-w-72')}>
                   <span
                     className='block truncate'
                     title={run.error ?? run.summary ?? ''}
@@ -666,25 +829,56 @@ function BlockedPanel({ filters }: { filters: { keyword?: string } }) {
           </DataTable>
         </CardContent>
       </Card>
+    </div>
+  )
+}
 
+/** 「越权与拦截事件」面板（同由内层选项卡拍平而来，查询同样延迟到切过去时才发）。 */
+function BlockedLogsPanel({ filters }: { filters: { keyword?: string } }) {
+  const [logPage, setLogPage] = useState(1)
+  const [logPageSize, setLogPageSize] = useState(20)
+
+  const blockedLogs = useAuditLogs({
+    ...filters,
+    // 多动作合并筛选：越权访问与工具拦截对管理员是同一类事
+    actions: 'tool_blocked,forbidden',
+    page: logPage,
+    pageSize: logPageSize,
+  })
+  const logRows = blockedLogs.data?.logs ?? []
+
+  return (
+    <div className='space-y-3'>
+      <MetricStrip
+        items={[
+          {
+            label: '越权与拦截事件',
+            value: blockedLogs.isLoading
+              ? null
+              : (blockedLogs.data?.total ?? 0),
+            hint: '越权访问 + 工具拦截',
+          },
+        ]}
+      />
       <Card>
         <CardHeader>
           <CardTitle className='text-base'>越权与拦截事件</CardTitle>
           <CardDescription>
-            越权访问、工具拦截与注入痕迹等管理动作级事件（tool_blocked /
-            forbidden）。
+            越权访问、工具拦截与注入痕迹等管理动作级事件。
           </CardDescription>
         </CardHeader>
         <CardContent>
           <DataTable
+            bordered={false}
             columns={5}
+            density='compact'
             emptyText='没有匹配的越权或拦截事件。'
             header={
               <TableRow>
                 <TableHead className='w-36'>时间</TableHead>
-                <TableHead className='w-32'>操作人</TableHead>
+                <TableHead className='w-24'>操作人</TableHead>
                 <TableHead className='w-32'>动作</TableHead>
-                <TableHead className='w-32'>目标</TableHead>
+                <TableHead className='w-40'>目标</TableHead>
                 <TableHead>详情</TableHead>
               </TableRow>
             }
@@ -705,7 +899,7 @@ function BlockedPanel({ filters }: { filters: { keyword?: string } }) {
           >
             {logRows.map((log) => (
               <TableRow key={log.id}>
-                <TableCell className={TABLE_CELL_META}>
+                <TableCell className={cn(TABLE_CELL_META, 'tabular-nums')}>
                   {formatTime(log.createdAt)}
                 </TableCell>
                 <TableCell className={TABLE_CELL_META}>
@@ -716,7 +910,7 @@ function BlockedPanel({ filters }: { filters: { keyword?: string } }) {
                     {ACTION_LABELS[log.action] ?? log.action}
                   </Badge>
                 </TableCell>
-                <TableCell className={TABLE_CELL_META}>
+                <TableCell className={cn(TABLE_CELL_META, 'truncate')}>
                   {log.targetType ?? '—'}
                   {log.targetId ? ` #${log.targetId}` : ''}
                 </TableCell>
@@ -725,7 +919,7 @@ function BlockedPanel({ filters }: { filters: { keyword?: string } }) {
                     className='block truncate'
                     title={JSON.stringify(log.detail)}
                   >
-                    {JSON.stringify(log.detail)}
+                    {formatJsonSummary(log.detail)}
                   </span>
                 </TableCell>
               </TableRow>
@@ -741,7 +935,8 @@ function RunStatusBadge({ status }: { status: string }) {
   if (status === 'ok') return <Badge variant='outline'>成功</Badge>
   if (status === 'blocked') return <Badge variant='destructive'>被拦截</Badge>
   if (status === 'error') return <Badge variant='destructive'>失败</Badge>
-  return <Badge variant='secondary'>进行中</Badge>
+  if (status === 'pending') return <Badge variant='secondary'>进行中</Badge>
+  return <Badge variant='secondary'>{status}</Badge>
 }
 
 /** 拦截类指标大于 0 时标红：0 是常态，非 0 才是需要看的事（保留原统计卡的告警语义）。 */

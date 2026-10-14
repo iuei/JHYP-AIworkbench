@@ -72,16 +72,32 @@
 
 ## 7. 验证要求
 
-每次代码修改后必须按影响范围验证：
+**默认只跑「与本次改动相关」的测试；全量测试交给 CI（`.github/workflows/ci.yml`）与提交前。**
+（后端全量当前约 2 秒 / 662 项、前端全量约 8 秒 / 418 项 —— 成本不算高，但没必要每次改动都把两边跑一遍；
+相关测试能把反馈压到亚秒级。2026-10-14 还修掉了后端全量里"白等 30 秒"的根因：编排层单测连了数据库，
+被 pg 连接池的 idle 超时吊住进程，见 `orchestrator.node-test.mjs` 里的注释。）
 
-- 构建：`pnpm run build`
-- lint：`pnpm run lint`
-- 测试：必要时运行 `pnpm run test`
-- 功能验证：必要时启动页面手动验证
-- 影响检查：确认路由、模块、API、权限、样式没有被无关影响
-- 测试范围随风险递增：小改动验证直接影响点；涉及共享行为、跨模块契约或用户流程时，补充相应的集成或端到端验证。
+按影响范围选测试：
 
-纯文档修改至少需要确认文档路径、链接和责任田覆盖范围，不强制跑前端构建。
+- 后端改动：`pnpm run test:server:changed` —— 按 git 变更自动选（含未跟踪文件），只跑反向依赖 ≤ 2 跳内的
+  `*.node-test.mjs`；先看选了哪些可加 `--dry-run`，强制全量用 `--all`。选不出相关测试时它会**自动回退全量**
+  并打印原因（不许出现"没有相关测试 ⇒ 静默通过"）。
+- 前端改动：`pnpm run test:web:changed`（vitest `--changed`）。本机缺 Playwright Chromium 时改用
+  `pnpm run test:web:changed:chrome`（走系统 Chrome 的 `vitest.chrome.config.ts`）。
+- lint：`pnpm run lint`（每次必跑）。
+- 构建：`pnpm run build`（只改 `server/**/*.mjs` 时可省；改到 `src/`、依赖、路由或配置时必跑）。
+- 功能验证：UI / 交互改动跑一次真实浏览器验收（`verify-artifacts/` 与 `server/*verify*.mjs`）。
+- 影响检查：确认路由、模块、API、权限、样式没有被无关影响。
+
+**必须跑全量的时机（只有这几种）**：
+
+1. 涉及共享行为、跨模块契约、检索 / 权限 / 数据结构，或准备提交、合并；
+2. 改动落在契约 / 装配层：`server/index.mjs`、`*-migrations.mjs`、`server/dev.mjs`、`server/setup.mjs`
+   （`test:server:changed` 会自动判全量）；
+3. CI（push / PR 到 main）—— 已同时跑 `pnpm test` 与 `pnpm run test:server`；
+4. 改动没有任何相关测试可跑时。
+
+纯文档修改至少需要确认文档路径、链接和责任田覆盖范围，不强制跑前端构建与测试。
 
 ## 8. 禁止事项
 

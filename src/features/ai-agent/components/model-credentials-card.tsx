@@ -82,7 +82,7 @@ export function ModelCredentialsCard({
   }) => {
     save.mutate(payload, {
       onSuccess: () => {
-        toast.success('配置已保存并即时生效，无需重启服务')
+        toast.success('模型配置已保存')
         setApiKey('')
         setTestResult(null)
       },
@@ -227,7 +227,7 @@ export function ModelCredentialsCard({
           <p className='text-sm font-medium'>强制演示模式</p>
           <p className='text-xs text-muted-foreground'>
             打开后所有问答都走演示
-            provider（回答由检索结果直接汇总），用于培训与演示；
+            provider（由检索结果直接汇总），用于培训与演示；
             已保存的密钥不受影响，关掉即恢复真实模型。
           </p>
         </div>

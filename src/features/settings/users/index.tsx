@@ -57,9 +57,22 @@ function apiErrorMessage(error: unknown, fallback: string) {
   return fallback
 }
 
+/** 用户列表查询键：抽成常量供"统一刷新"复用，避免与各调用点的字面量混在一起。 */
+const USERS_QUERY_KEY = ['users'] as const
+
 export function SettingsUsers() {
   const currentUser = useAuthStore((state) => state.auth.user)
   const queryClient = useQueryClient()
+  const refreshUsers = () => {
+    queryClient.invalidateQueries({ queryKey: USERS_QUERY_KEY })
+    /*
+     * 顺带失效顶栏待办里的「注册申请待审核」：开通 / 拒绝 / 删除 / 启停账号都会改变
+     * 待审计数。不做这一步，顶栏徽章最多要等 30s 轮询才收敛 —— 用户看到的就是
+     * "这个人我已经处理过了，待办里怎么还挂着他"。
+     */
+    queryClient.invalidateQueries({ queryKey: ['ai', 'todos'] })
+  }
+
   const [createOpen, setCreateOpen] = useState(false)
   const [resetUser, setResetUser] = useState<ManagedUser | null>(null)
   const [editUser, setEditUser] = useState<ManagedUser | null>(null)
@@ -123,7 +136,7 @@ export function SettingsUsers() {
   const createUser = useMutation({
     mutationFn: async () => api.post('/users', createForm),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['users'] })
+      refreshUsers()
       setCreateOpen(false)
       setCreateForm(emptyCreateForm)
       toast.success('账号已开通')
@@ -140,7 +153,7 @@ export function SettingsUsers() {
       })
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['users'] })
+      refreshUsers()
       setEditUser(null)
       toast.success('用户信息已更新')
     },
@@ -155,7 +168,7 @@ export function SettingsUsers() {
       id: number
       nextStatus: UserStatus
     }) => api.patch(`/users/${id}/status`, { status: nextStatus }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['users'] }),
+    onSuccess: () => refreshUsers(),
     onError: (error) =>
       toast.error(apiErrorMessage(error, '用户状态更新失败，请重试')),
   })
@@ -182,7 +195,7 @@ export function SettingsUsers() {
   const removeUser = useMutation({
     mutationFn: async (id: number) => api.delete(`/users/${id}`),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['users'] })
+      refreshUsers()
       setDeleteUser(null)
       toast.success('账号已删除')
     },
@@ -219,7 +232,7 @@ export function SettingsUsers() {
       }
     },
     onSuccess: ({ ids, rejected }) => {
-      queryClient.invalidateQueries({ queryKey: ['users'] })
+      refreshUsers()
       // 已处理的行从选中集合里摘掉，避免"已选 N 个"里混着状态已经变了的行
       selection.removeMany(ids)
       setBatchTarget(null)
